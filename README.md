@@ -18,7 +18,7 @@ This is basically just a standard <a href="http://www.algorithmist.com/index.php
 &nbsp;&nbsp;• also has the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• uses a fixed-size circular buffer for swaps/merges<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
-&nbsp;&nbsp;• uses a different method for calculating the ranges to merge<br/>
+&nbsp;&nbsp;• <b>uses a different method for calculating the ranges to merge</b><br/>
 <br/>
 Here's how the bottom-up sort looks for an array of a size that happens to be a power of two:<br/>
 
@@ -35,6 +35,7 @@ Here's how the bottom-up sort looks for an array of a size that happens to be a 
              uint64 end = merge + length + length;
              
              printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);
+             /* actual sorting code goes here */
              
              length *= 2;
              merge -= length;
@@ -80,6 +81,7 @@ To extend this logic to non-power-of-two sizes, we simply floor the size down to
     >        uint64 end = (merge + length + length) * scale;
              
              printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);
+             /* check bzSort_int.c for working code */
              
              length *= 2; merge -= length; iteration /= 2;
           }
