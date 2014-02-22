@@ -54,7 +54,7 @@ void bzSort(int ints[], const uint64_t array_count) {
          ints[j] = temp;
       }
       
-      merge = index; index += 32; iteration = (index >> 4); length = 16;
+      merge = index; index += 32; iteration = index/16; length = 16;
       while ((iteration & 0x1) == 0x0) {
          start = merge * scale; mid = (merge + length) * scale; end = (merge + length + length) * scale;
          
