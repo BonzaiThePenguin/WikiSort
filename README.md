@@ -64,3 +64,5 @@ The multiplication has been proven to be correct for more than 17,179,869,184 el
 <br/>
 <br/>
 Anyway, from there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
+
+<b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
