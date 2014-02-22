@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 
+// 63 -> 32, 64 -> 64, etc.
 uint64_t floor_power_of_two(uint64_t x) {
    x |= (x >> 1); x |= (x >> 2); x |= (x >> 4);
    x |= (x >> 8); x |= (x >> 16); x |= (x >> 32);
