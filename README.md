@@ -90,7 +90,7 @@ To extend this logic to non-power-of-two sizes, we simply floor the size down to
     
 The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. Correctness is defined as (end == count) on the last merge step and enough precision to represent the ranges, as otherwise there would be an off-by-one error due to floating-point inaccuracies. Floats are only precise enough for up to 17 million elements.<br/>
 
-This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations. From there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
+<b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b> From there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
 
 And by the time all that's added, you end up with something that is apparently faster than any of the other sorting algorithms I've tested on Github thus far, while also being stable and using constant memory. (Testing is performed with arrays from zero to millions of elements, in increments of 2500, and in various configurations.)
 
