@@ -19,4 +19,4 @@ However, a naïve array reverse operation would invalidate the stability of the 
 
 &nbsp;&nbsp;&nbsp;[5 a] [5 b] [4 c]  <--->  [4 c] <b>[5 b] [5 a]</b>
 
-A more-intelligent reversal is needed before this can be added to the algorithm.
+A more-intelligent reversal that maintains the order of equivalent elements is needed before this can be added to the algorithm.
