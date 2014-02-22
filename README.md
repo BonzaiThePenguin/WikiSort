@@ -13,14 +13,14 @@ Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear wo
 
 The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, bzSort_int.c contains a C function that works with int arrays.<br/><br/>
 
-This is basically just a standard merge sort with the following changes:<br/>
+This is basically just a standard <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
 
-&nbsp;&nbsp;• the standard optimization of using insertion sort in the lower levels<br/>
-&nbsp;&nbsp;• a fixed-size circular buffer for swaps instead of a dynamically-sized array<br/>
+&nbsp;&nbsp;• also has the standard optimization of using insertion sort in the lower levels<br/>
+&nbsp;&nbsp;• uses a fixed-size circular buffer for swaps/merges<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
-&nbsp;&nbsp;• <b>a single uint64 to keep track of the "recursion"</b><br/>
+&nbsp;&nbsp;• uses a different method for calculating the ranges to merge<br/>
 <br/>
-I'm not sure why I can't find more algorithms using this, but since merge sort always splits in the exact middle, it's trivial to represent its order of execution using a uint64 rather than using recursion or a set of dynamically-allocated structures. Here's how it would look for an array of a size that happens to be a power of two:<br/>
+Here's how the bottom-up sort looks for an array of a size that happens to be a power of two:<br/>
 <br/>
 void sort(int a[], uint64 count) {<br/>
 &nbsp;&nbsp;&nbsp;uint64 index = 0;<br/>
@@ -73,9 +73,8 @@ void sort(int a[], uint64 count) {<br/>
 }<br/>
 
 The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. Correctness is defined as (end == count) on the last merge step and enough precision to represent the ranges, as otherwise there would be an off-by-one error due to floating-point inaccuracies. Floats are only precise enough for up to 17 million elements.<br/>
-<br/>
-<br/>
-Anyway, from there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
+
+This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations. From there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
 
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
 
