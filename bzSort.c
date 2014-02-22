@@ -13,6 +13,7 @@ uint64_t floor_power_of_two(uint64_t x) {
    x &= 0x7F; return (x == 0) ? 0 : (1 << (x - 1));
 }
 
+// this assumes that if a <= b and b <= c, then a <= c
 #define bzSort(array, array_count, compare) { \
    __typeof__(array[0]) temp, *bzSort_array = array; const long bzSort_count = array_count; \
    uint64_t i; \
