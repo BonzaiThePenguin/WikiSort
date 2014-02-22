@@ -90,6 +90,8 @@ The multiplication has been proven to be correct for more than 17,179,869,184 el
 
 This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations. From there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
 
+And by the time all that's added, you end up with something that is apparently faster than any of the other sorting algorithms I've tested on Github thus far, while also being stable and using constant memory.
+
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
 
 
