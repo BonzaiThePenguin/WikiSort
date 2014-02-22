@@ -105,6 +105,8 @@ uint64_t floor_power_of_two(uint64_t x) {
 int int_compare(int a, int b) { if (a > b) return 1; if (a < b) return -1; return 0; }
 
 int main(int argc, char **argv) {
+   // the algorithm was previously tested with arrays containing millions of elements with various properties
+   // (in order, reverse order, random, mostly ascending, etc.), but this is just random mashing on the keyboard:
    int test[] = { 2,4,678,9,2,7,0,4,32,5,43,34,7,94,21,2,4,7,90,9,6,3,2,5,8,43,459,3,78,72,2,70,87,42,578,9,85,3,5,78,74,2,346,8,9 };
    long count = sizeof(test)/sizeof(test[0]); int i;
    printf("before: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
