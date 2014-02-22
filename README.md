@@ -60,7 +60,7 @@ void sort(int a[], uint64 count) {<br/>
 &nbsp;&nbsp;&nbsp;}<br/>
 }<br/>
 
-The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. Correctness is defined as end == count on the last merge step, as otherwise there would be an off-by-one error due to floating-point inaccuracies.<br/>
+The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. Correctness is defined as (end == count) on the last merge step, as otherwise there would be an off-by-one error due to floating-point inaccuracies. Floats are only accurate enough for up to 17 million elements.<br/>
 <br/>
 <br/>
 Anyway, from there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
