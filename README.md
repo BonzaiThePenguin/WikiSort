@@ -11,14 +11,10 @@ Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear wo
 &nbsp;&nbsp;• <b>Public domain</b>. Do whatever you want with it.<br/>
 
 
-The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, bzSort_int.c contains a C function that works with int arrays.<br/>
-
-And, just in case you're completely new to this, type this in the Terminal to compile:
-
-    gcc -o bzSort.x bzSort.c
-    ./bzSort.x
+The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, bzSort_int.c contains a C function that works with int arrays.<br/><br/>
 
 This is basically just a standard merge sort with the following changes:<br/>
+
 &nbsp;&nbsp;• the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• a fixed-size circular buffer for swaps instead of a dynamically-sized array<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
@@ -80,3 +76,9 @@ The multiplication has been proven to be correct for more than 17,179,869,184 el
 Anyway, from there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
 
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
+
+
+And, just in case you're completely new to this, type this in the Terminal to compile:
+
+    gcc -o bzSort.x bzSort.c
+    ./bzSort.x
