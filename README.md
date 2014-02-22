@@ -8,9 +8,9 @@ This is basically just a standard merge sort with the following changes:<br/>
 &nbsp;&nbsp;• the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• a fixed-size circular buffer for swaps instead of a dynamically-sized array<br/>
 &nbsp;&nbsp;• various special cases for descending data, unnecessary merges, etc.<br/>
-&nbsp;&nbsp;• a single uint64 to keep track of the "recursion"<br/>
+&nbsp;&nbsp;• uses a single uint64 to keep track of the "recursion"<br/>
 <br/>
-I'm not sure why I can't find more algorithms using this, but since merge sort always splits in the exact middle, it's trivial to reproduce its order of execution using a uint64 rather than a set of dynamically-allocated structures. Here's how it would look for an array of a size that happens to be a power of two:<br/>
+I'm not sure why I can't find more algorithms using this, but since merge sort always splits in the exact middle, it's trivial to reproduce its order of execution using a uint64 rather than using recursion or a set of dynamically-allocated structures. Here's how it would look for an array of a size that happens to be a power of two:<br/>
 <br/>
 void sort(int a[], uint64 count) {<br/>
 &nbsp;&nbsp;&nbsp;uint64 index = 0;<br/>
