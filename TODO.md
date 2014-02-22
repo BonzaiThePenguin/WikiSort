@@ -1,6 +1,8 @@
 To do
 =================
 
+The original version included a full test suite for generating lists with various properties (random, mostly ascending, mostly descending, all equivalent, in order, reverse order, etc. etc.) and timing and verifying the correctness, but it was left out from this version as it uses a large number of dependencies. A self-contained benchmark and test tool would be very useful.
+
 This algorithm would benefit from the following addition:
 
     #define bzSort(array, array_count, compare) { \
@@ -18,5 +20,3 @@ However, a naïve array reverse operation would invalidate the stability of the 
 &nbsp;&nbsp;&nbsp;[5 a] [5 b] [4 c]  <--->  [4 c] <b>[5 b] [5 a]</b>
 
 A more-intelligent reversal is needed before this can be added to the algorithm.
-
-The original version included a full test suite for generating lists with various properties (random, mostly ascending, mostly descending, all equivalent, in order, reverse order, etc. etc.) and timing and verifying the accuracy, but it was left out from this version as it uses a large number of dependencies. A self-contained benchmark and test tool would be very useful.
