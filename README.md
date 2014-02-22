@@ -21,19 +21,28 @@ This is basically just a standard <a href="http://www.algorithmist.com/index.php
 &nbsp;&nbsp;• uses a different method for calculating the ranges to merge<br/>
 <br/>
 Here's how the bottom-up sort looks for an array of a size that happens to be a power of two:<br/>
-<br/>
-void sort(int a[], uint64 count) {<br/>
-&nbsp;&nbsp;&nbsp;uint64 index = 0;<br/>
-&nbsp;&nbsp;&nbsp;while (index < count) {<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64 merge = index; index += 2; uint64 iteration = index, length = 1;<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while (is_even(iteration)) { // ((iteration & 0x1) == 0x0)<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64 start = merge, mid = merge + length, end = merge + length + length;<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;length <<= 1; merge -= length; iteration >>= 1;<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
-&nbsp;&nbsp;&nbsp;}<br/>
-}<br/>
-<br/>
+
+    void sort(int a[], uint64 count) {
+       uint64 index = 0;
+       while (index < count) {
+          uint64 merge = index;
+          index += 2;
+          uint64 iteration = index;
+          uint64 length = 1;
+          while (is_even(iteration)) {
+             uint64 start = merge;
+             uint64 mid = merge + length;
+             uint64 end = merge + length + length;
+             
+             printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);
+             
+             length *= 2;
+             merge -= length;
+             iteration /= 2;
+          }
+       }
+    }
+
 For an array of size 16, it prints this (the operation is shown to the right):
 
                                        [ 15  2   13  7   3   0   11  4   12  6   10  14  1   9   8   5  ]
@@ -56,22 +65,27 @@ For an array of size 16, it prints this (the operation is shown to the right):
 Which is of course exactly what we wanted.<br/>
 <br/>
 <br/>
-To extend this logic to non-power-of-two sizes, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.<br/>
-<br/>
-void sort(int a[], uint64 count) {<br/>
-&nbsp;&nbsp;&nbsp;<b>uint64 pot = floor_power_of_two(count);</b><br/>
-&nbsp;&nbsp;&nbsp;<b>double scale = count/(double)pot; // 1.0 <= scale < 2.0</b><br/>
-&nbsp;&nbsp;&nbsp;uint64 index = 0;<br/>
-&nbsp;&nbsp;&nbsp;while (index < count) {<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64 merge = index; index += 2; uint64 iteration = index, length = 1;<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;while (is_even(iteration)) { // ((iteration & 0x1) == 0x0)<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;uint64 start = merge <b>* scale</b>, mid = (merge + length) <b>* scale</b>, end = (merge + length + length) <b>* scale</b>;<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;length <<= 1; merge -= length; iteration >>= 1;<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br/>
-&nbsp;&nbsp;&nbsp;}<br/>
-}<br/>
+To extend this logic to non-power-of-two sizes, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
 
+    void sort(int a[], uint64 count) {
+    >  uint64 pot = floor_power_of_two(count);
+    >  double scale = count/(double)pot; // 1.0 <= scale < 2.0
+       uint64 index = 0;
+       while (index < count) {
+          uint64 merge = index; index += 2; uint64 iteration = index, length = 1;
+          
+          while (is_even(iteration)) {
+    >        uint64 start = (merge) * scale;
+    >        uint64 mid = (merge + length) * scale;
+    >        uint64 end = (merge + length + length) * scale;
+             
+             printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);
+             
+             length *= 2; merge -= length; iteration /= 2;
+          }
+       }
+    }
+    
 The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. Correctness is defined as (end == count) on the last merge step and enough precision to represent the ranges, as otherwise there would be an off-by-one error due to floating-point inaccuracies. Floats are only precise enough for up to 17 million elements.<br/>
 
 This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations. From there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
