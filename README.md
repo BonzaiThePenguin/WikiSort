@@ -1,7 +1,7 @@
 bzSort
 ======
 
-Hybrid sorting algorithm that's stable, has an O(n) best case, quasilinear worst case, and uses O(1) memory.<br/>
+Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear worst case, and uses O(1) memory.<br/>
 <br/>
 This is basically just a standard merge sort with the following changes:<br/>
 <br/>
