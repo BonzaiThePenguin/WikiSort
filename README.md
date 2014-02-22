@@ -6,7 +6,7 @@ Hybrid sorting algorithm that's stable, has an O(n) best case, quasilinear worst
 This is basically just a standard merge sort with the following changes:<br/>
 <br/>
 &nbsp;&nbsp;• the standard optimization of using insertion sort in the lower levels<br/>
-&nbsp;&nbsp;• a fixed-size circular buffer instead of a dynamically-sized array<br/>
+&nbsp;&nbsp;• a fixed-size circular buffer for swaps instead of a dynamically-sized array<br/>
 &nbsp;&nbsp;• various special cases for descending data, unnecessary merges, etc.<br/>
 &nbsp;&nbsp;• a single uint64 to keep track of the "recursion"<br/>
 <br/>
@@ -63,4 +63,4 @@ void sort(int a[], uint64 count) {<br/>
 The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate.<br/>
 <br/>
 <br/>
-Anyway, from there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding in the special cases.
+Anyway, from there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
