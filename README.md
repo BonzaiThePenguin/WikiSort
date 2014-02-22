@@ -20,7 +20,7 @@ This is basically just a standard merge sort with the following changes:<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
 &nbsp;&nbsp;• <b>a single uint64 to keep track of the "recursion"</b><br/>
 <br/>
-I'm not sure why I can't find more algorithms using this, but since merge sort always splits in the exact middle, it's trivial to reproduce its order of execution using a uint64 rather than using recursion or a set of dynamically-allocated structures. Here's how it would look for an array of a size that happens to be a power of two:<br/>
+I'm not sure why I can't find more algorithms using this, but since merge sort always splits in the exact middle, it's trivial to represent its order of execution using a uint64 rather than using recursion or a set of dynamically-allocated structures. Here's how it would look for an array of a size that happens to be a power of two:<br/>
 <br/>
 void sort(int a[], uint64 count) {<br/>
 &nbsp;&nbsp;&nbsp;uint64 index = 0;<br/>
