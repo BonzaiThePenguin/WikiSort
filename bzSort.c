@@ -45,7 +45,7 @@ uint64_t floor_power_of_two(uint64_t x) {
             while (j > mid && compare(bzSort_array[j - 1], temp) > 0) { bzSort_array[j] = bzSort_array[j - 1]; j--; } \
             bzSort_array[j] = temp; \
          } \
-         merge = index; index += 32; iteration = (index >> 4); length = 16; \
+         merge = index; index += 32; iteration = index/16; length = 16; \
          while ((iteration & 0x1) == 0x0) { \
             start = merge * scale; mid = (merge + length) * scale; end = (merge + length + length) * scale; /* scale these ranges */ \
             if (compare(bzSort_array[mid - 1], bzSort_array[mid]) > 0) { /* don't merge if they're already in order */ \
@@ -96,7 +96,7 @@ uint64_t floor_power_of_two(uint64_t x) {
                   while (swap_to < index1) { bzSort_array[swap_to++] = bzSort_swap[swap_from++]; if (swap_from >= swap_size) swap_from = 0; } \
                } \
             } \
-            length <<= 1; merge -= length; iteration >>= 1; \
+            length *= 2; merge -= length; iteration /= 2; \
          } \
       } \
    } \
