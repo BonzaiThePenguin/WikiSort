@@ -34,23 +34,25 @@ void sort(int a[], uint64 count) {<br/>
 &nbsp;&nbsp;&nbsp;}<br/>
 }<br/>
 <br/>
-For an array of size 16, it prints this:
+For an array of size 16, it prints this (the operation is shown to the right):
 
-    merge 0-0 and 1-1
-    merge 2-2 and 3-3
-    merge 0-1 and 2-3
-    merge 4-4 and 5-5
-    merge 6-6 and 7-7
-    merge 4-5 and 6-7
-    merge 0-3 and 4-7
-    merge 8-8 and 9-9
-    merge 10-10 and 11-11
-    merge 8-9 and 10-11
-    merge 12-12 and 13-13
-    merge 14-14 and 15-15
-    merge 12-13 and 14-15
-    merge 8-11 and 12-15
-    merge 0-7 and 8-15
+                                       [ 15  2   13  7   3   0   11  4   12  6   10  14  1   9   8   5  ]
+    merge 0-0 and 1-1                  [[15][2 ] 13  7   3   0   11  4   12  6   10  14  1   9   8   5  ]
+    merge 2-2 and 3-3                  [ 2   15 [13][7 ] 3   0   11  4   12  6   10  14  1   9   8   5  ]
+    merge 0-1 and 2-3                  [[2   15][7   13] 3   0   11  4   12  6   10  14  1   9   8   5  ]
+    merge 4-4 and 5-5                  [ 2   7   13  15 [3 ][0 ] 11  4   12  6   10  14  1   9   8   5  ]
+    merge 6-6 and 7-7                  [ 2   7   13  15  0   3  [11][4 ] 12  6   10  14  1   9   8   5  ]
+    merge 4-5 and 6-7                  [ 2   7   13  15 [0   3 ][4   11] 12  6   10  14  1   9   8   5  ]
+    merge 0-3 and 4-7                  [[2   7   13  15][0   3   4   11] 12  6   10  14  1   9   8   5  ]
+    merge 8-8 and 9-9                  [ 0   2   3   4   7   11  13  15 [12][6 ] 10  14  1   9   8   5  ]
+    merge 10-10 and 11-11              [ 0   2   3   4   7   11  13  15  6   12 [10][14] 1   9   8   5  ]
+    merge 8-9 and 10-11                [ 0   2   3   4   7   11  13  15 [6   12][10  14] 1   9   8   5  ]
+    merge 12-12 and 13-13              [ 0   2   3   4   7   11  13  15  6   10  12  14 [1 ][9 ] 8   5  ]
+    merge 14-14 and 15-15              [ 0   2   3   4   7   11  13  15  6   10  12  14  1   9  [8 ][5 ]]
+    merge 12-13 and 14-15              [ 0   2   3   4   7   11  13  15  6   10  12  14 [1   9 ][5   8 ]]
+    merge 8-11 and 12-15               [ 0   2   3   4   7   11  13  15 [6   10  12  14][1   5   8   9 ]]
+    merge 0-7 and 8-15                 [[0   2   3   4   7   11  13  15][1   5   6   8   9   10  12  14 ]
+                                       [ 0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15 ]
 Which is of course exactly what we wanted.<br/>
 <br/>
 <br/>
