@@ -59,7 +59,8 @@ void bzSort(int ints[], const uint64_t array_count) {
       while ((iteration & 0x1) == 0x0) {
          start = merge * scale; mid = (merge + length) * scale; end = (merge + length + length) * scale;
          
-         // don't merge if they're already in order
+         // don't merge if they're already in order, like so: 0 1 2 3 | 4 5 6 7
+         // ints[mid - 1] = 3 and ints[mid] = 4, and 3 <= 4, so the code below is skipped
          if (ints[mid - 1] > ints[mid]) {
             // see if the two segments are in the wrong order, like in this example: 4 5 6 7 | 0 1 2 3
             // ints[start] = 4 and ints[end - 1] = 3, and 4 > 3, so we only need to swap the segments rather than perform a full merge
@@ -91,7 +92,8 @@ void bzSort(int ints[], const uint64_t array_count) {
                   if (mid - start != end - mid) ints[start] = temp;
                }
             } else {
-               // add the smaller of the two values to swap
+               // standard merge operation. add the smaller of the two values to swap,
+               // then copy the values back to the array if swap runs out of space.
                uint64_t insert = 0, count = 0, index1 = start, index2 = mid, swap_to = start, swap_from = 0;
                while (index1 < mid && index2 < end) {
                   count++; swap[insert++] = (ints[index1] <= ints[index2]) ? ints[index1++] : ints[index2++];
