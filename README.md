@@ -11,8 +11,12 @@ Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear wo
 &nbsp;&nbsp;• <b>Public domain</b>. Do whatever you want with it.<br/>
 
 
-The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, bzSort_int.c contains a C function that works with int arrays.<br/><br/>
+The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, bzSort_int.c contains a C function that works with int arrays.<br/>
 
+And, just in case you're completely new to this, type this in the Terminal to compile:
+
+    gcc -o bzSort.x bzSort.c
+    ./bzSort.x
 
 This is basically just a standard merge sort with the following changes:<br/>
 &nbsp;&nbsp;• the standard optimization of using insertion sort in the lower levels<br/>
