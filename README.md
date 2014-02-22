@@ -3,8 +3,15 @@ bzSort
 
 Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear worst case, and uses O(1) memory.<br/>
 <br/>
+<b>Features:</b><br/>
+&nbsp;&nbsp;• Does not use recursion or dynamic allocations, so it optimizes/inlines well.<br/>
+&nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
+&nbsp;&nbsp;• 65% faster than <a href="https://github.com/patperry/timsort/blob/master/stresstest.c">Timsort</a> for random data, and exactly as fast in the best case (pre-sorted data).<br/>
+&nbsp;&nbsp;• Typically faster than quick sort, while also being stable, using less memory, and having a much better worst-case.<br/>
+&nbsp;&nbsp;• Initial version is a C #define so it can work with any data type.<br/>
+<br/><br/>
+
 This is basically just a standard merge sort with the following changes:<br/>
-<br/>
 &nbsp;&nbsp;• the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• a fixed-size circular buffer for swaps instead of a dynamically-sized array<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
