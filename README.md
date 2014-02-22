@@ -8,7 +8,7 @@ Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear wo
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
 &nbsp;&nbsp;• 65-100% faster than <a href="https://github.com/patperry/timsort/blob/master/stresstest.c">Timsort</a> for random data, and exactly as fast in the best case (pre-sorted data).<br/>
 &nbsp;&nbsp;• Typically faster than quick sort, while also being stable, using less memory, and having a much better worst-case.<br/>
-&nbsp;&nbsp;• Initial version is a C #define so it can work with any data type.<br/>
+&nbsp;&nbsp;• Initial version is a C #define so it can work with any data type. I apologize for its nasty appearance.<br/>
 <br/><br/>
 
 This is basically just a standard merge sort with the following changes:<br/>
