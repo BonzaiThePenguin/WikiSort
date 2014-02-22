@@ -1,7 +1,7 @@
 To do
 =================
 
-The original version included a full test suite for generating lists with various properties (random, mostly ascending, mostly descending, all equivalent, in order, reverse order, etc. etc.) and timing and verifying the correctness, but it was left out from this version as it uses a large number of dependencies. A self-contained benchmark and test tool would be very useful.
+The original version included a full test suite for generating arrays with various properties (random, mostly ascending, mostly descending, all equivalent, in order, reverse order, etc. etc.) and timing and verifying the correctness, but it was left out from this version as it uses a large number of dependencies. A self-contained benchmark and test tool would be very useful.
 
 This algorithm would benefit from the following addition:
 
