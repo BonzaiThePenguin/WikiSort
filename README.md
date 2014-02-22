@@ -34,23 +34,23 @@ void sort(int a[], uint64 count) {<br/>
 &nbsp;&nbsp;&nbsp;}<br/>
 }<br/>
 <br/>
-For an array of size 16, it prints this:<br/>
-&nbsp;&nbsp;&nbsp;merge 0-0 and 1-1<br/>
-&nbsp;&nbsp;&nbsp;merge 2-2 and 3-3<br/>
-&nbsp;&nbsp;&nbsp;merge 0-1 and 2-3<br/>
-&nbsp;&nbsp;&nbsp;merge 4-4 and 5-5<br/>
-&nbsp;&nbsp;&nbsp;merge 6-6 and 7-7<br/>
-&nbsp;&nbsp;&nbsp;merge 4-5 and 6-7<br/>
-&nbsp;&nbsp;&nbsp;merge 0-3 and 4-7<br/>
-&nbsp;&nbsp;&nbsp;merge 8-8 and 9-9<br/>
-&nbsp;&nbsp;&nbsp;merge 10-10 and 11-11<br/>
-&nbsp;&nbsp;&nbsp;merge 8-9 and 10-11<br/>
-&nbsp;&nbsp;&nbsp;merge 12-12 and 13-13<br/>
-&nbsp;&nbsp;&nbsp;merge 14-14 and 15-15<br/>
-&nbsp;&nbsp;&nbsp;merge 12-13 and 14-15<br/>
-&nbsp;&nbsp;&nbsp;merge 8-11 and 12-15<br/>
-&nbsp;&nbsp;&nbsp;merge 0-7 and 8-15<br/>
-<br/>
+For an array of size 16, it prints this:
+
+    merge 0-0 and 1-1
+    merge 2-2 and 3-3
+    merge 0-1 and 2-3
+    merge 4-4 and 5-5
+    merge 6-6 and 7-7
+    merge 4-5 and 6-7
+    merge 0-3 and 4-7
+    merge 8-8 and 9-9
+    merge 10-10 and 11-11
+    merge 8-9 and 10-11
+    merge 12-12 and 13-13
+    merge 14-14 and 15-15
+    merge 12-13 and 14-15
+    merge 8-11 and 12-15
+    merge 0-7 and 8-15
 Which is of course exactly what we wanted.<br/>
 <br/>
 <br/>
