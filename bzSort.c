@@ -141,6 +141,7 @@ uint64 floor_power_of_two(uint64 x) {
    } \
 }
 
+// fun fact: since the above is non-recursive, this has a chance of being inlined
 int int_compare(int a, int b) { if (a > b) return 1; if (a < b) return -1; return 0; }
 
 // let's test stable sorting with a structure
