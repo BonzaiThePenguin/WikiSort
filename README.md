@@ -18,7 +18,7 @@ This is basically just a standard <a href="http://www.algorithmist.com/index.php
 &nbsp;&nbsp;• also has the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• uses a fixed-size circular buffer for swaps/merges<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
-&nbsp;&nbsp;• <b>uses a different method for calculating the ranges to merge</b><br/>
+&nbsp;&nbsp;• <b>uses a different method for calculating the ranges to merge (see below)</b><br/>
 <br/>
 Here's how the bottom-up sort looks for an array of a size that happens to be a power of two:<br/>
 
