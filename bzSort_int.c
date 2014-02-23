@@ -65,7 +65,7 @@ void bzSort(int ints[], const uint64 array_count) {
       }
       
       merge = index; index += 32; length = 16;
-		for (iteration = index/16; bzIsEven(iteration); iteration /= 2) {
+      for (iteration = index/16; bzIsEven(iteration); iteration /= 2) {
          start = merge * scale;
          mid = (merge + length) * scale;
          end = (merge + length + length) * scale;
