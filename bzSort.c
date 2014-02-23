@@ -23,6 +23,7 @@ uint64 floor_power_of_two(uint64 x) {
 #define bzSort(array, array_count, compare) { \
    __typeof__(array[0]) temp, *bzSort_array = array; const long bzSort_count = array_count; \
    uint64 index = 0, i, j, start, mid, end, iteration, merge, length; \
+   \
    if (bzSort_count < 32) { \
       /* insertion sort the array */ \
       for (i = 1; i < bzSort_count; i++) { \
