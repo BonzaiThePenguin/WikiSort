@@ -31,7 +31,9 @@ uint64 floor_power_of_two(uint64 x) {
          bzSort_array[j] = temp; \
       } \
    } else { \
-      const uint64 swap_size = 1024; /* change this as desired */ \
+      /* this value has not been tuned at all... it was basically "64 is too little, therefore 1024" */ \
+      /* change it as desired. even make it non-constant if you want */ \
+      const uint64 swap_size = 1024; \
       __typeof__(bzSort_array[0]) bzSort_swap[swap_size]; \
       \
       /* calculate how to scale the index value to the range within the array */ \
