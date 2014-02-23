@@ -58,6 +58,8 @@ uint64 floor_power_of_two(uint64 x) {
             bzSort_array[j] = temp; \
          } \
          \
+         /* here's where the fake recursion is handled */ \
+         /* it's a bottom-up merge sort, but multiplying by scale is more efficient than using min(end, array_count) */ \
          merge = index; index += 32; length = 16; \
          for (iteration = index/16; is_even(iteration); iteration /= 2) { \
             start = merge * scale; \
