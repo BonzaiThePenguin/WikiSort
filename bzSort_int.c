@@ -24,7 +24,8 @@ uint64 floor_power_of_two(uint64 x) {
 
 // this assumes that if a <= b and b <= c, then a <= c
 void bzSort(int ints[], const uint64 array_count) {
-   uint64 i; int temp;
+   uint64 index = 0, i, start, mid, end, iteration, merge, length;
+   int temp;
    
    if (array_count < 32) {
       // insertion sort the array
@@ -45,7 +46,6 @@ void bzSort(int ints[], const uint64 array_count) {
    uint64 pot = floor_power_of_two(array_count);
    double scale = array_count/(double)pot; // 1.0 <= scale < 2.0
    
-   uint64 index = 0, start, mid, end, iteration, merge, length;
    while (index < pot) {
       start = index * scale;
       mid = (index + 16) * scale;
