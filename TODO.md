@@ -19,12 +19,12 @@ Insertion sort is only faster when comparisons are cheap. Generally you'll want 
 
 At the moment, mostly-descending is noticeably slower than mostly-ascending. This algorithm would benefit from the following addition:
 
-    #define bzSort(array, array_count, compare) { \
-       __typeof__(array[0]) temp, *bzSort_array = array; const long bzSort_count = array_count; \
+    #define wikisort(array, array_count, compare) { \
+       __typeof__(array[0]) temp, *wikisort_array = array; const long wikisort_count = array_count; \
        uint64 i, ascending = 0, descending = 0; \
-       for (i = 1; i < bzSort_count; i++) if (compare(bzSort_array[i], bzSort_array[i - 1]) >= 0) ascending++; else descending++; \
-       if (descending > ascending) { reverse(bzSort_array); swap(ascending, descending); } \
-       if (bzSort_count < 32) { \
+       for (i = 1; i < wikisort_count; i++) if (compare(wikisort_array[i], wikisort_array[i - 1]) >= 0) ascending++; else descending++; \
+       if (descending > ascending) { reverse(wikisort_array); swap(ascending, descending); } \
+       if (wikisort_count < 32) { \
           /* insertion sort the array */ \
           [...] \
        } else if (descending > 0) { \
