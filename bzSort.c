@@ -148,6 +148,7 @@ int main(int argc, char **argv) {
    bzSort(test, count, int_compare);
    printf("after: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
    
+   // notice our sort function only compares x values, so [4 5] should stay before [4 4] after sorting
    vec vecs[] = { make_vec(4, 5), make_vec(1, 2), make_vec(1, 1), make_vec(4, 4), make_vec(2, 3) };
    count = sizeof(vecs)/sizeof(vecs[0]);
    printf("before: "); for (i = 0; i < count; i++) printf("[%d %d] ", vecs[i].x, vecs[i].y); printf("\n");
