@@ -121,6 +121,7 @@ void bzSort(int ints[], const uint64 array_count) {
                // and if most of the values on the left side are greater than the right side.
                // (this situation is unusual, but that just means it will be harder to diagnose
                // the problem when that one random user complains of poor sorting performance)
+               // if you're okay with sacrificing the O(1) memory, a dynamic-size buffer fixes it immediately
                uint64 insert = 0, count = 0, index1 = start, index2 = mid, swap_to = start, swap_from = 0;
                while (index1 < mid && index2 < end) {
                   count++; swap[insert++] = (ints[index1] <= ints[index2]) ? ints[index1++] : ints[index2++];
