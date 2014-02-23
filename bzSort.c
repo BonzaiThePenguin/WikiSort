@@ -100,6 +100,7 @@ uint64 floor_power_of_two(uint64 x) {
                } else { \
                   /* standard merge operation. add the smaller of the two values to swap, */ \
                   /* then copy the values back to the array if swap runs out of space. */ \
+                  /* this could stand to be a bit more... intelligent? any suggestions? */ \
                   uint64 insert = 0, count = 0, index1 = start, index2 = mid, swap_to = start, swap_from = 0; \
                   while (index1 < mid && index2 < end) { \
                      count++; bzSort_swap[insert++] = (compare(bzSort_array[index1], bzSort_array[index2]) <= 0) ? bzSort_array[index1++] : bzSort_array[index2++]; \
