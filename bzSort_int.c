@@ -36,7 +36,9 @@ void bzSort(int ints[], const uint64 array_count) {
       return;
    }
    
-   const uint64 swap_size = 1024; // change this as desired
+   // this value has not been tuned at all... it was basically "64 is too little, therefore 1024"
+   // change it as desired. even make it non-constant if you want
+   const uint64 swap_size = 1024;
    int swap[swap_size];
    
    // calculate how to scale the index value to the range within the array
