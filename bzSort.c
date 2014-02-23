@@ -39,6 +39,7 @@ uint64 floor_power_of_two(uint64 x) {
       \
       /* if your project already has a pool of buffers around for other purposes (texture caches, etc.), */ \
       /* you could also just modify this to use one of those buffers as the swap */ \
+      /* the merge operation below treats 'swap' as a circular buffer, so the provided space can be of any size */ \
       __typeof__(bzSort_array[0]) bzSort_swap[swap_size]; \
       \
       /* calculate how to scale the index value to the range within the array */ \
