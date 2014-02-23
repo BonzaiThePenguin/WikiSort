@@ -118,6 +118,7 @@ void bzSort(int ints[], const uint64 array_count) {
             }
          }
          
+         // the merges get twice as large after each iteration
          length *= 2; merge -= length; iteration /= 2;
       }
    }
