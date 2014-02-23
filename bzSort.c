@@ -116,6 +116,11 @@ uint64 floor_power_of_two(uint64 x) {
 
 int int_compare(int a, int b) { if (a > b) return 1; if (a < b) return -1; return 0; }
 
+// let's test stable sorting with a structure
+#define make_vec(x, y) ((vec){(float)x, y})
+typedef struct { int x, y, z } vec;
+int vec_compare(vec a, vec b) { return int_compare(a.x, b.x); }
+
 int main(int argc, char **argv) {
    // the algorithm was previously tested with arrays containing millions of elements with various properties
    // (in order, reverse order, random, mostly ascending, etc.), but this is just random mashing on the keyboard:
@@ -124,5 +129,12 @@ int main(int argc, char **argv) {
    printf("before: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
    bzSort(test, count, int_compare);
    printf("after: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
+   
+   vec vecs[] = { make_vec(4, 5), make_vec(1, 2), make_vec(1, 1), make_vec(4, 4), make_vec(2, 3) };
+   count = sizeof(vecs)/sizeof(vecs[0]);
+   printf("before: "); for (i = 0; i < count; i++) printf("[%d %d] ", vecs[i].x, vecs[i].y); printf("\n");
+   bzSort(vecs, count, vec_compare);
+   printf("after: "); for (i = 0; i < count; i++) printf("[%d %d] ", vecs[i].x, vecs[i].y); printf("\n");
+   
    return 0;
 }
