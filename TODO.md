@@ -1,15 +1,21 @@
 To do
 =================
 
-The original version included a full test suite for generating arrays with various properties (random, mostly ascending, mostly descending, all equivalent, in order, reverse order, etc. etc.) and timing and verifying the correctness, but it was left out from this version as it uses a large number of dependencies. A self-contained benchmark and test tool would be very useful.
-
 The merge step is pretty naïve at the moment and can fail miserably for arrays like this:
 
     [10 11 11 ...one million 11s... 11 | 9 9 ...one million 9s... 9 10]
 
-It will happily copy one value at a time from the right side into swap, and shift the left side over when swap runs out of space... <b>1000 times in a row</b>. Better techniques for this subsystem are needed, or the O(1) memory usage will need to be sacrificed. At the very least it would still be faster than similar algorithms, with identical memory usage rather than superior.
+It will happily copy one value at a time from the right side into swap, and shift the left side over when swap runs out of space... <b>1000 times in a row</b>. Better techniques for this subsystem are needed, or the O(1) memory usage will need to be sacrificed.
+
+=================
+
+The original version included a full test suite for generating arrays with various properties (random, mostly ascending, mostly descending, all equivalent, in order, reverse order, etc. etc.) and timing and verifying the correctness, but it was left out from this version as it uses a large number of dependencies. A self-contained benchmark and test tool would be very useful.
+
+=================
 
 Insertion sort is only faster when comparisons are cheap. Generally you'll want to use highly-optimized compare functions anyway, but ideally this algorithm should switch back to standard merges when it detects comparisons being too slow for insertion sort to help.
+
+=================
 
 At the moment, mostly-descending is noticeably slower than mostly-ascending. This algorithm would benefit from the following addition:
 
