@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <string.h>
 
+// if your language does not support bitwise operations for some reason,
+// you can use (floor(value/2) * 2 == value)
 #define is_even(value) ((value & 0x1) == 0x0)
 typedef uint64_t uint64; // i hate the _t
 
