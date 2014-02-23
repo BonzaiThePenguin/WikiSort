@@ -29,23 +29,22 @@ This is basically just a standard <a href="http://www.algorithmist.com/index.php
 Here's how the bottom-up sort looks for an array of a size that happens to be a power of two:<br/>
 
     void sort(int a[], uint64 count) {
-       uint64 index = 0;
+       uint64 index = 0, merge, iteration, length, start, mid, end;
        while (index < count) {
-          uint64 merge = index;
+          merge = index;
           index += 2;
-          uint64 iteration = index;
-          uint64 length = 1;
-          while (is_even(iteration)) {
-             uint64 start = merge;
-             uint64 mid = merge + length;
-             uint64 end = merge + length + length;
+          length = 1;
+          
+          for (iteration = index; is_even(iteration); iteration /= 2) {
+             start = merge;
+             mid = merge + length;
+             end = merge + length + length;
              
              printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);
              /* actual sorting code goes here */
              
-             length *= 2;
+             length += length;
              merge -= length;
-             iteration /= 2;
           }
        }
     }
@@ -77,19 +76,22 @@ To extend this logic to non-power-of-two sizes, we simply floor the size down to
     void sort(int a[], uint64 count) {
     >  uint64 pot = floor_power_of_two(count);
     >  double scale = count/(double)pot; // 1.0 <= scale < 2.0
-       uint64 index = 0;
+       
+       uint64 index = 0, merge, iteration, length, start, mid, end;
        while (index < count) {
-          uint64 merge = index; index += 2; uint64 iteration = index, length = 1;
+          merge = index;
+          index += 2;
+          length = 1;
           
-          while (is_even(iteration)) {
-    >        uint64 start = (merge) * scale;
-    >        uint64 mid = (merge + length) * scale;
-    >        uint64 end = (merge + length + length) * scale;
+          for (iteration = index; is_even(iteration); iteration /= 2) {
+    >        start = (merge) * scale;
+    >        mid = (merge + length) * scale;
+    >        end = (merge + length + length) * scale;
              
              printf("merge %llu-%llu and %llu-%llu\n", start, mid - 1, mid, end - 1);
              /* check bzSort_int.c for working code */
              
-             length *= 2; merge -= length; iteration /= 2;
+             length += length; merge -= length;
           }
        }
     }
