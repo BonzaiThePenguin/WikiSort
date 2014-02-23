@@ -71,7 +71,7 @@ For an array of size 16, it prints this (the operation is shown to the right):
 Which is of course exactly what we wanted.<br/>
 <br/>
 <br/>
-To extend this logic to non-power-of-two sizes, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
+<b>To extend this logic to non-power-of-two sizes</b>, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
 
     void sort(int a[], uint64 count) {
     >  uint64 pot = floor_power_of_two(count);
