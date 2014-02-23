@@ -13,24 +13,35 @@ typedef uint64_t uint64; // i hate the _t
 
 // 63 -> 32, 64 -> 64, etc.
 uint64 floor_power_of_two(uint64 x) {
-   x |= (x >> 1); x |= (x >> 2); x |= (x >> 4);
-   x |= (x >> 8); x |= (x >> 16); x |= (x >> 32);
+   x |= (x >> 1);
+   x |= (x >> 2);
+   x |= (x >> 4);
+   x |= (x >> 8);
+   x |= (x >> 16);
+   x |= (x >> 32);
    x -= (x >> 1) & 0x5555555555555555;
    x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
-   x += x >> 8; x += x >> 16; x += x >> 32;
-   x &= 0x7F; return (x == 0) ? 0 : (1 << (x - 1));
+   x += x >> 8;
+   x += x >> 16;
+   x += x >> 32;
+   x &= 0x7F;
+   return (x == 0) ? 0 : (1 << (x - 1));
 }
 
 // this assumes that if a <= b and b <= c, then a <= c
 void bzSort(int ints[], const uint64 array_count) {
-   uint64 i; int temp;
-   
+   uint64 i;
+   int temp;
    if (array_count < 32) {
       // insertion sort the array
       for (i = 1; i < array_count; i++) {
-         temp = ints[i]; uint64 j = i;
-         while (j > 0 && ints[j - 1] > temp) { ints[j] = ints[j - 1]; j--; }
+         temp = ints[i];
+         uint64 j = i;
+         while (j > 0 && ints[j - 1] > temp) {
+            ints[j] = ints[j - 1];
+            j--;
+         }
          ints[j] = temp;
       }
       return;
@@ -45,7 +56,13 @@ void bzSort(int ints[], const uint64 array_count) {
    uint64 pot = floor_power_of_two(array_count);
    double scale = array_count/(double)pot; // 1.0 <= scale < 2.0
    
-   uint64 index = 0, start, mid, end, iteration, merge, length;
+   uint64 index = 0,
+      start,
+      mid,
+      end,
+      iteration,
+      merge,
+      length;
    while (index < pot) {
       start = index * scale;
       mid = (index + 16) * scale;
@@ -53,18 +70,29 @@ void bzSort(int ints[], const uint64 array_count) {
       
       // insertion sort from start to mid and mid to end
       for (i = start + 1; i < mid; i++) {
-         temp = ints[i]; uint64 j = i;
-         while (j > start && ints[j - 1] > temp) { ints[j] = ints[j - 1]; j--; }
+         temp = ints[i];
+         uint64 j = i;
+         while (j > start && ints[j - 1] > temp) {
+            ints[j] = ints[j - 1];
+            j--;
+         }
          ints[j] = temp;
       }
       
       for (i = mid + 1; i < end; i++) {
-         temp = ints[i]; uint64 j = i;
-         while (j > mid && ints[j - 1] > temp) { ints[j] = ints[j - 1]; j--; }
+         temp = ints[i];
+         uint64 j = i;
+         while (j > mid && ints[j - 1] > temp) {
+            ints[j] = ints[j - 1];
+            j--;
+         }
          ints[j] = temp;
       }
       
-      merge = index; index += 32; iteration = index/16; length = 16;
+      merge = index;
+      index += 32;
+      iteration = index/16;
+      length = 16;
       while (is_even(iteration)) {
          start = merge * scale;
          mid = (merge + length) * scale;
@@ -79,21 +107,40 @@ void bzSort(int ints[], const uint64 array_count) {
                // the size of the two sides will never differ by more than 1, so we can just have a separate swap here for a single variable
                if (mid - start >= end - mid) {
                   // 3 4 5 6 | 0 1 2... the left side has one more item (or they are the same size)
-                  uint64 a_from = start, a_to = mid, b_from = mid, b_to = start, count = end - mid;
-                  if (mid - start != end - mid) temp = ints[a_to = mid - 1];
+                  uint64 a_from = start,
+                     a_to = mid,
+                     b_from = mid,
+                     b_to = start,
+                     count = end - mid;
+                  if (mid - start != end - mid) {
+                     temp = ints[a_to = mid - 1];
+                  }
                   while (count > 0) {
                      // copy values from the left side into swap
                      uint64 read = (swap_size < count) ? swap_size : count;
                      memcpy(&swap[0], &ints[a_from], read * sizeof(ints[0]));
                      memmove(&ints[b_to], &ints[b_from], read * sizeof(ints[0]));
                      memcpy(&ints[a_to], &swap[0], read * sizeof(ints[0]));
-                     a_from += read; a_to += read; b_from += read; b_to += read; count -= read;
+                     a_from += read;
+                     a_to += read;
+                     b_from += read;
+                     b_to += read;
+                     count -= read;
                   }
-                  if (mid - start != end - mid) ints[end - 1] = temp;
+                  if (mid - start != end - mid) {
+                     ints[end - 1] = temp;
+                  }
                } else {
                   // 4 5 6 | 0 1 2 3... the right side has one more item
-                  uint64 a_from = end, a_to = mid, b_from = mid, b_to = end, count = mid - start;
-                  if (mid - start != end - mid) { temp = ints[mid]; a_to++; }
+                  uint64 a_from = end,
+                     a_to = mid,
+                     b_from = mid,
+                     b_to = end,
+                     count = mid - start;
+                  if (mid - start != end - mid) {
+                     temp = ints[mid];
+                     a_to++;
+                  }
                   while (count > 0) {
                      // copy values from the right side into swap
                      uint64 read = (swap_size < count) ? swap_size : count;
@@ -102,33 +149,62 @@ void bzSort(int ints[], const uint64 array_count) {
                      memmove(&ints[b_to], &ints[b_from], read * sizeof(ints[0]));
                      memcpy(&ints[a_to], &swap[0], read * sizeof(ints[0]));
                   }
-                  if (mid - start != end - mid) ints[start] = temp;
+                  if (mid - start != end - mid) {
+                     ints[start] = temp;
+                  }
                }
             } else {
                // standard merge operation. add the smaller of the two values to swap,
                // then copy the values back to the array if swap runs out of space.
                // this could stand to be a bit more... intelligent? any suggestions?
-               uint64 insert = 0, count = 0, index1 = start, index2 = mid, swap_to = start, swap_from = 0;
+               uint64 insert = 0,
+                  count = 0,
+                  index1 = start,
+                  index2 = mid,
+                  swap_to = start,
+                  swap_from = 0;
                while (index1 < mid && index2 < end) {
-                  count++; swap[insert++] = (ints[index1] <= ints[index2]) ? ints[index1++] : ints[index2++];
-                  if (insert >= swap_size) insert = 0;
+                  count++;
+                  swap[insert++] = (ints[index1] <= ints[index2]) ? ints[index1++] : ints[index2++];
+                  if (insert >= swap_size) {
+                     insert = 0;
+                  }
                   if (count >= swap_size) { // if the buffer is full, we need to shift over the values on the left side and write part of the swap buffer back to the array
                      if (index1 - swap_to <= count/4) { // if there's at least 1/4 free space to the left of a, write it out right away
                         // shift the values all the way to the right and write out the entire buffer
                         memmove(&ints[index2 - (mid - index1)], &ints[index1], (mid - index1) * sizeof(ints[0]));
-                        index1 = index2 - (mid - index1); mid = index2; count = 0;
-                     } else count -= (index1 - swap_to); // write out (index1 - start) values from the swap buffer
-                     while (swap_to < index1) { ints[swap_to++] = swap[swap_from++]; if (swap_from >= swap_size) swap_from = 0; }
+                        index1 = index2 - (mid - index1);
+                        mid = index2;
+                        count = 0;
+                     } else {
+                        count -= (index1 - swap_to); // write out (index1 - start) values from the swap buffer
+                     }
+                     while (swap_to < index1) {
+                        ints[swap_to++] = swap[swap_from++];
+                        if (swap_from >= swap_size) {
+                           swap_from = 0;
+                        }
+                     }
                   }
                }
                
-               if (mid < index2) { memmove(&ints[index2 - (mid - index1)], &ints[index1], (mid - index1) * sizeof(ints[0])); index1 = index2 - (mid - index1); }
-               while (swap_to < index1) { ints[swap_to++] = swap[swap_from++]; if (swap_from >= swap_size) swap_from = 0; }
+               if (mid < index2) {
+                  memmove(&ints[index2 - (mid - index1)], &ints[index1], (mid - index1) * sizeof(ints[0]));
+                  index1 = index2 - (mid - index1);
+               }
+               while (swap_to < index1) {
+                  ints[swap_to++] = swap[swap_from++];
+                  if (swap_from >= swap_size) {
+                     swap_from = 0;
+                  }
+               }
             }
          }
          
          // the merges get twice as large after each iteration, until eventually we merge the entire array
-         length *= 2; merge -= length; iteration /= 2;
+         length *= 2;
+         merge -= length;
+         iteration /= 2;
       }
    }
 }
@@ -137,9 +213,18 @@ int main(int argc, char **argv) {
    // the algorithm was previously tested with arrays containing millions of elements with various properties
    // (in order, reverse order, random, mostly ascending, etc.), but this is just random mashing on the keyboard:
    int test[] = { 2,4,678,9,2,7,0,4,32,5,43,34,7,94,21,2,4,7,90,9,6,3,2,5,8,43,459,3,78,72,2,70,87,42,578,9,85,3,5,78,74,2,346,8,9 };
-   long count = sizeof(test)/sizeof(test[0]); int i;
-   printf("before: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
+   long count = sizeof(test)/sizeof(test[0]);
+   int i;
+   printf("before: ");
+   for (i = 0; i < count; i++) {
+      printf("%d ", test[i]);
+   }
+   printf("\n");
    bzSort(test, count);
-   printf("after: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
+   printf("after: ");
+   for (i = 0; i < count; i++) {
+      printf("%d ", test[i]);
+   }
+   printf("\n");
    return 0;
 }
