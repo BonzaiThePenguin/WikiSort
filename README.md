@@ -7,7 +7,7 @@ Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear wo
 &nbsp;&nbsp;• Does not use recursion or dynamic allocations, so it optimizes/inlines well.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
 &nbsp;&nbsp;• 65-100% faster than <a href="https://github.com/patperry/timsort/blob/master/stresstest.c">Timsort</a> for random data, and exactly as fast in the best case (pre-sorted data).<br/>
-&nbsp;&nbsp;• Typically faster than quick sort, while also being stable, using less memory, and having a much better worst-case.<br/>
+&nbsp;&nbsp;• Typically faster than quick sort, while also being stable and having a much better worst-case.<br/>
 &nbsp;&nbsp;• <b>Public domain</b>. Do whatever you want with it.<br/>
 
 
