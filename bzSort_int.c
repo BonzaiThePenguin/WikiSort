@@ -43,7 +43,9 @@ void bzSort(int ints[], const uint64 array_count) {
    
    uint64 index = 0, start, mid, end, iteration, merge, length;
    while (index < pot) {
-      start = index * scale; mid = (index + 16) * scale; end = (index + 32) * scale;
+      start = index * scale;
+      mid = (index + 16) * scale;
+      end = (index + 32) * scale;
       
       // insertion sort from start to mid and mid to end
       for (i = start + 1; i < mid; i++) {
@@ -60,7 +62,9 @@ void bzSort(int ints[], const uint64 array_count) {
       
       merge = index; index += 32; iteration = index/16; length = 16;
       while (is_even(iteration)) {
-         start = merge * scale; mid = (merge + length) * scale; end = (merge + length + length) * scale;
+         start = merge * scale;
+         mid = (merge + length) * scale;
+         end = (merge + length + length) * scale;
          
          // don't merge if they're already in order, like so: 0 1 2 3 | 4 5 6 7
          // ints[mid - 1] = 3 and ints[mid] = 4, and 3 <= 4, so the code below is skipped
