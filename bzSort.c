@@ -31,13 +31,18 @@ uint64 floor_power_of_two(uint64 x) {
    } else { \
       const uint64 swap_size = 1024; /* change this as desired */ \
       __typeof__(bzSort_array[0]) bzSort_swap[swap_size]; \
+      \
       /* calculate how to scale the index value to the range within the array */ \
       uint64 pot = floor_power_of_two(bzSort_count); \
       double scale = bzSort_count/(double)pot; /* 1.0 <= scale < 2.0 */ \
+      \
       /* multiplying by scale below is proven to be correct for more than 17,179,869,184 elements */ \
       uint64 index = 0, start, mid, end, iteration, merge, length; \
       while (index < pot) { \
-         start = index * scale; mid = (index + 16) * scale; end = (index + 32) * scale; \
+         start = index * scale; \
+         mid = (index + 16) * scale; \
+         end = (index + 32) * scale; \
+         \
          /* insertion sort from start to mid and mid to end */ \
          for (i = start + 1; i < mid; i++) { \
             temp = bzSort_array[i]; uint64 j = i; \
@@ -49,9 +54,13 @@ uint64 floor_power_of_two(uint64 x) {
             while (j > mid && compare(bzSort_array[j - 1], temp) > 0) { bzSort_array[j] = bzSort_array[j - 1]; j--; } \
             bzSort_array[j] = temp; \
          } \
+         \
          merge = index; index += 32; iteration = index/16; length = 16; \
          while ((iteration & 0x1) == 0x0) { \
-            start = merge * scale; mid = (merge + length) * scale; end = (merge + length + length) * scale; \
+            start = merge * scale; \
+            mid = (merge + length) * scale; \
+            end = (merge + length + length) * scale; \
+            \
             /* don't merge if they're already in order, like so: 0 1 2 3 | 4 5 6 7 */ \
             /* ints[mid - 1] = 3 and ints[mid] = 4, and 3 <= 4, so the code below is skipped */ \
             if (compare(bzSort_array[mid - 1], bzSort_array[mid]) > 0) { \
