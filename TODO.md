@@ -7,7 +7,7 @@ The merge step is pretty naïve at the moment and can fail miserably for arrays 
 
     [10 11 11 ...one million 11s... 11 | 9 9 ...one million 9s... 9 10]
 
-It will happily copy one value at a time from the right side into swap, and shift the left side over when swap runs out of space... <b>1000 times in a row</b>. Better techniques for this subsystem are needed, or the O(1) memory usage will need to be sacrificed (while still retaining the benefits of being faster than similar algorithms).
+It will happily copy one value at a time from the right side into swap, and shift the left side over when swap runs out of space... <b>1000 times in a row</b>. Better techniques for this subsystem are needed, or the O(1) memory usage will need to be sacrificed. At the very least it would still be faster than similar algorithms, with identical memory usage rather than superior.
 
 At the moment, mostly-descending is noticeably slower than mostly-ascending. This algorithm would benefit from the following addition:
 
