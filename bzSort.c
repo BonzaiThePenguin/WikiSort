@@ -131,7 +131,7 @@ uint64 floor_power_of_two(uint64 x) {
 int int_compare(int a, int b) { if (a > b) return 1; if (a < b) return -1; return 0; }
 
 // let's test stable sorting with a structure
-#define make_vec(x, y) ((vec){(float)x, y})
+#define make_vec(x, y) ((vec){(float)(x), y})
 typedef struct { int x, y; } vec;
 int vec_compare(vec a, vec b) { return int_compare(a.x, b.x); }
 
