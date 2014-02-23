@@ -64,8 +64,8 @@ void bzSort(int ints[], const uint64 array_count) {
          ints[j] = temp;
       }
       
-      merge = index; index += 32; iteration = index/16; length = 16;
-      while (is_even(iteration)) {
+      merge = index; index += 32; length = 16;
+		for (iteration = index/16; bzIsEven(iteration); iteration /= 2) {
          start = merge * scale;
          mid = (merge + length) * scale;
          end = (merge + length + length) * scale;
@@ -128,7 +128,8 @@ void bzSort(int ints[], const uint64 array_count) {
          }
          
          // the merges get twice as large after each iteration, until eventually we merge the entire array
-         length *= 2; merge -= length; iteration /= 2;
+         length += length;
+         merge -= length;
       }
    }
 }
