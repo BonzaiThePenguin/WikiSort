@@ -88,9 +88,9 @@ uint64 floor_power_of_two(uint64 x) {
                      } \
                      if (mid - start != end - mid) bzSort_array[end - 1] = temp; \
                   } else { \
-                     /* 4 5 6 | 0 1 2 3... the right side has one more item */ \
-                     uint64 a_from = end, a_to = mid, b_from = mid, b_to = end, count = mid - start; \
-                     if (mid - start != end - mid) { temp = bzSort_array[mid]; a_to++; } \
+                     /* 4 5 6 | 0 1 2 3... the right side has one more item (copied from above) */ \
+                     uint64 a_from = end, a_to = mid + 1, b_from = mid, b_to = end, count = mid - start; \
+                     temp = bzSort_array[mid]; /* we already know mid - start != end - mid, so that if statement isn't needed */ \
                      while (count > 0) { \
                         /* copy values from the right side into swap */ \
                         uint64 read = (swap_size < count) ? swap_size : count; \
@@ -99,7 +99,7 @@ uint64 floor_power_of_two(uint64 x) {
                         memmove(&bzSort_array[b_to], &bzSort_array[b_from], read * sizeof(bzSort_array[0])); \
                         memcpy(&bzSort_array[a_to], &bzSort_swap[0], read * sizeof(bzSort_array[0])); \
                      } \
-                     if (mid - start != end - mid) bzSort_array[start] = temp; \
+                     bzSort_array[start] = temp; \
                   } \
                } else { \
                   /* standard merge operation. add the smaller of the two values to swap, */ \
