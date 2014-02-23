@@ -111,6 +111,10 @@ uint64 floor_power_of_two(uint64 x) {
                   /* then copy the values back to the array if swap runs out of space. */ \
                   \
                   /* this could stand to be a bit more... intelligent? any suggestions? */ \
+                  /* in particular it can fail miserably if length is much larger than swap_size, */ \
+                  /* and if most of the values on the left side are greater than the right side. */ \
+                  /* (this situation is unusual, but that just means it will be harder to diagnose */ \
+                  /* the problem when that one random user complains of poor sorting performance) */ \
                   uint64 insert = 0, count = 0, index1 = start, index2 = mid, swap_to = start, swap_from = 0; \
                   while (index1 < mid && index2 < end) { \
                      count++; bzSort_swap[insert++] = (compare(bzSort_array[index1], bzSort_array[index2]) <= 0) ? bzSort_array[index1++] : bzSort_array[index2++]; \
