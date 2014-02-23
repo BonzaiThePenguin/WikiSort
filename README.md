@@ -19,7 +19,7 @@ The initial version is a C #define so it can work with any data type. I apologiz
 This is basically just a standard <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
 
 &nbsp;&nbsp;• also has the standard optimization of using insertion sort in the lower levels<br/>
-&nbsp;&nbsp;• uses a fixed-size circular buffer for swaps/merges<br/>
+&nbsp;&nbsp;• uses a fixed-size circular buffer for swaps/merges (this part might be a bad idea...)<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
 &nbsp;&nbsp;• <b>uses a different method for calculating the ranges to merge (see below)</b><br/>
 <br/>
