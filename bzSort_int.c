@@ -95,9 +95,9 @@ void bzSort(int ints[], const uint64 array_count) {
                   }
                   if (mid - start != end - mid) ints[end - 1] = temp;
                } else {
-                  // 4 5 6 | 0 1 2 3... the right side has one more item
+                  // 4 5 6 | 0 1 2 3... the right side has one more item (copied from above)
                   uint64 a_from = end, a_to = mid + 1, b_from = mid, b_to = end, count = mid - start;
-                  temp = ints[mid];
+                  temp = ints[mid]; // we already know mid - start != end - mid, so that if statement isn't needed
                   while (count > 0) {
                      // copy values from the right side into swap
                      uint64 read = (swap_size < count) ? swap_size : count;
