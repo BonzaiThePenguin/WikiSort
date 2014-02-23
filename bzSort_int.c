@@ -1,4 +1,4 @@
-// this file is identical to bzSort.c, but instead of a #define it uses a function that only operates on 'int' arrays
+// this file is identical to wikisort.c, but instead of a #define it uses a function that only operates on 'int' arrays
 // this should make it easier to read and modify the underlying algorithm.
 
 #include <stdio.h>
@@ -23,7 +23,7 @@ uint64 floor_power_of_two(uint64 x) {
 }
 
 // this assumes that if a <= b and b <= c, then a <= c
-void bzSort(int ints[], const uint64 array_count) {
+void wikisort(int ints[], const uint64 array_count) {
    uint64 index = 0, i, j, start, mid, end, iteration, merge, length;
    int temp;
    
@@ -153,7 +153,7 @@ int main(int argc, char argv[]) {
    int test[] = { 2,4,678,9,2,7,0,4,32,5,43,34,7,94,21,2,4,7,90,9,6,3,2,5,8,43,459,3,78,72,2,70,87,42,578,9,85,3,5,78,74,2,346,8,9 };
    long count = sizeof(test)/sizeof(test[0]); int i;
    printf("before: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
-   bzSort(test, count);
+   wikisort(test, count);
    printf("after: "); for (i = 0; i < count; i++) printf("%d ", test[i]); printf("\n");
    return 0;
 }
