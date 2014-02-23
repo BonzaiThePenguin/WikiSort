@@ -105,6 +105,7 @@ void bzSort(int ints[], const uint64 array_count) {
             } else {
                // standard merge operation. add the smaller of the two values to swap,
                // then copy the values back to the array if swap runs out of space.
+               // this could stand to be a bit more... intelligent? any suggestions?
                uint64 insert = 0, count = 0, index1 = start, index2 = mid, swap_to = start, swap_from = 0;
                while (index1 < mid && index2 < end) {
                   count++; swap[insert++] = (ints[index1] <= ints[index2]) ? ints[index1++] : ints[index2++];
