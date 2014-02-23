@@ -40,6 +40,10 @@ void bzSort(int ints[], const uint64 array_count) {
    // this value has not been tuned at all... it was basically "64 is too little, therefore 1024"
    // change it as desired. even make it non-constant if you want
    const uint64 swap_size = 1024;
+   
+   // if your project already has a pool of buffers around for other purposes (texture caches, etc.),
+   // you could also just modify this to use one of those buffers as the swap
+   // the merge operation below treats 'swap' as a circular buffer, so the provided space can be of any size
    int swap[swap_size];
    
    // calculate how to scale the index value to the range within the array
