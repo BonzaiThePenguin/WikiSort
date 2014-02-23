@@ -118,7 +118,7 @@ int int_compare(int a, int b) { if (a > b) return 1; if (a < b) return -1; retur
 
 // let's test stable sorting with a structure
 #define make_vec(x, y) ((vec){(float)x, y})
-typedef struct { int x, y, z } vec;
+typedef struct { int x, y, z; } vec;
 int vec_compare(vec a, vec b) { return int_compare(a.x, b.x); }
 
 int main(int argc, char **argv) {
