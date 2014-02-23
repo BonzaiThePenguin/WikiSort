@@ -35,6 +35,8 @@ uint64 floor_power_of_two(uint64 x) {
       \
       /* this value has not been tuned at all... it was basically "64 is too little, therefore 1024" */ \
       /* change it as desired. even make it non-constant if you want */ \
+      /* if your project already has a pool of buffers around for other purposes (texture caches, etc.), */ \
+      /* you could also just modify this to use one of those buffers as the swap */ \
       const uint64 swap_size = 1024; \
       __typeof__(bzSort_array[0]) bzSort_swap[swap_size]; \
       \
