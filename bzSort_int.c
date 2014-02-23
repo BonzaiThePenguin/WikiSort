@@ -70,6 +70,7 @@ void bzSort(int ints[], const uint64 array_count) {
             if (ints[start] > ints[end - 1]) {
                // the size of the two sides will never differ by more than 1, so we can just have a separate swap here for a single variable
                if (mid - start >= end - mid) {
+                  // 3 4 5 6 | 0 1 2... the left side has one more item (or they are equal)
                   uint64 a_from = start, a_to = mid, b_from = mid, b_to = start, count = end - mid;
                   if (mid - start != end - mid) temp = ints[a_to = mid - 1];
                   while (count > 0) {
@@ -82,10 +83,11 @@ void bzSort(int ints[], const uint64 array_count) {
                   }
                   if (mid - start != end - mid) ints[end - 1] = temp;
                } else {
+                  // 4 5 6 | 0 1 2 3... the right side has one more item
                   uint64 a_from = end, a_to = mid, b_from = mid, b_to = end, count = mid - start;
                   if (mid - start != end - mid) { temp = ints[mid]; a_to++; }
                   while (count > 0) {
-                     // copy values from the left side into swap
+                     // copy values from the right side into swap
                      uint64 read = (swap_size < count) ? swap_size : count;
                      a_from -= read; a_to -= read; b_from -= read; b_to -= read; count -= read;
                      memcpy(&swap[0], &ints[a_from], read * sizeof(ints[0]));
