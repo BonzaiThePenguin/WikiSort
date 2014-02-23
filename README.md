@@ -1,32 +1,28 @@
-bzSort
+wikisort
 ======
 
-Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear worst case*, and uses O(1) memory. <b>This is a live standard, and <i>will</i> change as superior techniques become known.</b><br/>
-
-\* it turns out this is not correct, and the merge operation will need to be modified
+Aims to be a hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear or better worst case, and uses O(1) memory. <b>This is a live standard, and <i>will</i> change as superior techniques become known.</b> Feel free to add your own improvements!<br/>
 
 <br/>
-<b>TL;DR version</b>: are you using merge sort in your project? Switch to the modified <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> described in <a href="https://github.com/BonzaiThePenguin/bzSort/blob/master/bzSort_int.c">bzSort_int.c</a> and get a substantial speedup by removing recursion and O(log n) stack space, while also always operating on equal size merges. You can keep your project's merge operation exactly the same if you want.
+<b>TL;DR version</b>: are you using merge sort in your project? Switch to the modified <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> described in <a href="https://github.com/BonzaiThePenguin/wikisort/blob/master/wikisort_int.c">wikisort_int.c</a> and get a substantial speedup by removing recursion and O(log n) stack space, while also always operating on equal size merges. You can keep your project's merge operation exactly the same if you want.
 
 <br/>
-<b>Features:</b><br/>
+<b>Features/Goals:</b><br/>
 &nbsp;&nbsp;• Does not use recursion or dynamic allocations, so it optimizes/inlines well.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
 &nbsp;&nbsp;• 65-100% faster than <a href="https://github.com/patperry/timsort/blob/master/stresstest.c">Timsort</a> for random data, and exactly as fast in the best case (pre-sorted data).<br/>
 &nbsp;&nbsp;• Typically faster than quick sort, while also being stable and having a much better worst-case.<br/>
-&nbsp;&nbsp;• <b>Public domain</b>. Do whatever you want with it.<br/>
+&nbsp;&nbsp;• <b>Public domain, usable and editable by anyone</b>. Do whatever you want with it.<br/>
 
+The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, wikisort_int.c contains a C function that works with int arrays.<br/><br/>
 
-The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, bzSort_int.c contains a C function that works with int arrays.<br/><br/>
+Right now wikisort is basically just a postorder <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
 
-This is basically just a standard <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
-
-&nbsp;&nbsp;• also has the standard optimization of using insertion sort in the lower levels<br/>
-&nbsp;&nbsp;• uses a fixed-size circular buffer for swaps/merges (this part might be a bad idea...)<br/>
+&nbsp;&nbsp;• implements the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
-&nbsp;&nbsp;• <b>uses a different method for calculating the ranges to merge (see below)</b><br/>
+&nbsp;&nbsp;• calculates the ranges to merge using floating-point math rather than min(range, array_size)<br/>
 <br/>
-Here's how the bottom-up sort looks for an array of a size that happens to be a power of two:<br/>
+Here's how a bottom-up merge sort looks for an array of a size that happens to be a power of two:<br/>
 
     void sort(int a[], uint64 count) {
        uint64 index = 0, merge, iteration, length, start, mid, end;
@@ -98,14 +94,12 @@ Which is of course exactly what we wanted.<br/>
     
 The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. Correctness is defined as (end == count) on the last merge step and enough precision to represent the ranges, as otherwise there would be an off-by-one error due to floating-point inaccuracies. Floats are only precise enough for up to 17 million elements.<br/>
 
-<b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b> From there it was just a matter of implementing a standard merge using a fixed-size circular buffer, using insertion sort for sections that contain 16-31 values (16 * (1.0 <= scale < 2.0)), and adding the special cases.
-
-And by the time all that's added, you end up with something that is apparently faster than any of the other sorting algorithms I've tested on Github thus far, while also being stable and using constant memory. (Testing is performed with arrays from zero to millions of elements, in increments of 2500, and in various configurations.)
+<b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b> If you come up with a more efficient traversal, by all means add it to the spec!
 
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
 
 
 And, just in case you're completely new to this, type this in the Terminal to compile and run:
 
-    gcc -o bzSort.x bzSort.c
-    ./bzSort.x
+    gcc -o wikisort.x wikisort.c
+    ./wikisort.x
