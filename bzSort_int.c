@@ -64,6 +64,8 @@ void bzSort(int ints[], const uint64 array_count) {
          ints[j] = temp;
       }
       
+      // here's where the fake recursion is handled
+      // it's a bottom-up merge sort, but multiplying by scale is more efficient than using min(end, array_count)
       merge = index; index += 32; length = 16;
       for (iteration = index/16; bzIsEven(iteration); iteration /= 2) {
          start = merge * scale;
