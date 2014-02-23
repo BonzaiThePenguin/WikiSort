@@ -107,6 +107,7 @@ uint64 floor_power_of_two(uint64 x) {
                   while (swap_to < index1) { bzSort_array[swap_to++] = bzSort_swap[swap_from++]; if (swap_from >= swap_size) swap_from = 0; } \
                } \
             } \
+            /* the merges get twice as large after each iteration, until eventually we merge the entire array */ \
             length *= 2; merge -= length; iteration /= 2; \
          } \
       } \
