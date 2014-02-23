@@ -6,7 +6,7 @@ Hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear wo
 \* it turns out this is not correct, and the merge operation will need to be modified
 
 <br/>
-<b>TL;DR version</b>: are you using merge sort in your project? Switch to the modified <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> described in <a href="https://github.com/BonzaiThePenguin/bzSort/blob/master/bzSort_int.c">bzSort_int.c</a> and get a substantial speedup by removing recursion and O(log n) stack space, while also always operating on equal size merges. You can keep your project's merge function exactly the same if you want.
+<b>TL;DR version</b>: are you using merge sort in your project? Switch to the modified <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> described in <a href="https://github.com/BonzaiThePenguin/bzSort/blob/master/bzSort_int.c">bzSort_int.c</a> and get a substantial speedup by removing recursion and O(log n) stack space, while also always operating on equal size merges. You can keep your project's merge operation exactly the same if you want.
 
 <br/>
 <b>Features:</b><br/>
