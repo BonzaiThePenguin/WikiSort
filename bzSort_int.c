@@ -70,7 +70,7 @@ void bzSort(int ints[], const uint64 array_count) {
             if (ints[start] > ints[end - 1]) {
                // the size of the two sides will never differ by more than 1, so we can just have a separate swap here for a single variable
                if (mid - start >= end - mid) {
-                  // 3 4 5 6 | 0 1 2... the left side has one more item (or they are equal)
+                  // 3 4 5 6 | 0 1 2... the left side has one more item (or they are the same size)
                   uint64 a_from = start, a_to = mid, b_from = mid, b_to = start, count = end - mid;
                   if (mid - start != end - mid) temp = ints[a_to = mid - 1];
                   while (count > 0) {
