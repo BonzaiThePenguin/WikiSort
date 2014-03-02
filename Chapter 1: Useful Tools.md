@@ -52,7 +52,8 @@ Linear searching is nothing more than a simple loop through the items in an arra
 
     LinearSearch(array, range, value)
         for (index = range.start; index < range.end; index++)
-            if (array[index] == value) return index;
+            if (array[index] == value)
+                return index
 
 <br/><br/>
 <b>Binary search</b><br/>
