@@ -123,18 +123,18 @@ long FloorPowerOfTwo(long x) {
 
 // find the index of the first value within the range that is equal to array[index]
 long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
-	long min1 = range.start, max1 = range.start + range.length - 1;
-	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) < 0) min1 = mid1 + 1; else max1 = mid1; }
-	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) < 0) min1++;
-	return min1;
+	long start = range.start, end = range.start + range.length - 1;
+	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) < 0) start = mid + 1; else end = mid; }
+	if (start == range.start + range.length - 1 && compare(array[start], array[index]) < 0) start++;
+	return start;
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
 long BinaryLast(Test array[], long index, Range range, Comparison compare) {
-	long min1 = range.start, max1 = range.start + range.length - 1;
-	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) <= 0) min1 = mid1 + 1; else max1 = mid1; }
-	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) <= 0) min1++;
-	return min1;
+	long start = range.start, end = range.start + range.length - 1;
+	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) <= 0) start = mid + 1; else end = mid; }
+	if (start == range.start + range.length - 1 && compare(array[start], array[index]) <= 0) start++;
+	return start;
 }
 
 // n^2 sorting algorithm, used to sort tiny chunks of the full array
