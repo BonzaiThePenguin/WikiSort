@@ -9,7 +9,7 @@ The core of efficient in-place merging relies on the fact that merging two sorte
 
     [              A                  ][                   B               ]
 
-We instead think of it like this:
+We think of it like this:
 
     1. break A into evenly sized blocks
     [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
