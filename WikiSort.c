@@ -74,7 +74,7 @@ long WikiFloorPowerOfTwo(long x) {
 	var(WikiReverse_array, array_instance); WikiRange WikiReverse_range = range; \
 	long WikiReverse_index; \
 	for (WikiReverse_index = WikiReverse_range.length/2 - 1; WikiReverse_index >= 0; WikiReverse_index--) \
-	WikiSwap(WikiReverse_array[WikiReverse_range.start + WikiReverse_index], WikiReverse_array[WikiReverse_range.start + WikiReverse_range.length - WikiReverse_index - 1]); \
+		WikiSwap(WikiReverse_array[WikiReverse_range.start + WikiReverse_index], WikiReverse_array[WikiReverse_range.start + WikiReverse_range.length - WikiReverse_index - 1]); \
 })
 
 // swap a sequence of values in an array
