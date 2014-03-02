@@ -43,6 +43,7 @@ typedef struct { long start, length; } WikiRange;
 
 
 // toolbox functions used by the sorter
+#define WikiArray(type, count) (type *)malloc((count) * sizeof(type))
 
 // 63 -> 32, 64 -> 64, etc.
 long WikiFloorPowerOfTwo(long x) {
@@ -441,7 +442,7 @@ void MergeSortR(WikiTest array[], WikiRange range, WikiComparison compare, WikiT
 }
 
 void MergeSort(WikiTest array[], const long array_count, WikiComparison compare) {
-	WikiTest *buffer = malloc(array_count * sizeof(array[0]));
+	var(buffer, WikiArray(WikiTest, array_count));
 	MergeSortR(array, WikiMakeRange(0, array_count), compare, buffer);
 	free(buffer);
 }
@@ -449,7 +450,8 @@ void MergeSort(WikiTest array[], const long array_count, WikiComparison compare)
 int main(int argc, char argv[]) {
 	long total, index;
 	const long max_size = 3000000;
-	WikiTest *array1 = malloc(max_size * sizeof(WikiTest)), *array2 = malloc(max_size * sizeof(WikiTest));
+	var(array1, WikiArray(WikiTest, max_size));
+	var(array2, WikiArray(WikiTest, max_size));
 	WikiComparison compare = WikiCompare;
 	
 	srand(/*time(NULL)*/ 10141985);
@@ -479,6 +481,7 @@ int main(int argc, char argv[]) {
 		time2 = (clock() - time2) * 1.0/CLOCKS_PER_SEC;
 		
 		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
+		printf("verifying... ");
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		assert(compare(array1[0], array2[0]) == 0);
@@ -487,6 +490,8 @@ int main(int argc, char argv[]) {
 			assert(compare(array1[index], array1[index - 1]) > 0 ||
 				   (compare(array1[index], array1[index - 1]) == 0 && array1[index].index > array1[index - 1].index));
 		}
+		
+		printf("correct!\n");
 	}
 	
 	free(array1); free(array2);
