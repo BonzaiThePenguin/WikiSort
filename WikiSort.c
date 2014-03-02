@@ -126,7 +126,33 @@ long FloorPowerOfTwo(long x) {
 	} \
 }
 
-// merge operation which uses an internal or external buffer
+// find the index of the first value within the range that is equal to array[index]
+long BinaryInsertFirst(Test array[], long index, Range range, Comparison compare) {
+	long min1 = range.start, max1 = range.start + range.length - 1;
+	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) < 0) min1 = mid1 + 1; else max1 = mid1; }
+	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) < 0) min1++;
+	return min1;
+}
+
+// find the index of the last value within the range that is equal to array[index], plus 1
+long BinaryInsertLast(Test array[], long index, Range range, Comparison compare) {
+	long min1 = range.start, max1 = range.start + range.length - 1;
+	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) <= 0) min1 = mid1 + 1; else max1 = mid1; }
+	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) <= 0) min1++;
+	return min1;
+}
+
+// n^2 sorting algorithm, used to sort tiny chunks of the full array
+void InsertionSort(Test array[], Range range, Comparison compare) {
+	long i;
+	for (i = range.start + 1; i < range.start + range.length; i++) {
+		Test temp = array[i]; long j = i;
+		while (j > range.start && compare(array[j - 1], temp) > 0) { array[j] = array[j - 1]; j--; }
+		array[j] = temp;
+	}
+}
+
+// merge operation, which uses an internal or external buffer
 #define WikiMerge(array, buffer, A, B, compare) { \
 	Var(Merge_array, array); Var(Merge_buffer, buffer); Var(Merge_A, A); Var(Merge_B, B); \
 	if (compare(Merge_array[Merge_A.start + Merge_A.length - 1], Merge_array[Merge_B.start]) > 0) { \
@@ -146,32 +172,6 @@ long FloorPowerOfTwo(long x) {
 			BlockSwap(Merge_array, Merge_buffer.start + A_count, Merge_A.start + insert, Merge_A.length - A_count); \
 		} \
 	} \
-}
-
-// find the first value within the range that is equal to the value at index
-long BinaryInsertFirst(Test array[], long index, Range range, Comparison compare) {
-	long min1 = range.start, max1 = range.start + range.length - 1;
-	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) < 0) min1 = mid1 + 1; else max1 = mid1; }
-	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) < 0) min1++;
-	return min1;
-}
-
-// find the last value within the range that is equal to the value at index. the result is 1 more than the last index
-long BinaryInsertLast(Test array[], long index, Range range, Comparison compare) {
-	long min1 = range.start, max1 = range.start + range.length - 1;
-	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) <= 0) min1 = mid1 + 1; else max1 = mid1; }
-	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) <= 0) min1++;
-	return min1;
-}
-
-// n^2 sorting algorithm, used to sort tiny chunks of the full array
-void InsertionSort(Test array[], Range range, Comparison compare) {
-	long i;
-	for (i = range.start + 1; i < range.start + range.length; i++) {
-		Test temp = array[i]; long j = i;
-		while (j > range.start && compare(array[j - 1], temp) > 0) { array[j] = array[j - 1]; j--; }
-		array[j] = temp;
-	}
 }
 
 // bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
