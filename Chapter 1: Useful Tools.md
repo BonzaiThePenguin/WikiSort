@@ -22,7 +22,7 @@ One function that is often needed is the ability to swap the values stored in tw
 
 <br/><br/>
 <b>Block swapping</b><br/>
-Block swapping is a convenience function for swapping multiple sequential items in an array. So block swapping array[0] and array[10] with a block size of 5 would swap items 0-4 and 10-14.<br/><br/>
+Block swapping is a convenience function for swapping multiple sequential items in an array. So block swapping array[0] and array[10] with a block size of 5 would swap items 0-4 and 10-14.<br/>
 
     BlockSwap(array, index1, index2, count)
 		for (index = 0; index < count; index++) Swap(array[index1 + index], array[index2 + index])
