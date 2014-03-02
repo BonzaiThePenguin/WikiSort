@@ -27,12 +27,69 @@ We instead think of it like this:
 That's the general idea, but it raises some questions:
 
 &nbsp;&nbsp;• What size should each A block be?<br/>
-&nbsp;&nbsp;• How exactly do we "insert" each block into B without it being an n^2 operation?<br/>
+&nbsp;&nbsp;• How exactly do we "insert" each A block into B without it being an n^2 operation?<br/>
 &nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b>
 
 
-==========================
+First let's answer the first question. Each A block should be of size √(A.length). You'll see why in a second.<br/><br/>
 
+As for how to insert the A blocks into B, the obvious solution (using 'memmove' or an equivalent to shift the array values over to where they belong) is an n^2 operation <i>and</i> requires an extra buffer allocation. So that's no good. What we'll have to do instead is also break B into blocks, then . Like so:
+
+    1. break B into evenly-sized blocks too (the A blocks are numbered to show order)
+    [ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ B ][ B ][ B ][ B ][ B ][ B ][ B ][] <- extra bit of B left over
+      ^
+      |__ first A block
+      
+    2. allow the A blocks to be moved out of order, then simply swap it with the next B block
+    [ B ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ B ][ B ][ B ][ B ][ B ][ B ][]
+      ^
+      |__ first B block (swapped with A)
+    
+    3. keep going until we find where we want to "drop" the smallest A block behind
+    [ B ][ B ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
+                ^
+                |__ the first A block needs to be block swapped here
+    
+    4. find the EXACT spot within B where the A block should go
+    [ B ][ B ][ 0 ][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
+            ^
+            |__ really, it SHOULD be here
+    
+    5. use a rotation (see chapter 1) to move the A block into its final position!
+    [ B ][][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
+          ^      ^
+          |______|__ B was split into two parts
+
+As soon as we find the exact spot where an A block should be, and rotate it into place in the array, we should immediately merge the previous A block with any B values that follow it. So, to continue the above example:
+
+    6. find the next A block to move into position
+    [ B ][][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
+                    ^                             ^
+                    |__ [ 3 ] was here            |__ but it was swapped over to here
+    
+    7. drop the smallest A block behind again, which is [ 1 ] this time
+    [ B ][][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
+                                             ^
+                                             |__ swap this with [ 4 ]
+    
+    8. once again, find the EXACT spot where [ 1 ] should be rotated into the previous B block
+    [ B ][][ 0 ][][ B ][ 1 ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
+                    ^
+                    |__ in this example, it's going in the exact middle
+    
+    9. there!
+    [ B ][][ 0 ][B][ 1 ][B ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
+
+At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ]. This process repeats until there are no A blocks left, at which point we merge it with the remainder of the B array.
+
+==========================
+<b>But... what was accomplished?</b>
+
+We went from needing to merge A and B with needing to merge an A block with a B block. Isn't that the same thing?
+
+<i>More here</i>
+
+==========================
 <b>Sorry, this is still very much a work in progress!</b>
 
 - problem: shifting the A blocks over is an n^2 operation
