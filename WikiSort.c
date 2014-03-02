@@ -42,6 +42,8 @@ typedef struct { long start, length; } Range;
 // toolbox functions used by the sorter
 
 // 63 -> 32, 64 -> 64, etc.
+// if you want to use this outside of the sort function for general use,
+// you should probably switch this over to uint64_t
 long FloorPowerOfTwo(long x) {
 	x |= (x >> 1); x |= (x >> 2); x |= (x >> 4);
 	x |= (x >> 8); x |= (x >> 16); x |= (x >> 32);
