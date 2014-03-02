@@ -1,4 +1,4 @@
-Chapter 1: Useful Tools
+Chapter 1: Tools
 ====================
 
 Here are some useful functions that will be needed later:<br/><br/>
