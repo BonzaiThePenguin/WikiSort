@@ -4,7 +4,7 @@ Chapter 2: Merging
 <b>Standard merge sort</b><br/>
 This still needs a description.<br/>
 
-    MergeSort(array[], range)
+    MergeSort(array, range)
         mid = range.start + range.length/2
         MergeSort(array, MakeRange(range.start, mid))
         MergeSort(array, MakeRange(mid, range.end))
