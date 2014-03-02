@@ -1,7 +1,8 @@
-Merging
+Chapter 2: Merging
 =============
 
 <b>Standard merge sort</b><br/><br/>
+This still needs a description.<br/>
 
     MergeSort(array[], range)
         mid = range.start + range.length/2
@@ -9,7 +10,9 @@ Merging
         MergeSort(array, MakeRange(mid, range.end))
         Merge(array, MakeRange(range.start, mid), MakeRange(mid, range.end))
 
+<br/><br/>
 <b>Standard merge</b><br/><br/>
+This still needs a description.<br/>
 
     Merge(array, A, B)
         Copy A and B into a buffer
@@ -24,10 +27,14 @@ Merging
             insert = insert + 1
         Copy the remaining part of the buffer back into the array
 
-<b>Problems</b>
-There are some significant drawbacks to this design, especially if you're concerned about memory usage. The recursion actually uses O(n log n) stack space, and the merge operation requires a separate buffer that's the same size as the original array. Can we do better?<br/><br/>
+<br/><br/>
+<b>Problems</b><br/>
+There are some significant drawbacks to this design, especially if you're concerned about memory usage. The recursion actually uses O(n log n) stack space, and the merge operation requires a separate buffer that's the same size as the original array.<br/><br/>
 
-<b>Merge sort without recursion</b>
+Can we do better? <b>Of course!</b><br/><br/>
+
+
+<b>Merge sort without recursion</b><br/>
 To remove the recursion, we can use what's called a bottom-up merge sort. Here's what a it looks like for an array of a size that happens to be a power of two:<br/>
 
     sort(array, count)
@@ -102,7 +109,7 @@ Anyway, this removes the needed for the O(n log n) stack space! But what about t
 
 
 <b>Merging using a half-size buffer</b><br/>
-One obvious optimization is to only copy the values from A into the buffer, since by the time we run the risk of overwriting values in the range of B we will have already read and compared those values. Here's what this variant looks like:
+One obvious optimization is to only copy the values from A into the buffer, since by the time we run the risk of overwriting values in the range of B we will have already read and compared those values. Here's what this variant looks like:<br/>
 
     Merge(array, A, B)
         Copy the values from A into the buffer
@@ -117,8 +124,9 @@ One obvious optimization is to only copy the values from A into the buffer, sinc
             insert = insert + 1
         Copy the remaining part of the buffer back into the array
 
+<br/><br/>
 <b>Merging without overwriting the contents of the half-size buffer</b><br/>
-Finally, if instead of assigning values we <i>swap</i> them to and from the buffer, we end up with a merge operation that still requires extra space, but doesn't overwrite any of the values that were stored in that extra space:<br/><br/>
+Finally, if instead of assigning values we <i>swap</i> them to and from the buffer, we end up with a merge operation that still requires extra space, but doesn't overwrite any of the values that were stored in that extra space:<br/>
 
     Merge(array, A, B)
         Block swap the values in A with those in the buffer
@@ -133,7 +141,8 @@ Finally, if instead of assigning values we <i>swap</i> them to and from the buff
             insert = insert + 1
         Block swap the remaining part of the buffer with the remaining part of the array
 
-So now we can efficiently merge A and B without losing any buffer values, but we still needed that additional buffer to exist. But... what if this extra buffer <i>was part of the same array</i>?
+<br/><br/>
+So now we can efficiently merge A and B without losing any buffer values, but we still needed that additional buffer to exist. But… what if this extra buffer <i>is part of the same array</i>?<br/><br/>
 
 
-That's the idea behind <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter3_InPlace.md">in-place merging</a>!
+That's the idea behind <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">in-place merging</a>!
