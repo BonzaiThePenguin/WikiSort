@@ -33,6 +33,9 @@ typedef int (*WikiComparison)(WikiTest, WikiTest);
 #endif
 
 
+#define WikiArray(type, count) (type *)malloc((count) * sizeof(type))
+#define WikiSeconds() (clock() * 1.0/CLOCKS_PER_SEC)
+
 
 // structure to represent ranges within the array
 #define WikiMakeRange(/* long */ start, length) ((WikiRange){(long)(start), length})
@@ -41,9 +44,7 @@ typedef int (*WikiComparison)(WikiTest, WikiTest);
 typedef struct { long start, length; } WikiRange;
 
 
-
 // toolbox functions used by the sorter
-#define WikiArray(type, count) (type *)malloc((count) * sizeof(type))
 
 // 63 -> 32, 64 -> 64, etc.
 long WikiFloorPowerOfTwo(long x) {
@@ -472,13 +473,13 @@ int main(int argc, char argv[]) {
 			array1[index] = array2[index] = item;
 		}
 		
-		double time1 = clock();
+		double time1 = WikiSeconds();
 		WikiSort(array1, total, compare);
-		time1 = (clock() - time1) * 1.0/CLOCKS_PER_SEC;
+		time1 = WikiSeconds() - time1;
 		
-		double time2 = clock();
+		double time2 = WikiSeconds();
 		MergeSort(array2, total, compare);
-		time2 = (clock() - time2) * 1.0/CLOCKS_PER_SEC;
+		time2 = WikiSeconds() - time2;
 		
 		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
 		printf("verifying... ");
