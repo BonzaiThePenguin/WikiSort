@@ -1,7 +1,7 @@
 Chapter 2: Merging
 =============
 
-<b>Standard merge sort</b><br/><br/>
+<b>Standard merge sort</b><br/>
 This still needs a description.<br/>
 
     MergeSort(array[], range)
@@ -11,7 +11,7 @@ This still needs a description.<br/>
         Merge(array, MakeRange(range.start, mid), MakeRange(mid, range.end))
 
 <br/><br/>
-<b>Standard merge</b><br/><br/>
+<b>Standard merge</b><br/>
 This still needs a description.<br/>
 
     Merge(array, A, B)
