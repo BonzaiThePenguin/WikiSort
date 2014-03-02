@@ -17,7 +17,7 @@ We think of it like this:
     2. insert them into B where they belong (so A[first] <= B[last])
     [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
     
-    3. merge each [A][B] combination using a ...buffer?
+    3. merge each [A][B] combination
     [ A ][  B  ]  [ A ][B]  [ A ]  [ A ][   B   ]  [ A ][  B ]  [ A ][B]  [ A ][   B   ]
     
     4. all finished!
