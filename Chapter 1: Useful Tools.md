@@ -1,24 +1,25 @@
-1. Useful Tools
-===================
+Chapter 1: Useful Tools
+====================
 
 Here are some useful functions that will be needed later:<br/><br/>
 
 <b>Comparing</b><br/>
-At the heart of any sorting algorithm is a function that compares two items in the array with each other. By convention, returning 0 means the two items are equal, +1 means the first item was greater than the second, and -1 means the first item was less than the second.<br/><br/>
+At the heart of any sorting algorithm is a function that compares two items in the array with each other. By convention, returning 0 means the two items are equal, +1 means the first item was greater than the second, and -1 means the first item was less than the second.<br/>
 
     compare(a, b)
         if (a > b) return 1
         if (a < b) return -1
         return 0
-
+<br/><br/>
 <b>Swapping</b><br/>
-One function that is often needed is the ability to swap the values stored in two variables. This is quite simple – just use a <i>third</i> variable to temporarily hold one of the values, then reassign them.<br/><br/>
+One function that is often needed is the ability to swap the values stored in two variables. This is quite simple – just use a <i>third</i> variable to temporarily hold one of the values, then reassign them.<br/>
 
     swap(a, b)
         temp = a
         a = b
         b = temp
 
+<br/><br/>
 <b>Block swapping</b><br/>
 Block swapping is a convenience function for swapping multiple sequential items in an array. So block swapping array[0] and array[10] with a block size of 5 would swap items 0-4 and 10-14.
 
@@ -28,10 +29,10 @@ To reverse the items in an array, simply swap the <i>n</i>th item with the <i>(c
 <b>Rotating</b><br/>
 Rotating an array involves shifting all of the items over some number of spaces, with items wrapping around to the other side as needed. Rotations can be implemented as three reverse operations, like so:
 
-    rotate(array, range, amount)
-        reverse(array, MakeRange(range.start, range.end - amount))
-        reverse(array, MakeRange(range.end - amount, range.end))
-        reverse(array, range)
+    Rotate(array, range, amount)
+        Reverse(array, MakeRange(range.start, range.end - amount))
+        Reverse(array, MakeRange(range.end - amount, range.end))
+        Reverse(array, range)
 
 <b>Linear search</b><br/>
 
