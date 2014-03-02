@@ -7,6 +7,7 @@ WikiSort is a sorting algorithm that's stable, has an O(n) best case and quasili
 <b>Features:</b><br/>
 &nbsp;&nbsp;• Does not use recursion or dynamic allocations, so it optimizes/inlines well.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
+&nbsp;&nbsp;• Despite being an in-place merge, it's highly competitive in speed!<br/>
 &nbsp;&nbsp;• <b>Public domain, usable and editable by anyone</b>. Do whatever you want with it.<br/><br/>
 
 Right now wikisort is basically just a postorder <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
