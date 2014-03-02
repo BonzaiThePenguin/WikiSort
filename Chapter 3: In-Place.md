@@ -5,13 +5,13 @@ To reiterate, much of the work presented here is based on a paper called <a href
 
 <b>The basic idea</b>
 
-The core of efficient in-place merging relies on the fact that merging two sorted arrays, A and B, is equivalent to breaking A into evenly-sized chunks, inserting them into B, then merging each A block with any values from B that follow it. So instead of approaching the problem like this:
+The core of efficient in-place merging relies on the fact that merging two sorted arrays, A and B, is equivalent to breaking A into evenly sized blocks, inserting them into B, then merging each A block with any values from B that follow it. So instead of approaching the problem like this:
 
     [              A                  ][                   B               ]
 
 We instead think of it like this:
 
-    1. break A into evenly-sized blocks
+    1. break A into evenly sized blocks
     [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
     
     2. insert them into B where they belong (so A[first] <= B[last])
