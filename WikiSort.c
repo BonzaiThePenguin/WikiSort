@@ -185,7 +185,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 	long power_of_two = WikiFloorPowerOfTwo(array_count);
 	double scale = array_count/(double)power_of_two; // 1.0 <= scale < 2.0
 	
-	long index;
+	long index, iteration;
 	for (index = 0; index < power_of_two; index += 32) {
 		// insertion sort from start to mid and mid to end
 		long start = index * scale;
@@ -198,7 +198,6 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 		// here's where the fake recursion is handled
 		// it's a bottom-up merge sort, but multiplying by scale is more efficient than using min(end, array_count)
 		long merge = index, length = 16;
-		long iteration;
 		for (iteration = index/16 + 2; WikiIsEven(iteration); iteration /= 2) {
 			start = merge * scale;
 			mid = (merge + length) * scale;
@@ -451,7 +450,7 @@ int main(int argc, char argv[]) {
 	
 	srand(/*time(NULL)*/ 10141985);
 	
-	for (total = 0; total < 3000000; total += 2048 * 16) {
+	for (total = 0; total < max_size; total += 2048 * 16) {
 		for (index = 0; index < total; index++) {
 			WikiTest item; item.index = index;
 			
