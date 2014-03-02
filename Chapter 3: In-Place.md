@@ -100,8 +100,11 @@ Not necessarily. Let's allow ourselves to temporarily modify the array so that t
     
     3. the first A block needs to contain the first unique values in A (marked with ^ above)
     [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
+    
+    4. now we merge the remaining A blocks. the first one is now reserved for other purposes
+    [ 1 2 3 4 ]      [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]      [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
 
-Then we merge the other A blocks, but not the first one. The trick now is that since this area is large enough to hold the values of any A block, we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm!
+The trick now is that since this area is large enough to hold the values of any A block (seeing as how it's the same size), we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm!
 
 The merge process causes the items in the buffer to move out of order, but since the values are unique we can just sort them when we're finished merging the A blocks. And then we can just redistribute them back to where they belong in the array, which completes the sorting process.
 
