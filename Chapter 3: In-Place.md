@@ -5,13 +5,35 @@ To reiterate, much of the work presented here is based on a paper called <a href
 
 <b>The basic idea</b>
 
-The core of efficient in-place merging relies on the fact that merging two sorted arrays, A and B, is equivalent to breaking A into evenly-sized chunks, inserting them into B, then merging each A block with any values from B that follow it. <i>Add a visual diagram here!</i>
+The core of efficient in-place merging relies on the fact that merging two sorted arrays, A and B, is equivalent to breaking A into evenly-sized chunks, inserting them into B, then merging each A block with any values from B that follow it. So instead of approaching the problem like this:
 
+    [              A                  ][                   B               ]
+
+We instead think of it like this:
+
+    1. break A into evenly-sized blocks
+    [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
+    
+    2. insert them into B where they belong (so A[first] <= B[last])
+    [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
+    
+    3. merge each [A][B] combination using a ...buffer?
+    [ A ][  B  ]  [ A ][B]  [ A ]  [ A ][   B   ]  [ A ][  B ]  [ A ][B]  [ A ][   B   ]
+    
+    4. all finished!
+    [                               A+B                                    ]
+    
+
+That's the general idea, but it raises some questions:
+
+&nbsp;&nbsp;• What size should each A block be?<br/>
+&nbsp;&nbsp;• How exactly do we "insert" each block into B without it being an n^2 operation?<br/>
+&nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b>
+
+
+==========================
 
 <b>Sorry, this is still very much a work in progress!</b>
-
-
-merging A and B is equivalent to breaking A and B up into blocks, rearranging the blocks, then merging each ABBB set of blocks
 
 - problem: shifting the A blocks over is an n^2 operation
 - solution: swap the first A block with the next B block
