@@ -70,8 +70,8 @@ long FloorPowerOfTwo(long x) {
 })
 
 // reverse a range within the array
-#define Reverse(array_instance, range) ({ \
-	Var(Reverse_array, array_instance); Range Reverse_range = range; \
+#define Reverse(array, range) ({ \
+	Var(Reverse_array, array); Range Reverse_range = range; \
 	long Reverse_index; \
 	for (Reverse_index = Reverse_range.length/2 - 1; Reverse_index >= 0; Reverse_index--) \
 		Swap(Reverse_array[Reverse_range.start + Reverse_index], Reverse_array[Reverse_range.start + Reverse_range.length - Reverse_index - 1]); \
