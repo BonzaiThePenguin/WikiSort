@@ -12,6 +12,7 @@ WikiSort is a sorting algorithm that's stable, has an O(n) best case and quasili
 &nbsp;&nbsp;• <b>Public domain, usable and editable by anyone</b>. Do whatever you want with it.<br/><br/>
 
 Right now WikiSort is basically just a postorder <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
+
 &nbsp;&nbsp;• implements the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
 &nbsp;&nbsp;• calculates the ranges to merge using floating-point math rather than min(range, array_size)<br/>
@@ -22,7 +23,7 @@ Right now WikiSort is basically just a postorder <a href="http://www.algorithmis
 For more information, check out the documentation:<br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%201:%20Useful%20Tools.md">Chapter 1: Useful Tools</a><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%202:%20Merging.md">Chapter 2: Merging</a><br/>
-&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/><br/>
 
 
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
