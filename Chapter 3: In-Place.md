@@ -126,7 +126,7 @@ The next trick is to use <i>another</i> A block to store <i>another</i> set of u
     3. notice that the last B block was resized, to make room for this reserved block
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
     
-    4. anyway, now let's tag the A blocks with these unique values
+    4. anyway, now tag the A blocks with these unique values, by swapping the last value with one from the buffer
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
                          ^          ^          ^                                              ^ ^ ^
     
