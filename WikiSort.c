@@ -25,13 +25,8 @@ typedef int (*Comparison)(Test, Test);
 	#define true 1
 #endif
 #define Var(name, value...) __typeof__(value) name = value
-#ifndef Max
-	#define Max(x, y) ({ Var(x1, x); Var(y1, y); (x1 > y1) ? x1 : y1; })
-#endif
-#ifndef Min
-	#define Min(x, y) ({ Var(x1, x); Var(y1, y); (x1 < y1) ? x1 : y1; })
-#endif
-
+#define Max(x, y) ({ Var(x1, x); Var(y1, y); (x1 > y1) ? x1 : y1; })
+#define Min(x, y) ({ Var(x1, x); Var(y1, y); (x1 < y1) ? x1 : y1; })
 
 #define Allocate(type, count) (type *)malloc((count) * sizeof(type))
 #define Seconds() (clock() * 1.0/CLOCKS_PER_SEC)
