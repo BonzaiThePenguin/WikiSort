@@ -8,6 +8,18 @@
 #include <time.h>
 #include <limits.h>
 
+
+// structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
+typedef struct { int value, index; } WikiTest;
+int WikiCompare(WikiTest item1, WikiTest item2) {
+	if (item1.value < item2.value) return -1;
+	if (item1.value > item2.value) return 1;
+	return 0;
+}
+typedef int (*WikiComparison)(WikiTest, WikiTest);
+
+
+
 // various #defines for the C code
 #ifndef true
 	#define true 1
@@ -19,17 +31,6 @@
 #ifndef min
 	#define min(x, y) ({ var(x1, x); var(y1, y); (x1 < y1) ? x1 : y1; })
 #endif
-
-
-
-// structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
-typedef struct { int value, index; } WikiTest;
-int WikiCompare(WikiTest item1, WikiTest item2) {
-	if (item1.value < item2.value) return -1;
-	if (item1.value > item2.value) return 1;
-	return 0;
-}
-typedef int (*WikiComparison)(WikiTest, WikiTest);
 
 
 
