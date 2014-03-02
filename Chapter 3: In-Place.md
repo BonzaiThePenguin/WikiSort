@@ -24,7 +24,7 @@ We instead think of it like this:
     [ A  +  B  ]  [ A + B]  [ A ]  [  A  +   B  ]  [ A  +  B ]  [ A + B]  [ A   +   B  ]
       = [ A  +  B  ][ A + B][ A ][  A  +   B  ][ A  +  B ][ A + B][ A   +   B  ]
       = [                               A+B                                    ]
-    
+
 
 That's the general idea, but it raises some questions:
 
@@ -102,23 +102,15 @@ Not necessarily. Let's allow ourselves to temporarily modify the array so that t
     3. the first A block needs to contain the first unique values in A (marked with ^ above)
     [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
 
-Then we merge the other A blocks, but not the first one. The trick now is that since this area is large enough to hold the values of any A block, we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm! The merge process causes the items in the buffer to move out of order, but since the values are unique we can just sort them when we're finished merging the A blocks.
+Then we merge the other A blocks, but not the first one. The trick now is that since this area is large enough to hold the values of any A block, we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm!
 
+The merge process causes the items in the buffer to move out of order, but since the values are unique we can just sort them when we're finished merging the A blocks. And then we can just redistribute them back to where they belong in the array, which completes the sorting process.
 
 ==========================
-<b>Sorry, this is still very much a work in progress!</b>
+<b>So close, but...</b>
 
-- problem: shifting the A blocks over is an n^2 operation
-- solution: swap the first A block with the next B block
+That's essentially all there is to efficient in-place merging, but if you were to try to implement the above directly you'd run into a problem: how are we supposed to know which A block is the smallest, after we've already moved them out of order from rolling them through the B blocks? That information isn't stored anywhere at the moment, and since the A blocks might all have the same values we can't just compare them to each other to find the smallest A block. We also can't allocate space to store this information since it'd ruin the point!
 
-- problem: that causes the A blocks to be out of order
-- solution: before we break A and B into blocks, shift the first sqrt(A.length) unique values over to the very left into its own block, then swap those values with the last value of each A block. this will give us ordering information
+The new trick is to use <i>another</i> A block to store <i>another</i> set of unique values. While the first block is used as a buffer for the merging, these unique values will be used to "tag" each A block so we have some way of comparing them to determine their order. Once we pull out the unique values, loop over the remaining A blocks and swap the <i>last</i> value in each block with one of the unique values from this second buffer.
 
-- problem: finding the minimum A block after swapping them out of order is an n^2 operation
-- solution: limit the size of each block to sqrt(A.length), so an (sqrt(n))^2 operation is just O(n)!
-
-- problem merging A with the following B blocks also has a bad O whatever. also, weren't we trying to SOLVE the problem of having to merge A and B together?
-- solution: create another buffer with unique values, and use that as swap space for merging. this will cause the values to be all mixed up, but since the values are unique we can just insertion sort them afterwards
-
-- problem: insertion sort is O(n^2)
-- solution: again, since the blocks are limited to size sqrt(n), an n^2 operation is just O(n)
+And then when we go to merge an A block with the B values that follow it, swap the last value in the A block back into that buffer, so we restore the original data. Unlike the first buffer the values in this one will never be moved out of order, so we won't need to sort that block when we're finished. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
