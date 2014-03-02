@@ -1,4 +1,4 @@
-1. Toolbox Functions
+1. Useful Tools
 ===================
 
 Here are some useful functions that will be needed later:<br/><br/>
