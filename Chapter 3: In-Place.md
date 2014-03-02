@@ -133,3 +133,11 @@ The new trick is to use <i>another</i> A block to store <i>another</i> set of un
                        ^          ^          ^                                           ^ ^ ^
 
 Then of course when we go to merge an A block with the B values that follow it, swap the last value in the A block back into the buffer, so the original data is restored. Unlike the first buffer, the values in this one will never be moved out of order, so we won't need to sort these items when we're finished. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
+
+
+============================
+<b>Yeah, but aren't there still n^2 operations being used?</b>
+
+Yes, yes there are. When we "drop" the smallest A block behind, we need to use a linear search through the remaining A blocks to find the next smallest one (O(n) operation performed n times = O(n^2)); and when we are finished merging the A and B blocks and we're left with the two reserved blocks, we have to apply an insertion sort to one of them (O(n^2) on its own).<br/><br/>
+
+<b>But!</b> keep in mind that since the size of each block is actually √(A.length), performing an n^2 operation on a √n set of data ends up being O(n), or linear! So the linear search checks √(A.length) items, √(A.length) number of times, and the insertion sort is applied to a block of size √(A.length).
