@@ -1,26 +1,20 @@
-wikisort
+WikiSort
 ======
 
-Aims to be a hybrid sorting algorithm that's stable, has an O(n) best case and quasilinear or better worst case, and uses O(1) memory. <b>This is a live standard, and <i>will</i> change as superior techniques become known.</b> Feel free to add your own improvements!<br/>
+WikiSort is a sorting algorithm that's stable, has an O(n) best case and quasilinear worst case, and uses O(1) memory. <b>This is a live standard, and <i>will</i> change as superior techniques become known.</b> Feel free to add your own improvements!<br/>
 
 <br/>
-<b>TL;DR version</b>: are you using merge sort in your project? Switch to the modified <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> described in <a href="https://github.com/BonzaiThePenguin/wikisort/blob/master/wikisort_int.c">wikisort_int.c</a> and get a substantial speedup by removing recursion and O(log n) stack space, while also always operating on equal size merges. You can keep your project's merge operation exactly the same if you want.
-
-<br/>
-<b>Features/Goals:</b><br/>
+<b>Features:</b><br/>
 &nbsp;&nbsp;• Does not use recursion or dynamic allocations, so it optimizes/inlines well.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
-&nbsp;&nbsp;• 65-100% faster than <a href="https://github.com/patperry/timsort/blob/master/stresstest.c">Timsort</a> for random data, and exactly as fast in the best case (pre-sorted data).<br/>
-&nbsp;&nbsp;• Typically faster than quick sort, while also being stable and having a much better worst-case.<br/>
 &nbsp;&nbsp;• <b>Public domain, usable and editable by anyone</b>. Do whatever you want with it.<br/>
-
-The initial version is a C #define so it can work with any data type. I apologize for its nasty appearance. If you want a more readable version, wikisort_int.c contains a C function that works with int arrays.<br/><br/>
 
 Right now wikisort is basically just a postorder <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
 
 &nbsp;&nbsp;• implements the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
 &nbsp;&nbsp;• calculates the ranges to merge using floating-point math rather than min(range, array_size)<br/>
+&nbsp;&nbsp;• uses a simplified and optimized version of an advanced in-place merge algorithm<br/>
 <br/>
 Here's how a bottom-up merge sort looks for an array of a size that happens to be a power of two:<br/>
 
@@ -64,7 +58,7 @@ For an array of size 16, it prints this (the operation is shown to the right):
     merge 8-11 and 12-15               [ 0   2   3   4   7   11  13  15 [6   10  12  14][1   5   8   9 ]]
     merge 0-7 and 8-15                 [[0   2   3   4   7   11  13  15][1   5   6   8   9   10  12  14 ]
                                        [ 0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15 ]
-Which is of course exactly what we wanted.<br/>
+Which is of course what we wanted.<br/>
 <br/>
 <br/>
 <b>To extend this logic to non-power-of-two sizes</b>, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
@@ -101,5 +95,5 @@ The multiplication has been proven to be correct for more than 17,179,869,184 el
 
 And, just in case you're completely new to this, type this in the Terminal to compile and run:
 
-    gcc -o wikisort.x wikisort.c
-    ./wikisort.x
+    gcc -o WikiSort.x WikiSort.c
+    ./WikiSort.x
