@@ -57,7 +57,7 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
             ^
             |__ really, it SHOULD be here
     
-    5. use a rotation (see chapter 1) to move the A block into its final position!
+    5. use a rotation to move the A block into its final position!
     [ B ][][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
           ^      ^
           |______|__ B was split into two parts
