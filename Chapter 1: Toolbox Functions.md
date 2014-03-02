@@ -1,4 +1,4 @@
-Toolbox Functions
+1. Toolbox Functions
 ===================
 
 Here are some useful functions that will be needed later:<br/><br/>
@@ -42,4 +42,4 @@ Rotating an array involves shifting all of the items over some number of spaces,
 <b>Insertion sorting</b><br/>
 Hey, we're getting close to actual sorting now! Unfortunately, insertion sort is an O(n^2) operation, which means it becomes <i>incredibly</i> inefficient for large arrays. However, for small arrays it is actually quite fast, and is therefore useful as part of a larger sorting algorithm.<br/><br/>
 
-Speaking of larger sorting algorithms, <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/MergeSort.md">here's how merge sort works</a>!
+Speaking of larger sorting algorithms, <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">here's how merge sort works</a>!
