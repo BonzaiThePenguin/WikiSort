@@ -83,11 +83,11 @@ Which is of course exactly what we wanted.<br/><br/>
 <b>To extend this logic to non-power-of-two sizes</b>, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
 
     MergeSort(array, count)
-    >  pot = floor_power_of_two(count)
-    >  scale = count/(double)pot // 1.0 <= scale < 2.0
+    >  power_of_two = FloorPowerOfTwo(count)
+    >  scale = count/power_of_two // 1.0 <= scale < 2.0
        
        index = 0
-       while (index < count)
+       while (index < power_of_two)
           merge = index
           index += 2
           length = 1
@@ -103,8 +103,10 @@ Which is of course exactly what we wanted.<br/><br/>
              iteration = iteration / 2
              length = length * 2
              merge = merge - length
-    
-The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. <b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b><br/><br/>
+
+The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. <b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b><br/>
+
+(note: the standard in-place merge sort uses min(end, count) rather than a floating-point multiplication, but this way was found to be faster in practice)<br/><br/>
 
 ==========================
 
