@@ -18,7 +18,7 @@ However, a naïve array <a href="https://github.com/BonzaiThePenguin/WikiSort/bl
 
 &nbsp;&nbsp;&nbsp;[5 a] [5 b] [4 c]  <--->  [4 c] <b>[5 b] [5 a]</b>
 
-A more-intelligent reversal that maintains the order of equivalent elements is needed before this can be added to the algorithm. Another possibility is creating a slightly modified duplicate of the sort function, one that works better for reversed data.
+A more-intelligent reversal that maintains the order of equivalent elements is needed before this can be added to the algorithm. Another possibility is creating a slightly modified duplicate of the sort function, one that works better for reversed data. Keep in mind that the reversal doesn't have to be <i>perfect</i> – as long as it maintains the order of equivalent items, any estimate of moving the items into ascending order would be better than doing nothing at all.
 
 =======================
 
@@ -27,3 +27,7 @@ Insertion sort is only faster when comparisons are cheap. Generally you'll want 
 =======================
 
 <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">Redistributing the unique block values</a> back into the array after each merge step is a bit silly considering we're just going to pull them out again on the higher-up merge operation. This is probably the most obvious way to get a noticeable speed boost with the existing implementation, but it might not be trivial to implement.
+
+=======================
+
+Check the <a href="https://github.com/BonzaiThePenguin/WikiSort/issues">Issues</a> sidebar for other things that may need fixing.
