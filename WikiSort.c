@@ -12,19 +12,36 @@
 #ifndef true
 	#define true 1
 #endif
+#define var(variable_name, variable_value, more...) __typeof__(variable_value, ##more) variable_name = variable_value, ##more
+#ifndef max
+	#define max(x, y) ({ var(x1, x); var(y1, y); (x1 > y1) ? x1 : y1; })
+#endif
+#ifndef min
+	#define min(x, y) ({ var(x1, x); var(y1, y); (x1 < y1) ? x1 : y1; })
+#endif
 
-#define WikiItem(array, index) (array)[index]
-#define WikiVar(variable_name, variable_value, more...) WikiTypeOf(variable_value, ##more) variable_name = variable_value, ##more
-#define WikiTypeOf(var...) __typeof__(var)
-#define WikiSizeOf(var...) sizeof(var)
-#define WikiMemCopy memcpy
-#define WikiMemMove memmove
-#define WikiSqrt(x) sqrt(x)
-#define WikiMax(x, y) ({ WikiVar(x1, x); WikiVar(y1, y); (x1 > y1) ? x1 : y1; })
-#define WikiMin(x, y) ({ WikiVar(x1, x); WikiVar(y1, y); (x1 < y1) ? x1 : y1; })
 
-// if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value)
-#define WikiIsEven(value) ((value & 0x1) == 0x0)
+
+// structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
+typedef struct { int value, index; } WikiTest;
+int WikiCompare(WikiTest item1, WikiTest item2) {
+	if (item1.value < item2.value) return -1;
+	if (item1.value > item2.value) return 1;
+	return 0;
+}
+typedef int (*WikiComparison)(WikiTest, WikiTest);
+
+
+
+// structure to represent ranges within the array
+#define WikiMakeRange(/* long */ start, length) ((WikiRange){(long)(start), length})
+#define WikiRangeBetween(/* long */ start, end) ({ long WikiRangeStart = (long)(start); WikiMakeRange(WikiRangeStart, (end) - WikiRangeStart); })
+#define WikiZeroRange() WikiMakeRange(0, 0)
+typedef struct { long start, length; } WikiRange;
+
+
+
+// toolbox functions used by the sorter
 
 // 63 -> 32, 64 -> 64, etc.
 long WikiFloorPowerOfTwo(long x) {
@@ -37,71 +54,57 @@ long WikiFloorPowerOfTwo(long x) {
 	x &= 0x7F; return (x == 0) ? 0 : (1 << (x - 1));
 }
 
-// structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
-typedef struct { int value, index; } WikiTest;
-int WikiCompare(WikiTest item1, WikiTest item2) {
-	if (item1.value < item2.value) return -1;
-	if (item1.value > item2.value) return 1;
-	return 0;
-}
-typedef int (*WikiComparison)(WikiTest, WikiTest);
-
-// structure to represent ranges within the array
-#define WikiMakeRange(/* long */ start, length) ((WikiRange){(long)(start), length})
-#define WikiRangeBetween(/* long */ start, end) ({ long WikiRangeStart = (long)(start); WikiMakeRange(WikiRangeStart, (end) - WikiRangeStart); })
-#define WikiZeroRange() WikiMakeRange(0, 0)
-typedef struct { long start, length; } WikiRange;
-
-// toolbox functions used by the sorter
+// if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value)
+#define WikiIsEven(value) ((value & 0x1) == 0x0)
 
 // swap value1 and value2
 #define WikiSwap(value1, value2) ({ \
-	WikiVar(WikiSwapValue1, &(value1)); \
-	WikiVar(WikiSwapValue2, &(value2)); \
-	WikiVar(WikiSwapValue, *WikiSwapValue1); \
+	var(WikiSwapValue1, &(value1)); \
+	var(WikiSwapValue2, &(value2)); \
+	var(WikiSwapValue, *WikiSwapValue1); \
 	*WikiSwapValue1 = *WikiSwapValue2; \
 	*WikiSwapValue2 = WikiSwapValue; \
 })
 
 // reverse a range within the array
 #define WikiReverse(array_instance, range) ({ \
-	WikiVar(WikiReverse_array, array_instance); WikiRange WikiReverse_range = range; \
+	var(WikiReverse_array, array_instance); WikiRange WikiReverse_range = range; \
 	long WikiReverse_index; \
 	for (WikiReverse_index = WikiReverse_range.length/2 - 1; WikiReverse_index >= 0; WikiReverse_index--) \
-	WikiSwap(WikiItem(WikiReverse_array, WikiReverse_range.start + WikiReverse_index), WikiItem(WikiReverse_array, WikiReverse_range.start + WikiReverse_range.length - WikiReverse_index - 1)); \
+	WikiSwap(WikiReverse_array[WikiReverse_range.start + WikiReverse_index], WikiReverse_array[WikiReverse_range.start + WikiReverse_range.length - WikiReverse_index - 1]); \
 })
 
 // swap a sequence of values in an array
 #define WikiBlockSwap(array, start1, start2, block_size) ({ \
-	WikiVar(WikiSwap_array, array); WikiVar(WikiSwap_start1, start1); WikiVar(WikiSwap_start2, start2); WikiVar(WikiSwap_size, block_size); \
+	var(WikiSwap_array, array); var(WikiSwap_start1, start1); var(WikiSwap_start2, start2); var(WikiSwap_size, block_size); \
 	if (WikiSwap_size <= cache_size) { \
-		WikiMemCopy(&cache[0], &WikiItem(WikiSwap_array, WikiSwap_start1), WikiSwap_size * WikiSizeOf(WikiItem(WikiSwap_array, 0))); \
-		WikiMemMove(&WikiItem(WikiSwap_array, WikiSwap_start1), &WikiItem(WikiSwap_array, WikiSwap_start2), WikiSwap_size * WikiSizeOf(WikiItem(WikiSwap_array, 0))); \
-		WikiMemCopy(&WikiItem(WikiSwap_array, WikiSwap_start2), &cache[0], WikiSwap_size * WikiSizeOf(WikiItem(WikiSwap_array, 0))); \
+		memcpy(&cache[0], &WikiSwap_array[WikiSwap_start1], WikiSwap_size * sizeof(WikiSwap_array[0])); \
+		memmove(&WikiSwap_array[WikiSwap_start1], &WikiSwap_array[WikiSwap_start2], WikiSwap_size * sizeof(WikiSwap_array[0])); \
+		memcpy(&WikiSwap_array[WikiSwap_start2], &cache[0], WikiSwap_size * sizeof(WikiSwap_array[0])); \
 	} else { \
-		WikiVar(WikiSwap_array, array); WikiVar(WikiSwap_start1, start1); WikiVar(WikiSwap_start2, start2); WikiVar(WikiSwap_size, block_size); \
+		var(WikiSwap_array, array); var(WikiSwap_start1, start1); var(WikiSwap_start2, start2); var(WikiSwap_size, block_size); \
 		long WikiSwap_index; \
-		for (WikiSwap_index = 0; WikiSwap_index < WikiSwap_size; WikiSwap_index++) WikiSwap(WikiItem(WikiSwap_array, WikiSwap_start1 + WikiSwap_index), WikiItem(WikiSwap_array, WikiSwap_start2 + WikiSwap_index)); \
+		for (WikiSwap_index = 0; WikiSwap_index < WikiSwap_size; WikiSwap_index++) WikiSwap(WikiSwap_array[WikiSwap_start1 + WikiSwap_index], WikiSwap_array[WikiSwap_start2 + WikiSwap_index]); \
 	} \
 })
 
 // rotate the values in an array ([0 1 2 3] becomes [3 0 1 2] if we rotate by -1)
 #define WikiRotate(array, amount, range) ({ \
-	WikiVar(WikiRotate_array, array); long WikiRotate_amount = amount; WikiRange WikiRotate_range = range; \
+	var(WikiRotate_array, array); long WikiRotate_amount = amount; WikiRange WikiRotate_range = range; \
 	if (WikiRotate_range.length != 0 && WikiRotate_amount != 0) { \
 		if (WikiRotate_amount < 0 && WikiRotate_amount >= -cache_size) { \
 			/* copy the right side of the array to the cache, memmove the rest of it, and copy the right side back to the left side */ \
 			WikiRotate_amount = (-WikiRotate_amount) % WikiRotate_range.length; \
 			long WikiRotate_size = WikiRotate_range.length - WikiRotate_amount; \
-			WikiMemCopy(&cache[0], &WikiItem(WikiRotate_array, WikiRotate_range.start + WikiRotate_size), WikiRotate_amount * WikiSizeOf(WikiItem(WikiRotate_array, 0))); \
-			WikiMemMove(&WikiItem(WikiRotate_array, WikiRotate_range.start + WikiRotate_amount), &WikiItem(WikiRotate_array, WikiRotate_range.start), WikiRotate_size * WikiSizeOf(WikiItem(WikiRotate_array, 0))); \
-			WikiMemCopy(&WikiItem(WikiRotate_array, WikiRotate_range.start), &cache[0], WikiRotate_amount * WikiSizeOf(WikiItem(WikiRotate_array, 0))); \
+			memcpy(&cache[0], &WikiRotate_array[WikiRotate_range.start + WikiRotate_size], WikiRotate_amount * sizeof(WikiRotate_array[0])); \
+			memmove(&WikiRotate_array[WikiRotate_range.start + WikiRotate_amount], &WikiRotate_array[WikiRotate_range.start], WikiRotate_size * sizeof(WikiRotate_array[0])); \
+			memcpy(&WikiRotate_array[WikiRotate_range.start], &cache[0], WikiRotate_amount * sizeof(WikiRotate_array[0])); \
 		} else if (WikiRotate_amount > 0 && WikiRotate_amount <= cache_size) { \
 			WikiRotate_amount = WikiRotate_amount % WikiRotate_range.length; \
 			long WikiRotate_size = WikiRotate_range.length - WikiRotate_amount; \
-			WikiMemCopy(&cache[0], &WikiItem(WikiRotate_array, WikiRotate_range.start), WikiRotate_amount * WikiSizeOf(WikiItem(WikiRotate_array, 0))); \
-			WikiMemMove(&WikiItem(WikiRotate_array, WikiRotate_range.start), &WikiItem(WikiRotate_array, WikiRotate_range.start + WikiRotate_amount), WikiRotate_size * WikiSizeOf(WikiItem(WikiRotate_array, 0))); \
-			WikiMemCopy(&WikiItem(WikiRotate_array, WikiRotate_range.start + WikiRotate_size), &cache[0], WikiRotate_amount * WikiSizeOf(WikiItem(WikiRotate_array, 0))); \
+			memcpy(&cache[0], &WikiRotate_array[WikiRotate_range.start], WikiRotate_amount * sizeof(WikiRotate_array[0])); \
+			memmove(&WikiRotate_array[WikiRotate_range.start], &WikiRotate_array[WikiRotate_range.start + WikiRotate_amount], WikiRotate_size * sizeof(WikiRotate_array[0])); \
+			memcpy(&WikiRotate_array[WikiRotate_range.start + WikiRotate_size], &cache[0], WikiRotate_amount * sizeof(WikiRotate_array[0])); \
 		} else { \
 			WikiRange WikiRotate_range1, WikiRotate_range2; \
 			if (WikiRotate_amount < 0) { \
@@ -122,20 +125,20 @@ typedef struct { long start, length; } WikiRange;
 
 // merge operation which uses an internal or external buffer
 #define WikiMerge(array, buffer, A, B, compare) ({ \
-	WikiVar(WikiMerge_array, array); WikiVar(WikiMerge_buffer, buffer); WikiVar(WikiMerge_A, A); WikiVar(WikiMerge_B, B); \
-	if (compare(WikiItem(WikiMerge_array, WikiMerge_A.start + WikiMerge_A.length - 1), WikiItem(WikiMerge_array, WikiMerge_B.start)) > 0) { \
+	var(WikiMerge_array, array); var(WikiMerge_buffer, buffer); var(WikiMerge_A, A); var(WikiMerge_B, B); \
+	if (compare(WikiMerge_array[WikiMerge_A.start + WikiMerge_A.length - 1], WikiMerge_array[WikiMerge_B.start]) > 0) { \
 		long A_count = 0, B_count = 0, insert = 0; \
 		if (WikiMerge_A.length <= cache_size) { \
-			WikiMemCopy(&cache[0], &WikiItem(WikiMerge_array, WikiMerge_A.start), WikiMerge_A.length * WikiSizeOf(WikiItem(WikiMerge_array, 0))); \
+			memcpy(&cache[0], &WikiMerge_array[WikiMerge_A.start], WikiMerge_A.length * sizeof(WikiMerge_array[0])); \
 			while (A_count < WikiMerge_A.length && B_count < WikiMerge_B.length) \
-				WikiItem(WikiMerge_array, WikiMerge_A.start + insert++) = (compare(cache[A_count], WikiItem(WikiMerge_array, WikiMerge_B.start + B_count)) <= 0) ? cache[A_count++] : WikiItem(WikiMerge_array, WikiMerge_B.start + B_count++); \
-			WikiMemCopy(&WikiItem(WikiMerge_array, WikiMerge_A.start + insert), &cache[A_count], (WikiMerge_A.length - A_count) * WikiSizeOf(WikiItem(WikiMerge_array, 0))); \
+				WikiMerge_array[WikiMerge_A.start + insert++] = (compare(cache[A_count], WikiMerge_array[WikiMerge_B.start + B_count]) <= 0) ? cache[A_count++] : WikiMerge_array[WikiMerge_B.start + B_count++]; \
+			memcpy(&WikiMerge_array[WikiMerge_A.start + insert], &cache[A_count], (WikiMerge_A.length - A_count) * sizeof(WikiMerge_array[0])); \
 		} else { \
 			WikiBlockSwap(WikiMerge_array, WikiMerge_buffer.start, WikiMerge_A.start, WikiMerge_A.length); \
 			while (A_count < A.length && B_count < B.length) { \
-				if (compare(WikiItem(WikiMerge_array, WikiMerge_buffer.start + A_count), WikiItem(WikiMerge_array, WikiMerge_B.start + B_count)) <= 0) { \
-					WikiSwap(WikiItem(WikiMerge_array, WikiMerge_A.start + insert++), WikiItem(WikiMerge_array, WikiMerge_buffer.start + A_count++)); \
-				} else WikiSwap(WikiItem(WikiMerge_array, WikiMerge_A.start + insert++), WikiItem(WikiMerge_array, WikiMerge_B.start + B_count++)); \
+				if (compare(WikiMerge_array[WikiMerge_buffer.start + A_count], WikiMerge_array[WikiMerge_B.start + B_count]) <= 0) { \
+					WikiSwap(WikiMerge_array[WikiMerge_A.start + insert++], WikiMerge_array[WikiMerge_buffer.start + A_count++]); \
+				} else WikiSwap(WikiMerge_array[WikiMerge_A.start + insert++], WikiMerge_array[WikiMerge_B.start + B_count++]); \
 			} \
 			WikiBlockSwap(WikiMerge_array, WikiMerge_buffer.start + A_count, WikiMerge_A.start + insert, WikiMerge_A.length - A_count); \
 		} \
@@ -145,16 +148,16 @@ typedef struct { long start, length; } WikiRange;
 // find the first value within the range that is equal to the value at index
 long WikiBinaryInsertFirst(WikiTest array[], long index, WikiRange range, WikiComparison compare) {
 	long min1 = range.start, max1 = range.start + range.length - 1;
-	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(WikiItem(array, mid1), WikiItem(array, index)) < 0) min1 = mid1 + 1; else max1 = mid1; }
-	if (min1 == range.start + range.length - 1 && compare(WikiItem(array, min1), WikiItem(array, index)) < 0) min1++;
+	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) < 0) min1 = mid1 + 1; else max1 = mid1; }
+	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) < 0) min1++;
 	return min1;
 }
 
 // find the last value within the range that is equal to the value at index. the result is 1 more than the last index
 long WikiBinaryInsertLast(WikiTest array[], long index, WikiRange range, WikiComparison compare) {
 	long min1 = range.start, max1 = range.start + range.length - 1;
-	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(WikiItem(array, mid1), WikiItem(array, index)) <= 0) min1 = mid1 + 1; else max1 = mid1; }
-	if (min1 == range.start + range.length - 1 && compare(WikiItem(array, min1), WikiItem(array, index)) <= 0) min1++;
+	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) <= 0) min1 = mid1 + 1; else max1 = mid1; }
+	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) <= 0) min1++;
 	return min1;
 }
 
@@ -162,9 +165,9 @@ long WikiBinaryInsertLast(WikiTest array[], long index, WikiRange range, WikiCom
 void WikiInsertionSort(WikiTest array[], WikiRange range, WikiComparison compare) {
 	long i;
 	for (i = range.start + 1; i < range.start + range.length; i++) {
-		WikiTest temp = WikiItem(array, i); long j = i;
-		while (j > range.start && compare(WikiItem(array, j - 1), temp) > 0) { WikiItem(array, j) = WikiItem(array, j - 1); j--; }
-		WikiItem(array, j) = temp;
+		WikiTest temp = array[i]; long j = i;
+		while (j > range.start && compare(array[j - 1], temp) > 0) { array[j] = array[j - 1]; j--; }
+		array[j] = temp;
 	}
 }
 
@@ -203,26 +206,26 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 			mid = (merge + length) * scale;
 			end = (merge + length + length) * scale;
 			
-			if (compare(WikiItem(array, start), WikiItem(array, end - 1)) > 0) {
+			if (compare(array[start], array[end - 1]) > 0) {
 				// the two ranges are in reverse order, so a simple rotation should fix it
 				WikiRotate(array, mid - start, WikiRangeBetween(start, end));
-			} else if (compare(WikiItem(array, mid - 1), WikiItem(array, mid)) > 0) {
+			} else if (compare(array[mid - 1], array[mid]) > 0) {
 				// these two ranges weren't already in order, so we'll need to merge them!
 				WikiRange A = WikiRangeBetween(start, mid), B = WikiRangeBetween(mid, end);
 				
 				// if A fits into the cache, perform a simple merge; otherwise perform a trickier in-place merge
 				if (A.length <= cache_size) {
-					WikiMemCopy(&cache[0], &WikiItem(array, A.start), A.length * WikiSizeOf(WikiItem(array, 0)));
+					memcpy(&cache[0], &array[A.start], A.length * sizeof(array[0]));
 					long A_count = 0, B_count = 0, insert = 0;
-					while (A_count < A.length && B_count < B.length) WikiItem(array, A.start + insert++) = (compare(cache[A_count], WikiItem(array, B.start + B_count)) <= 0) ? cache[A_count++] : WikiItem(array, B.start + B_count++);
-					WikiMemCopy(&WikiItem(array, A.start + insert), &cache[A_count], (A.length - A_count) * WikiSizeOf(WikiItem(array, 0)));
+					while (A_count < A.length && B_count < B.length) array[A.start + insert++] = (compare(cache[A_count], array[B.start + B_count]) <= 0) ? cache[A_count++] : array[B.start + B_count++];
+					memcpy(&array[A.start + insert], &cache[A_count], (A.length - A_count) * sizeof(array[0]));
 				} else {
 					// try to fill up two buffers with unique values in ascending order
-					WikiRange bufferA, bufferB, buffer1, buffer2; long block_size = WikiMax(WikiSqrt(A.length), 2), buffer_size = A.length/block_size;
+					WikiRange bufferA, bufferB, buffer1, buffer2; long block_size = max(sqrt(A.length), 2), buffer_size = A.length/block_size;
 					for (buffer1.start = A.start + 1, buffer1.length = 1; buffer1.start < A.start + A.length && buffer1.length < buffer_size; buffer1.start++)
-						if (compare(WikiItem(array, buffer1.start - 1), WikiItem(array, buffer1.start)) != 0) buffer1.length++;
+						if (compare(array[buffer1.start - 1], array[buffer1.start]) != 0) buffer1.length++;
 					for (buffer2.start = buffer1.start, buffer2.length = 0; buffer2.start < A.start + A.length && buffer2.length < buffer_size; buffer2.start++)
-						if (compare(WikiItem(array, buffer2.start - 1), WikiItem(array, buffer2.start)) != 0) buffer2.length++;
+						if (compare(array[buffer2.start - 1], array[buffer2.start]) != 0) buffer2.length++;
 					
 					if (buffer2.length == buffer_size) {
 						// we found enough values for both buffers in A
@@ -236,7 +239,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 						buffer1 = WikiMakeRange(A.start, buffer_size);
 						
 						for (buffer2.start = B.start + B.length - 1, buffer2.length = 1; buffer2.start >= B.start && buffer2.length < buffer_size; buffer2.start--)
-							if (buffer2.start == B.start || compare(WikiItem(array, buffer2.start - 1), WikiItem(array, buffer2.start)) != 0) buffer2.length++;
+							if (buffer2.start == B.start || compare(array[buffer2.start - 1], array[buffer2.start]) != 0) buffer2.length++;
 						if (buffer2.length == buffer_size) {
 							bufferB = WikiMakeRange(buffer2.start, buffer_size);
 							buffer2 = WikiMakeRange(B.start + B.length - buffer_size, buffer_size);
@@ -244,9 +247,9 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 					} else {
 						// we were unable to find a single buffer in A, so we'll need to find two buffers in B
 						for (buffer1.start = B.start + B.length - 1, buffer1.length = 1; buffer1.start >= B.start && buffer1.length < buffer_size; buffer1.start--)
-							if (buffer1.start == B.start || compare(WikiItem(array, buffer1.start - 1), WikiItem(array, buffer1.start)) != 0) buffer1.length++;
+							if (buffer1.start == B.start || compare(array[buffer1.start - 1], array[buffer1.start]) != 0) buffer1.length++;
 						for (buffer2.start = buffer1.start - 1, buffer2.length = 1; buffer2.start >= B.start && buffer2.length < buffer_size; buffer2.start--)
-							if (buffer2.start == B.start || compare(WikiItem(array, buffer2.start - 1), WikiItem(array, buffer2.start)) != 0) buffer2.length++;
+							if (buffer2.start == B.start || compare(array[buffer2.start - 1], array[buffer2.start]) != 0) buffer2.length++;
 						
 						if (buffer2.length == buffer_size) {
 							bufferA = WikiMakeRange(A.start, 0);
@@ -264,14 +267,14 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 						while (true) {
 							if (A.length <= B.length) {
 								if (A.length <= 0) break;
-								long block_size = WikiMax(WikiFloorPowerOfTwo((long)(B.length/(double)A.length)), 1);
+								long block_size = max(WikiFloorPowerOfTwo((long)(B.length/(double)A.length)), 1);
 								
 								// merge A[first] into B
 								long index = B.start + block_size;
-								while (index < B.start + B.length && compare(WikiItem(array, index), WikiItem(array, A.start)) < 0) index += block_size;
+								while (index < B.start + B.length && compare(array[index], array[A.start]) < 0) index += block_size;
 								
 								// binary search to find the first index where B[index - 1] < A[first] <= B[index]
-								long min1 = WikiBinaryInsertFirst(array, A.start, WikiRangeBetween(index - block_size, WikiMin(index, B.start + B.length)), compare);
+								long min1 = WikiBinaryInsertFirst(array, A.start, WikiRangeBetween(index - block_size, min(index, B.start + B.length)), compare);
 								
 								// rotate [A B1] B2 to [B1 A] B2 and recalculate A and B
 								WikiRotate(array, A.length, WikiRangeBetween(A.start, min1));
@@ -279,14 +282,14 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 								B = WikiRangeBetween(min1, B.start + B.length);
 							} else {
 								if (B.length <= 0) break;
-								long block_size = WikiMax(WikiFloorPowerOfTwo((long)(A.length/(double)B.length)), 1);
+								long block_size = max(WikiFloorPowerOfTwo((long)(A.length/(double)B.length)), 1);
 								
 								// merge B[last] into A
 								long index = B.start - block_size;
-								while (index >= A.start && compare(WikiItem(array, index), WikiItem(array, B.start + B.length - 1)) >= 0) index -= block_size;
+								while (index >= A.start && compare(array[index], array[B.start + B.length - 1]) >= 0) index -= block_size;
 								
 								// binary search to find the last index where A[index - 1] <= B[last] < A[index]
-								long min1 = WikiBinaryInsertLast(array, B.start + B.length - 1, WikiRangeBetween(WikiMax(index, A.start), index + block_size), compare);
+								long min1 = WikiBinaryInsertLast(array, B.start + B.length - 1, WikiRangeBetween(max(index, A.start), index + block_size), compare);
 								
 								// rotate A1 [A2 B] to A1 [B A2] and recalculate A and B
 								WikiRotate(array, -B.length, WikiRangeBetween(min1, B.start + B.length));
@@ -301,7 +304,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 					// move the unique values to the start of A if needed
 					long index, count;
 					for (index = bufferA.start - 2, count = 1; count < bufferA.length; index--) {
-						if (index == A.start || compare(WikiItem(array, index - 1), WikiItem(array, index)) != 0) {
+						if (index == A.start || compare(array[index - 1], array[index]) != 0) {
 							WikiRotate(array, -count, WikiRangeBetween(index + 1, bufferA.start));
 							count++; bufferA.start = index + count;
 						}
@@ -310,7 +313,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 					
 					// move the unique values to the end of B if needed
 					for (index = bufferB.start + 1, count = 0; count < bufferB.length; index++) {
-						if (index == B.start + B.length || compare(WikiItem(array, index - 1), WikiItem(array, index)) != 0) {
+						if (index == B.start + B.length || compare(array[index - 1], array[index]) != 0) {
 							WikiRotate(array, count + 1, WikiRangeBetween(bufferB.start, index));
 							count++; bufferB.start = index - count;
 						}
@@ -324,15 +327,15 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 					// swap the last value of each w block with the value in buffer1
 					long w_index;
 					for (index = 0, w_index = w0.start + w0.length + block_size - 1; w_index < w.start + w.length; index++, w_index += block_size)
-						WikiSwap(WikiItem(array, buffer1.start + index), WikiItem(array, w_index));
+						WikiSwap(array[buffer1.start + index], array[w_index]);
 					
-					WikiRange last_w = w0, last_v = WikiZeroRange(), v = WikiMakeRange(B.start, WikiMin(block_size, B.length - bufferB.length));
+					WikiRange last_w = w0, last_v = WikiZeroRange(), v = WikiMakeRange(B.start, min(block_size, B.length - bufferB.length));
 					w.start += w0.length; w.length -= w0.length;
 					w_index = 0;
 					long w_min = w.start;
 					while (w.length > 0) {
 						// if there's a previous v block and the first value of the minimum w block is <= the last value of the previous v block
-						if ((last_v.length > 0 && compare(WikiItem(array, w_min), WikiItem(array, last_v.start + last_v.length - 1)) <= 0) || v.length == 0) {
+						if ((last_v.length > 0 && compare(array[w_min], array[last_v.start + last_v.length - 1]) <= 0) || v.length == 0) {
 							// figure out where to split the previous v block, and rotate it at the split
 							long v_split = WikiBinaryInsertFirst(array, w_min, last_v, compare);
 							long v_remaining = last_v.start + last_v.length - v_split;
@@ -342,7 +345,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 							
 							// we need to swap the last item of the previous w block back with its original value, which is stored in buffer1
 							// since the w0 block did not have its value swapped out, we need to make sure the previous w block is not unevenly sized
-							WikiSwap(WikiItem(array, w.start + block_size - 1), WikiItem(array, buffer1.start + w_index++));
+							WikiSwap(array[w.start + block_size - 1], array[buffer1.start + w_index++]);
 							
 							// now we need to split the previous v block at v_split and insert the minimum w block in-between the two parts, using a rotation
 							WikiRotate(array, v_remaining, WikiRangeBetween(v_split, w.start + block_size));
@@ -359,7 +362,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 							w_min = w.start + block_size - 1;
 							long w_find;
 							for (w_find = w_min + block_size; w_find < w.start + w.length; w_find += block_size)
-								if (compare(WikiItem(array, w_find), WikiItem(array, w_min)) < 0) w_min = w_find;
+								if (compare(array[w_find], array[w_min]) < 0) w_min = w_find;
 							w_min -= (block_size - 1);
 						} else if (v.length < block_size) {
 							// move the last v block, which is unevenly sized, to before the remaining w blocks, by using a rotation
@@ -386,7 +389,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 					
 					// redistribute bufferA back into the array
 					for (index = bufferA.start + bufferA.length; bufferA.length > 0; index++) {
-						if (index == bufferB.start || compare(WikiItem(array, index), WikiItem(array, bufferA.start)) >= 0) {
+						if (index == bufferB.start || compare(array[index], array[bufferA.start]) >= 0) {
 							long amount = index - (bufferA.start + bufferA.length);
 							WikiRotate(array, -amount, WikiRangeBetween(bufferA.start, index));
 							bufferA.start += amount + 1; bufferA.length--; index--;
@@ -395,7 +398,7 @@ void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) 
 					
 					// redistribute bufferB back into the array
 					for (index = bufferB.start; bufferB.length > 0; index--) {
-						if (index == A.start || compare(WikiItem(array, index - 1), WikiItem(array, bufferB.start + bufferB.length - 1)) <= 0) {
+						if (index == A.start || compare(array[index - 1], array[bufferB.start + bufferB.length - 1]) <= 0) {
 							long amount = bufferB.start - index;
 							WikiRotate(array, amount, WikiRangeBetween(index, bufferB.start + bufferB.length));
 							bufferB.start -= amount; bufferB.length--; index++;
@@ -424,20 +427,20 @@ void MergeSortR(WikiTest array[], WikiRange range, WikiComparison compare, WikiT
 	MergeSortR(array, B, compare, buffer);
 	
 	// standard merge operation here (only A is copied to the buffer)
-	WikiMemCopy(&WikiItem(buffer, 0), &WikiItem(array, A.start), A.length * WikiSizeOf(WikiItem(array, 0)));
+	memcpy(&buffer[0], &array[A.start], A.length * sizeof(array[0]));
 	long A_count = 0, B_count = 0, insert = 0;
 	while (A_count < A.length && B_count < B.length) {
-		if (compare(WikiItem(buffer, A_count), WikiItem(array, A.start + A.length + B_count)) <= 0) {
-			WikiItem(array, A.start + insert++) = WikiItem(buffer, A_count++);
+		if (compare(buffer[A_count], array[A.start + A.length + B_count]) <= 0) {
+			array[A.start + insert++] = buffer[A_count++];
 		} else {
-			WikiItem(array, A.start + insert++) = WikiItem(array, A.start + A.length + B_count++);
+			array[A.start + insert++] = array[A.start + A.length + B_count++];
 		}
 	}
-	WikiMemCopy(&WikiItem(array, A.start + insert), &WikiItem(buffer, A_count), (A.length - A_count) * WikiSizeOf(WikiItem(array, 0)));
+	memcpy(&array[A.start + insert], &buffer[A_count], (A.length - A_count) * sizeof(array[0]));
 }
 
 void MergeSort(WikiTest array[], const long array_count, WikiComparison compare) {
-	WikiTest *buffer = malloc(array_count * WikiSizeOf(WikiItem(array, 0)));
+	WikiTest *buffer = malloc(array_count * sizeof(array[0]));
 	MergeSortR(array, WikiMakeRange(0, array_count), compare, buffer);
 	free(buffer);
 }
@@ -445,7 +448,7 @@ void MergeSort(WikiTest array[], const long array_count, WikiComparison compare)
 int main(int argc, char argv[]) {
 	long total, index;
 	const long max_size = 3000000;
-	WikiTest *array1 = malloc(max_size * WikiSizeOf(WikiTest)), *array2 = malloc(max_size * WikiSizeOf(WikiTest));
+	WikiTest *array1 = malloc(max_size * sizeof(WikiTest)), *array2 = malloc(max_size * sizeof(WikiTest));
 	WikiComparison compare = WikiCompare;
 	
 	srand(/*time(NULL)*/ 10141985);
@@ -463,7 +466,7 @@ int main(int argc, char argv[]) {
 			//item.value = 1000;
 			//item.value = (rand() * 1.0/INT_MAX <= 0.9) ? index : (index - 2);
 			
-			WikiItem(array1, index) = WikiItem(array2, index) = item;
+			array1[index] = array2[index] = item;
 		}
 		
 		double time1 = clock();
@@ -477,11 +480,11 @@ int main(int argc, char argv[]) {
 		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
-		assert(compare(WikiItem(array1, 0), WikiItem(array2, 0)) == 0);
+		assert(compare(array1[0], array2[0]) == 0);
 		for (index = 1; index < total; index++) {
-			assert(compare(WikiItem(array1, index), WikiItem(array2, index)) == 0);
-			assert(compare(WikiItem(array1, index), WikiItem(array1, index - 1)) > 0 ||
-				   (compare(WikiItem(array1, index), WikiItem(array1, index - 1)) == 0 && WikiItem(array1, index).index > WikiItem(array1, index - 1).index));
+			assert(compare(array1[index], array2[index]) == 0);
+			assert(compare(array1[index], array1[index - 1]) > 0 ||
+				   (compare(array1[index], array1[index - 1]) == 0 && array1[index].index > array1[index - 1].index));
 		}
 	}
 	
