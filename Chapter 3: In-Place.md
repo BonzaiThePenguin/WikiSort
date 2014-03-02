@@ -33,7 +33,7 @@ That's the general idea, but it raises some questions:
 &nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b>
 
 
-First let's answer the first question. Each A block should be of size √(A.length). You'll see why in a second.<br/><br/>
+First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length). You'll see why in a second.<br/><br/>
 
 As for how to insert the A blocks into B, the obvious solution (using 'memmove' or an equivalent to shift the array values over to where they belong) is an n^2 operation <i>and</i> requires an extra buffer allocation. So that's no good. What we'll have to do instead is also break B into blocks, then . Like so:
 
