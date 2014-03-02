@@ -22,10 +22,8 @@ We instead think of it like this:
     
     4. all finished!
     [ A  +  B  ]  [ A + B]  [ A ]  [  A  +   B  ]  [ A  +  B ]  [ A + B]  [ A   +   B  ]
-    
-    [ A  +  B  ][ A + B][ A ][  A  +   B  ][ A  +  B ][ A + B][ A   +   B  ]
-    
-    [                               A+B                                    ]
+      = [ A  +  B  ][ A + B][ A ][  A  +   B  ][ A  +  B ][ A + B][ A   +   B  ]
+      = [                               A+B                                    ]
     
 
 That's the general idea, but it raises some questions:
