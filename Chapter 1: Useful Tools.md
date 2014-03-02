@@ -60,7 +60,7 @@ Binary searching works by checking the <i>middle</i> of the current range, and i
 
 This sorting algorithm uses two variants of the binary search, one for finding the first place to insert a value in order, and the other for finding the <i>last</i> place to insert the value. If the value does not yet exist in the array these two functions return the same index, but otherwise the last index will be greater.
 
-    BinaryFirst(array, value, range)
+    BinaryFirst(array, range, value)
         start = range.start
         end = range.end
         while (start < end)
@@ -73,7 +73,7 @@ This sorting algorithm uses two variants of the binary search, one for finding t
         return start
 
 
-    BinaryLast(array, value, range)
+    BinaryLast(array, range, value)
         start = range.start
         end = range.end
         while (start < end)
