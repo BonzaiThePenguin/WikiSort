@@ -147,7 +147,7 @@ Finally, if instead of assigning values we <i>swap</i> them to and from the buff
         Block swap the remaining part of the buffer with the remaining part of the array
 
 <br/><br/>
-So now we can efficiently merge A and B without losing any buffer values, but we still needed that additional buffer to exist. But… what if this extra buffer <i>is part of the same array</i>?<br/><br/>
+So now we can efficiently merge A and B without losing any buffer values, but we still need that additional buffer to exist. There isn't much we can do about that... but what if this extra buffer <i>was part of the original array</i>?<br/><br/>
 
 
 That's the idea behind <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">in-place merging</a>!
