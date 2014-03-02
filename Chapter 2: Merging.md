@@ -35,7 +35,7 @@ Can we do better? <b>Of course!</b><br/><br/>
 
 
 <b>Merge sort without recursion</b><br/>
-To remove the recursion, we can use what's called a bottom-up merge sort. Here's what a it looks like for an array of a size that happens to be a power of two:<br/>
+To remove the recursion, we can use what's called a bottom-up merge sort. Here's what it looks like for an array of a size that happens to be a power of two:<br/>
 
     sort(array, count)
        index = 0
