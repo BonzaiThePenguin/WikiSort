@@ -464,12 +464,12 @@ int main(int argc, char argv[]) {
 			
 			// uncomment the type of data you want to fill the arrays with
 			item.value = rand();
-			//item.value = total - index + rand() * 1.0/INT_MAX * 5 - 2.5;
-			//item.value = index + rand() * 1.0/INT_MAX * 5 - 2.5;
+			//item.value = total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
+			//item.value = index + rand() * 1.0/RAND_MAX * 5 - 2.5;
 			//item.value = index;
 			//item.value = total - index;
 			//item.value = 1000;
-			//item.value = (rand() * 1.0/INT_MAX <= 0.9) ? index : (index - 2);
+			//item.value = (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
 			
 			array1[index] = array2[index] = item;
 		}
