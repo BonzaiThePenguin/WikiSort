@@ -40,7 +40,7 @@ Can we do better? <b>Of course!</b><br/><br/>
 <b>Merge sort without recursion</b><br/>
 To remove the recursion, we can use what's called a bottom-up merge sort. Here's what it looks like for an array of a size that happens to be a power of two:<br/>
 
-    sort(array, count)
+    MergeSort(array, count)
        index = 0
        while (index < count)
           merge = index
@@ -82,7 +82,7 @@ Which is of course exactly what we wanted.<br/><br/>
 
 <b>To extend this logic to non-power-of-two sizes</b>, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
 
-    sort(array, count)
+    MergeSort(array, count)
     >  pot = floor_power_of_two(count)
     >  scale = count/(double)pot // 1.0 <= scale < 2.0
        
