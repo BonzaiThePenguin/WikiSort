@@ -334,9 +334,9 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 					Range w = RangeBetween(bufferA.start + bufferA.length, A.start + A.length);
 					Range w0 = MakeRange(bufferA.start + bufferA.length, w.length % block_size);
 					
-					// swap the last value of each w block with the value in buffer1
+					// swap the second value of each w block with the value in buffer1
 					long w_index;
-					for (index = 0, w_index = w0.start + w0.length + block_size - 1; w_index < w.start + w.length; index++, w_index += block_size)
+					for (index = 0, w_index = w0.start + w0.length + 1; w_index < w.start + w.length; index++, w_index += block_size)
 						Swap(array[buffer1.start + index], array[w_index]);
 					
 					Range last_w = w0, last_v = ZeroRange(), v = MakeRange(B.start, Min(block_size, B.length - bufferB.length));
@@ -353,9 +353,9 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 							// swap the minimum w block to the beginning of the rolling w blocks
 							BlockSwap(array, w.start, w_min, block_size);
 							
-							// we need to swap the last item of the previous w block back with its original value, which is stored in buffer1
+							// we need to swap the second item of the previous w block back with its original value, which is stored in buffer1
 							// since the w0 block did not have its value swapped out, we need to make sure the previous w block is not unevenly sized
-							Swap(array[w.start + block_size - 1], array[buffer1.start + w_index++]);
+							Swap(array[w.start + 1], array[buffer1.start + w_index++]);
 							
 							// now we need to split the previous v block at v_split and insert the minimum w block in-between the two parts, using a rotation
 							Rotate(array, v_remaining, RangeBetween(v_split, w.start + block_size));
@@ -369,11 +369,11 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 							w.start += block_size; w.length -= block_size;
 							
 							// search the last value of the remaining w blocks to find the new minimum w block (that's why we wrote unique values to them!)
-							w_min = w.start + block_size - 1;
+							w_min = w.start + 1;
 							long w_find;
 							for (w_find = w_min + block_size; w_find < w.start + w.length; w_find += block_size)
 								if (compare(array[w_find], array[w_min]) < 0) w_min = w_find;
-							w_min -= (block_size - 1);
+							w_min--;
 						} else if (v.length < block_size) {
 							// move the last v block, which is unevenly sized, to before the remaining w blocks, by using a rotation
 							Rotate(array, -v.length, RangeBetween(w.start, v.start + v.length));
