@@ -12,7 +12,6 @@ WikiSort is a sorting algorithm that's stable, has an O(n) best case and quasili
 &nbsp;&nbsp;• <b>Public domain, usable and editable by anyone</b>. Do whatever you want with it.<br/><br/>
 
 Right now WikiSort is basically just a postorder <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a> with the following changes:<br/>
-
 &nbsp;&nbsp;• implements the standard optimization of using insertion sort in the lower levels<br/>
 &nbsp;&nbsp;• avoids unnecessary merges, which makes it faster for partially-sorted data<br/>
 &nbsp;&nbsp;• calculates the ranges to merge using floating-point math rather than min(range, array_size)<br/>
@@ -20,8 +19,7 @@ Right now WikiSort is basically just a postorder <a href="http://www.algorithmis
 
 <b>This algorithm is based on the one described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging"</b>, by Pok-Son Kim and Arne Kutzner</a>. However, it uses a simpler design that allows it to be as fast or <i>faster</i> than the standard merge sort.<br/>
 
-For more information, check out the documentation:
-
+For more information, check out the documentation:<br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%201:%20Useful%20Tools.md">Chapter 1: Useful Tools</a><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%202:%20Merging.md">Chapter 2: Merging</a><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/>
