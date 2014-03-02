@@ -2,7 +2,7 @@ Chapter 2: Merging
 =============
 
 <b>Standard merge sort</b><br/>
-Merge sorting works by breaking an array into two halves, over and over again, until the size of each half is below some threshold. For a threshold of 2 this means simply swapping the two items in that part of the array if they are out of order. Once we have sorted two halves of the array, we have to <i>merge</i> them together to arrive at the final sorted array.<br/>
+Merge sorting works by breaking an array into two halves, over and over again, until the size of each half is below some threshold. For a threshold of 2 this means simply swapping the two items in that part of the array if they are out of order. For a larger threshold we'll have to apply an insertion sort or something. Once we have sorted two halves of the array, we have to <i>merge</i> them together to arrive at the final sorted array.<br/>
 
     MergeSort(array, range)
         if (range.length == 2)
