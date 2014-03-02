@@ -450,7 +450,7 @@ void MergeSort(WikiTest array[], const long array_count, WikiComparison compare)
 
 int main(int argc, char argv[]) {
 	long total, index;
-	const long max_size = 3000000;
+	const long max_size = 1500000;
 	Var(array1, WikiAllocate(WikiTest, max_size));
 	Var(array2, WikiAllocate(WikiTest, max_size));
 	WikiComparison compare = WikiCompare;
