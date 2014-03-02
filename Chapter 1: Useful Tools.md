@@ -38,7 +38,9 @@ To reverse the items in an array, simply swap the <i>n</i>th item with the <i>(c
 
 <br/><br/>
 <b>Rotating</b><br/>
-Rotating an array involves shifting all of the items over some number of spaces, with items wrapping around to the other side as needed. Rotations can be implemented as three reverse operations, like so:<br/>
+Rotating an array involves shifting all of the items over some number of spaces, with items wrapping around to the other side as needed. So, for example, [0 1 2 3 4] might become [2 3 4 0 1] after rotating it by 2.<br/>
+
+Rotations can be implemented as three reverse operations, like so:<br/>
 
     Rotate(array, range, amount)
         Reverse(array, MakeRange(range.start, range.end - amount))
@@ -58,7 +60,7 @@ Linear searching is nothing more than a simple loop through the items in an arra
 
 <br/><br/>
 <b>Binary search</b><br/>
-Binary searching works by checking the <i>middle</i> of the current range, and if the value is greater than it checks the right side, and if the value is less it checks the left side. This repeats until there's only one item left. This is an O(log n) operation, which is much more efficient than linear searching, but it only works when the items in the array are in order. Fortunately since this is a <i>sorting algorithm</i>, there are many situations where items in an array will be in order!
+Binary searching works by checking the <i>middle</i> of the current range, and if the value is greater it checks the right side, and if the value is less it checks the left side. This repeats until there's only one item left. This is an O(log n) operation, which is much more efficient than linear searching, but it only works when the items in the array are in order. Fortunately since this is a <i>sorting algorithm</i>, there are many situations where items in an array will be in order!
 
 This sorting algorithm uses two variants of the binary search, one for finding the first place to insert a value in order, and the other for finding the <i>last</i> place to insert the value. If the value does not yet exist in the array these two functions return the same index, but otherwise the last index will be greater.
 
