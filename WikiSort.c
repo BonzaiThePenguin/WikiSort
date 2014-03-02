@@ -61,24 +61,24 @@ long FloorPowerOfTwo(long x) {
 #define IsEven(value) ((value & 0x1) == 0x0)
 
 // swap value1 and value2
-#define Swap(value1, value2) ({ \
+#define Swap(value1, value2) { \
 	Var(SwapValue1, &(value1)); \
 	Var(SwapValue2, &(value2)); \
 	Var(SwapValue, *SwapValue1); \
 	*SwapValue1 = *SwapValue2; \
 	*SwapValue2 = SwapValue; \
-})
+}
 
 // reverse a range within the array
-#define Reverse(array, range) ({ \
+#define Reverse(array, range) { \
 	Var(Reverse_array, array); Range Reverse_range = range; \
 	long Reverse_index; \
 	for (Reverse_index = Reverse_range.length/2 - 1; Reverse_index >= 0; Reverse_index--) \
 		Swap(Reverse_array[Reverse_range.start + Reverse_index], Reverse_array[Reverse_range.start + Reverse_range.length - Reverse_index - 1]); \
-})
+}
 
 // swap a sequence of values in an array
-#define BlockSwap(array, start1, start2, block_size) ({ \
+#define BlockSwap(array, start1, start2, block_size) { \
 	Var(Swap_array, array); Var(Swap_start1, start1); Var(Swap_start2, start2); Var(Swap_size, block_size); \
 	if (Swap_size <= cache_size) { \
 		memcpy(&cache[0], &Swap_array[Swap_start1], Swap_size * sizeof(Swap_array[0])); \
@@ -89,10 +89,10 @@ long FloorPowerOfTwo(long x) {
 		long Swap_index; \
 		for (Swap_index = 0; Swap_index < Swap_size; Swap_index++) Swap(Swap_array[Swap_start1 + Swap_index], Swap_array[Swap_start2 + Swap_index]); \
 	} \
-})
+}
 
 // rotate the values in an array ([0 1 2 3] becomes [3 0 1 2] if we rotate by -1)
-#define Rotate(array, amount, range) ({ \
+#define Rotate(array, amount, range) { \
 	Var(Rotate_array, array); long Rotate_amount = amount; Range Rotate_range = range; \
 	if (Rotate_range.length != 0 && Rotate_amount != 0) { \
 		if (Rotate_amount < 0 && Rotate_amount >= -cache_size) { \
@@ -124,10 +124,10 @@ long FloorPowerOfTwo(long x) {
 			Reverse(Rotate_array, Rotate_range); \
 		} \
 	} \
-})
+}
 
 // merge operation which uses an internal or external buffer
-#define WikiMerge(array, buffer, A, B, compare) ({ \
+#define WikiMerge(array, buffer, A, B, compare) { \
 	Var(Merge_array, array); Var(Merge_buffer, buffer); Var(Merge_A, A); Var(Merge_B, B); \
 	if (compare(Merge_array[Merge_A.start + Merge_A.length - 1], Merge_array[Merge_B.start]) > 0) { \
 		long A_count = 0, B_count = 0, insert = 0; \
@@ -146,7 +146,7 @@ long FloorPowerOfTwo(long x) {
 			BlockSwap(Merge_array, Merge_buffer.start + A_count, Merge_A.start + insert, Merge_A.length - A_count); \
 		} \
 	} \
-})
+}
 
 // find the first value within the range that is equal to the value at index
 long BinaryInsertFirst(Test array[], long index, Range range, Comparison compare) {
