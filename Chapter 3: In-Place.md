@@ -87,7 +87,7 @@ At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] \(m
 ==========================
 <b>But... what was accomplished?</b>
 
-We went from needing to merge A and B with needing to merge an A block with <i>some number</i> of B values. Isn't that the same thing?
+We went from needing to merge A and B to needing to merge an A block with <i>some number</i> of B values. Isn't that the same thing?
 
 Not necessarily. Let's allow ourselves to temporarily modify the array so that the first A block actually contains the first unique values within A. So, for example:
     
