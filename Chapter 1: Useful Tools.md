@@ -24,6 +24,10 @@ One function that is often needed is the ability to swap the values stored in tw
 <b>Block swapping</b><br/>
 Block swapping is a convenience function for swapping multiple sequential items in an array. So block swapping array[0] and array[10] with a block size of 5 would swap items 0-4 and 10-14.<br/><br/>
 
+    BlockSwap(array, index1, index2, count)
+		for (index = 0; index < count; index++) Swap(array[index1 + index], array[index2 + index])
+
+<br/><br/>
 <b>Reversing</b><br/>
 To reverse the items in an array, simply swap the <i>n</i>th item with the <i>(count - n)</i>th item, until we reach the middle of the array.<br/>
 
