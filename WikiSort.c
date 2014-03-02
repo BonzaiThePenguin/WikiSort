@@ -127,7 +127,7 @@ long FloorPowerOfTwo(long x) {
 }
 
 // find the index of the first value within the range that is equal to array[index]
-long BinaryInsertFirst(Test array[], long index, Range range, Comparison compare) {
+long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
 	long min1 = range.start, max1 = range.start + range.length - 1;
 	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) < 0) min1 = mid1 + 1; else max1 = mid1; }
 	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) < 0) min1++;
@@ -135,7 +135,7 @@ long BinaryInsertFirst(Test array[], long index, Range range, Comparison compare
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
-long BinaryInsertLast(Test array[], long index, Range range, Comparison compare) {
+long BinaryLast(Test array[], long index, Range range, Comparison compare) {
 	long min1 = range.start, max1 = range.start + range.length - 1;
 	while (min1 < max1) { long mid1 = min1 + (max1 - min1)/2; if (compare(array[mid1], array[index]) <= 0) min1 = mid1 + 1; else max1 = mid1; }
 	if (min1 == range.start + range.length - 1 && compare(array[min1], array[index]) <= 0) min1++;
@@ -277,7 +277,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 								while (index < B.start + B.length && compare(array[index], array[A.start]) < 0) index += block_size;
 								
 								// binary search to find the first index where B[index - 1] < A[first] <= B[index]
-								long min1 = BinaryInsertFirst(array, A.start, RangeBetween(index - block_size, Min(index, B.start + B.length)), compare);
+								long min1 = BinaryFirst(array, A.start, RangeBetween(index - block_size, Min(index, B.start + B.length)), compare);
 								
 								// rotate [A B1] B2 to [B1 A] B2 and recalculate A and B
 								Rotate(array, A.length, RangeBetween(A.start, min1));
@@ -292,7 +292,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 								while (index >= A.start && compare(array[index], array[B.start + B.length - 1]) >= 0) index -= block_size;
 								
 								// binary search to find the last index where A[index - 1] <= B[last] < A[index]
-								long min1 = BinaryInsertLast(array, B.start + B.length - 1, RangeBetween(Max(index, A.start), index + block_size), compare);
+								long min1 = BinaryLast(array, B.start + B.length - 1, RangeBetween(Max(index, A.start), index + block_size), compare);
 								
 								// rotate A1 [A2 B] to A1 [B A2] and recalculate A and B
 								Rotate(array, -B.length, RangeBetween(min1, B.start + B.length));
@@ -340,7 +340,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 						// if there's a previous v block and the first value of the minimum w block is <= the last value of the previous v block
 						if ((last_v.length > 0 && compare(array[w_min], array[last_v.start + last_v.length - 1]) <= 0) || v.length == 0) {
 							// figure out where to split the previous v block, and rotate it at the split
-							long v_split = BinaryInsertFirst(array, w_min, last_v, compare);
+							long v_split = BinaryFirst(array, w_min, last_v, compare);
 							long v_remaining = last_v.start + last_v.length - v_split;
 							
 							// swap the minimum w block to the beginning of the rolling w blocks
