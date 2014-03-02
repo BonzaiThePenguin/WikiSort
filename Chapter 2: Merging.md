@@ -151,7 +151,7 @@ Anyway, this removes the need for the O(n log n) stack space! But what about the
 One obvious optimization is to only copy the values from A into the buffer, since by the time we run the risk of overwriting values in the range of B we will have already read and compared those values. Here's what this variant looks like:<br/>
 
     Merge(array, A, B)
-        Copy the values from A into the buffer
+        Copy the values from A into the buffer, but leave B where it is
         A_count = 0, B_count = 0, insert = 0
         while (A_count < A.length && B_count < B.length)
             if (buffer[A_count] <= array[B.start + B_count])
