@@ -495,6 +495,7 @@ int main(int argc, char argv[]) {
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		printf("verifying... ");
+		fflush(stdout);
 		assert(compare(array1[0], array2[0]) == 0);
 		for (index = 1; index < total; index++) {
 			assert(compare(array1[index], array2[index]) == 0);
