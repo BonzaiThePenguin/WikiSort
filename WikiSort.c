@@ -38,8 +38,8 @@ typedef int (*Comparison)(Test, Test);
 
 
 // structure to represent ranges within the array
-#define MakeRange(/* long */ start, length) ((Range){(long)(start), length})
-#define RangeBetween(/* long */ start, end) ({ long RangeStart = (long)(start); MakeRange(RangeStart, (end) - RangeStart); })
+#define MakeRange(start, length) ((Range){(long)(start), length})
+#define RangeBetween(start, end) ({ long RangeStart = (long)(start); MakeRange(RangeStart, (end) - RangeStart); })
 #define ZeroRange() MakeRange(0, 0)
 typedef struct { long start, length; } Range;
 
