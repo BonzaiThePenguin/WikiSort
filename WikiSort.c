@@ -24,7 +24,7 @@ typedef int (*Comparison)(Test, Test);
 #ifndef true
 	#define true 1
 #endif
-#define Var(variable_name, variable_value, more...) __typeof__(variable_value, ##more) variable_name = variable_value, ##more
+#define Var(name, value...) __typeof__(value) name = value
 #ifndef Max
 	#define Max(x, y) ({ Var(x1, x); Var(y1, y); (x1 > y1) ? x1 : y1; })
 #endif
