@@ -83,14 +83,14 @@ As soon as we find the exact spot where an A block should be, and rotate it into
     [ B ][][ 0 ][B][ 1 ][B ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
                  ^
 
-At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] (marked with a ^ above). This process repeats until there are no A blocks left, at which point we merge it with the remainder of the B array.
+At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] \(marked with a ^ above). This process repeats until there are no A blocks left, at which point we merge it with the remainder of the B array.
 
 ==========================
 <b>But... what was accomplished?</b>
 
 We went from needing to merge A and B with needing to merge an A block with a B block. Isn't that the same thing?
 
-<i>More here</i>
+<i>More here, to explain what changed.</i>
 
 ==========================
 <b>Sorry, this is still very much a work in progress!</b>
