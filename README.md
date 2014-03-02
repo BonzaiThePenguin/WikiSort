@@ -18,7 +18,9 @@ Right now WikiSort is basically just a postorder <a href="http://www.algorithmis
 &nbsp;&nbsp;• calculates the ranges to merge using floating-point math rather than min(range, array_size)<br/>
 &nbsp;&nbsp;• uses a simplified and optimized version of an advanced in-place merge algorithm<br/><br/>
 
-This algorithm is based on the one described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. However, it uses a simpler design that allows it to be as fast or <i>faster</i> than the standard merge sort. For more information, see the documentation:<br/>
+<b>This algorithm is based on the one described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a></b>. However, it uses a simpler design that allows it to be as fast or <i>faster</i> than the standard merge sort.<br/><br/>
+
+For more information, check out the documentation:<br/>
 
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%201:%20Useful%20Tools.md">Chapter 1: Useful Tools</a><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/master/Chapter%202:%20Merging.md">Chapter 2: Merging</a><br/>
