@@ -145,7 +145,7 @@ Anyway, when we go to merge an A block with the B values that follow it, just sw
 If neither A nor B contain enough unique values to fill up the two required blocks, then obviously we can't do any of the above. For now, WikiSort uses what is called the <i>rotation-based variant of the Hwang-Lin merge algorithm</i>. Yeah. It... works fine.
 
 ============================
-<b>Yeah, but aren't there still n^2 operations being used?</b>
+<b>Aren't there still n^2 operations being used?</b>
 
 Yes, yes there are. When we "drop" the smallest A block behind, we need to use a linear search through the remaining A blocks to find the next smallest one (O(n) operation performed n times = O(n^2)); and when we are finished merging the A and B blocks and we're left with the two reserved blocks, we have to apply an insertion sort to one of them (O(n^2) on its own).<br/><br/>
 
