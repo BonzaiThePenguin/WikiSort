@@ -1,7 +1,7 @@
 Chapter 3: In-place merging
 ==============
 
-To reiterate, much of the work presented here is based on a paper called <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. However, it uses a muchsimpler design.<br/><br/>
+To reiterate, much of the work presented here is based on a paper called <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. However, it uses a simpler design.<br/><br/>
 
 <b>The basic idea</b>
 
