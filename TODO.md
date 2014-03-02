@@ -7,10 +7,10 @@ Insertion sort is only faster when comparisons are cheap. Generally you'll want 
 
 At the moment, mostly-descending is noticeably slower than mostly-ascending. This algorithm would benefit from the following addition:
 
-    WikiSort(array, count, compare) {
+    WikiSort(array, count, compare)
        order = 0
        for (index = 1; index < count; index++) order = order + compare(array[index], array[index - 1])
-       if (order < 0) Reverse(array, MakeRange(0, count)) // the items were in descending order, so reverse it
+       if (order < 0) Reverse(array, MakeRange(0, count)) // the items are more in descending order, so reverse it
 
 However, a naïve array <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">reverse operation</a> would invalidate the stability of the algorithm:
 
