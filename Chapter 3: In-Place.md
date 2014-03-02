@@ -141,3 +141,7 @@ Then of course when we go to merge an A block with the B values that follow it, 
 Yes, yes there are. When we "drop" the smallest A block behind, we need to use a linear search through the remaining A blocks to find the next smallest one (O(n) operation performed n times = O(n^2)); and when we are finished merging the A and B blocks and we're left with the two reserved blocks, we have to apply an insertion sort to one of them (O(n^2) on its own).<br/><br/>
 
 <b>But!</b> keep in mind that since the size of each block is actually √(A.length), performing an n^2 operation on a √n set of data ends up being O(n), or linear! So the linear search checks √(A.length) items, √(A.length) number of times, and the insertion sort is applied to a block of size √(A.length). Both of those end up being O(A.length).
+
+
+============================
+<b>That's it!</b> The <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c">provided implementation</a> has additional code for avoiding unnecessary operations and taking advantage of a local cache, but it is otherwise a direct implementation of the above concepts. Hopefully this information has proven valuable, and you can use your newfound knowledge to add your own optimizations and improvements. And then everyone gets a better sort!
