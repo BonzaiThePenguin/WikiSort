@@ -2,17 +2,20 @@ Chapter 2: Merging
 =============
 
 <b>Standard merge sort</b><br/>
-This still needs a description.<br/>
+Merge sorting works by breaking the array into smaller and smaller pieces, until the size of the array is below some threshold. If the threshold is 2, this means simply swapping the two items in that part of the array if they are out of order. Once we have sorted two sides of the array, we have to <i>merge</i> the two sides together to arrive at the final sorted array.<br/>
 
     MergeSort(array, range)
-        mid = range.start + range.length/2
-        MergeSort(array, MakeRange(range.start, mid))
-        MergeSort(array, MakeRange(mid, range.end))
-        Merge(array, MakeRange(range.start, mid), MakeRange(mid, range.end))
+        if (range.length == 2)
+            if (array[range.start] > array[range.end]) Swap(array[range.start], array[range.end])
+        else
+            mid = range.start + range.length/2
+            MergeSort(array, MakeRange(range.start, mid))
+            MergeSort(array, MakeRange(mid, range.end))
+            Merge(array, MakeRange(range.start, mid), MakeRange(mid, range.end))
 
 <br/><br/>
 <b>Standard merge</b><br/>
-This still needs a description.<br/>
+The merge operation of the merge sort algorithm takes two arrays that <i>are already sorted</i>, and combines them into a single array containing A and B sorted together. The operation is acutally quite simple: all it does is take the smaller of the two values at the start of A and B, and adds it to the final array. Once A and B are empty, the final array is completed!<br/>
 
     Merge(array, A, B)
         Copy A and B into a buffer
