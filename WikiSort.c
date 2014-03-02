@@ -33,7 +33,7 @@ typedef int (*WikiComparison)(WikiTest, WikiTest);
 #endif
 
 
-#define WikiArray(type, count) (type *)malloc((count) * sizeof(type))
+#define WikiAllocate(type, count) (type *)malloc((count) * sizeof(type))
 #define WikiSeconds() (clock() * 1.0/CLOCKS_PER_SEC)
 
 
@@ -443,7 +443,7 @@ void MergeSortR(WikiTest array[], WikiRange range, WikiComparison compare, WikiT
 }
 
 void MergeSort(WikiTest array[], const long array_count, WikiComparison compare) {
-	var(buffer, WikiArray(WikiTest, array_count));
+	var(buffer, WikiAllocate(WikiTest, array_count));
 	MergeSortR(array, WikiMakeRange(0, array_count), compare, buffer);
 	free(buffer);
 }
@@ -451,8 +451,8 @@ void MergeSort(WikiTest array[], const long array_count, WikiComparison compare)
 int main(int argc, char argv[]) {
 	long total, index;
 	const long max_size = 3000000;
-	var(array1, WikiArray(WikiTest, max_size));
-	var(array2, WikiArray(WikiTest, max_size));
+	var(array1, WikiAllocate(WikiTest, max_size));
+	var(array2, WikiAllocate(WikiTest, max_size));
 	WikiComparison compare = WikiCompare;
 	
 	srand(/*time(NULL)*/ 10141985);
