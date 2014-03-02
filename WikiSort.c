@@ -191,7 +191,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 	}
 	
 	// calculate how to scale the index value to the range within the array
-	long power_of_two = FloorPowerOfTwo(array_count);
+	const long power_of_two = FloorPowerOfTwo(array_count);
 	double scale = array_count/(double)power_of_two; // 1.0 <= scale < 2.0
 	
 	for (index = 0; index < power_of_two; index += 32) {
