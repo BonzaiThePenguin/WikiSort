@@ -30,6 +30,40 @@ The merge operation of the merge sort algorithm takes two arrays that <i>are alr
             insert = insert + 1
         Copy the remaining part of the buffer back into the array
 
+Here's an example of how it works:
+    
+    1. we want to merge these two arrays, A and B:
+    [0 2 4 7]  [1 3 7 8]
+    []
+    
+    2. 0 is smaller
+    [2 4 7]  [1 3 7 8]
+    [0]
+    
+    3. 1 is smaller
+    [2 4 7]  [3 7 8]
+    [0 1]
+    
+    4. 2 is smaller
+    [4 7]  [3 7 8]
+    [0 1 2]
+    
+    5. 3 is smaller
+    [4 7]  [7 8]
+    [0 1 2 3]
+    
+    6. 4 is smaller
+    [7]  [7 8]
+    [0 1 2 3 4]
+    
+    7. 7 and 7 are equal, so give precedence to A
+    []  [7 8]
+    [0 1 2 3 4 7]
+    
+    8. A is empty, so just add the rest of B to the end
+    [] []
+    [0 1 2 3 4 7 7 8]
+
 <br/><br/>
 <b>Problems</b><br/>
 There are some significant drawbacks to this design, especially if you're concerned about memory usage. The recursion actually uses O(n log n) stack space, and the merge operation requires a separate buffer that's the same size as the original array.<br/>
