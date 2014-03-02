@@ -44,14 +44,48 @@ Rotating an array involves shifting all of the items over some number of spaces,
         Reverse(array, MakeRange(range.end - amount, range.end))
         Reverse(array, range)
 
+There's more to it than that (rotating in the other direction, rotating more spaces than the size of the array, etc.), but that's the general idea. See the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.md">code</a> for the full implementation.
+
 <br/><br/>
 <b>Linear search</b><br/>
+Linear searching is nothing more than a simple loop through the items in an array, looking for the index that matches the value we want. This is an O(n) operation, meaning if there are n items in the array it has to check up to n items before it finds it.
+
+    LinearSearch(array, range, value)
+        for (index = range.start; index < range.end; index++)
+            if (array[index] == value) return index;
 
 <br/><br/>
 <b>Binary search</b><br/>
-- find the first place to insert a value
-- find the last place to insert a value<br/><br/>
+Binary searching works by checking the <i>middle</i> of the current range, and if the value is greater than it checks the right side, and if the value is less it checks the left side. This repeats until there's only one item left. This is an O(log n) operation, which is much more efficient than linear searching, but it only works when the items in the array are in order. Fortunately since this is a <i>sorting algorithm</i>, there are many situations where items in an array will be in order!
 
+This sorting algorithm uses two variants of the binary search, one for finding the first place to insert a value in order, and the other for finding the <i>last</i> place to insert the value. If the value does not yet exist in the array these two functions return the same index, but otherwise the last index will be greater.
+
+    BinaryFirst(array, value, range)
+        start = range.start
+        end = range.end
+        while (start < end)
+            mid = start + (end - start)/2
+            if (array[mid] < value)
+                start = mid + 1
+            else
+                end = mid
+        if (start == range.end && array[start] < value) start = start + 1
+        return start
+
+
+    BinaryLast(array, value, range)
+        start = range.start
+        end = range.end
+        while (start < end)
+            mid = start + (end - start)/2
+            if (array[mid] <= value)
+                start = mid + 1
+            else
+                end = mid
+        if (start == range.end && array[start] <= value) start = start + 1
+        return start
+
+<br/><br/>
 <b>Insertion sorting</b><br/>
 Hey, we're getting close to actual sorting now! Unfortunately, insertion sort is an O(n^2) operation, which means it becomes <i>incredibly</i> inefficient for large arrays. However, for small arrays it is actually quite fast, and is therefore useful as part of a larger sorting algorithm.<br/><br/>
 
