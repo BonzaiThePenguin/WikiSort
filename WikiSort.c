@@ -483,16 +483,15 @@ int main(int argc, char argv[]) {
 		time2 = Seconds() - time2;
 		
 		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
-		printf("verifying... ");
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
+		printf("verifying... ");
 		assert(compare(array1[0], array2[0]) == 0);
 		for (index = 1; index < total; index++) {
 			assert(compare(array1[index], array2[index]) == 0);
 			assert(compare(array1[index], array1[index - 1]) > 0 ||
 				   (compare(array1[index], array1[index - 1]) == 0 && array1[index].index > array1[index - 1].index));
 		}
-		
 		printf("correct!\n");
 	}
 	
