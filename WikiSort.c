@@ -55,7 +55,7 @@ long FloorPowerOfTwo(long x) {
 }
 
 // if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value)
-#define IsEven(value) ((value & 0x1) == 0x0)
+#define IsEven(value) (((value) & 0x1) == 0x0)
 
 // swap value1 and value2
 #define Swap(value1, value2) { \
