@@ -131,10 +131,10 @@ Finally, if instead of assigning values we <i>swap</i> them to and from the buff
         A_count = 0, B_count = 0, insert = 0
         while (A_count < A.length && B_count < B.length)
             if (buffer[A_count] <= array[B.start + B_count])
-                swap(array[A.start + insert], buffer[A_count])
+                Swap(array[A.start + insert], buffer[A_count])
                 A_count = A_count + 1
             else
-                swap(array[A.start + insert], array[B.start + B_count])
+                Swap(array[A.start + insert], array[B.start + B_count])
                 B_count = B_count + 1
             insert = insert + 1
         Block swap the remaining part of the buffer with the remaining part of the array
