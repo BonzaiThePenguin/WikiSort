@@ -3,6 +3,11 @@ Chapter 3: In-place merging
 
 To reiterate, much of the work presented here is based on a paper called <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. However, it uses a much simpler design.<br/><br/>
 
+<b>The basic idea</b>
+
+The core of efficient in-place merging relies on the fact that merging two sorted arrays, A and B, is equivalent to breaking A into evenly-sized chunks, inserting them into B, then merging each A block with any values from B that follow it. <i>Add a visual diagram here!</i>
+
+
 <b>Sorry, this is still very much a work in progress!</b>
 
 
