@@ -29,7 +29,7 @@ This still needs a description.<br/>
 
 <br/><br/>
 <b>Problems</b><br/>
-There are some significant drawbacks to this design, especially if you're concerned about memory usage. The recursion actually uses O(n log n) stack space, and the merge operation requires a separate buffer that's the same size as the original array.<br/><br/>
+There are some significant drawbacks to this design, especially if you're concerned about memory usage. The recursion actually uses O(n log n) stack space, and the merge operation requires a separate buffer that's the same size as the original array.<br/>
 
 Can we do better? <b>Of course!</b><br/><br/>
 
