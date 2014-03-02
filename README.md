@@ -16,7 +16,7 @@ Right now wikisort is basically just a postorder <a href="http://www.algorithmis
 &nbsp;&nbsp;• calculates the ranges to merge using floating-point math rather than min(range, array_size)<br/>
 &nbsp;&nbsp;• uses a simplified and optimized version of an advanced in-place merge algorithm<br/><br/>
 
-<b>A detailed description of how this algorithm works is coming soon!</b> Until then, this algorithm is based on the one described in "Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner.<br/><br/>
+<b>A detailed description of how this algorithm works is coming soon!</b> Until then, this algorithm is based on the one described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>.<br/><br/>
 
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.
 
