@@ -176,6 +176,14 @@ void InsertionSort(Test array[], Range range, Comparison compare) {
 
 // bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 void WikiSort(Test array[], const long array_count, Comparison compare) {
+	// reverse ranges of purely descending values
+	long index; Range reverse = ZeroRange();
+	for (index = 1; index < array_count; index++) {
+		if (compare(array[index], array[index - 1]) < 0) reverse.length++;
+		else { Reverse(array, reverse); reverse = MakeRange(index, 0); }
+	}
+	Reverse(array, reverse);
+	
 	// the various toolbox functions are optimized to take advantage of this cache, so tweak it as desired
 	// generally this cache is suitable for arrays of up to size (cache_size^2)
 	const long cache_size = 1024;
@@ -191,7 +199,6 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 	long power_of_two = FloorPowerOfTwo(array_count);
 	double scale = array_count/(double)power_of_two; // 1.0 <= scale < 2.0
 	
-	long index, iteration;
 	for (index = 0; index < power_of_two; index += 32) {
 		// insertion sort from start to mid and mid to end
 		long start = index * scale;
@@ -203,7 +210,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 		
 		// here's where the fake recursion is handled
 		// it's a bottom-up merge sort, but multiplying by scale is more efficient than using Min(end, array_count)
-		long merge = index, length = 16;
+		long iteration, merge = index, length = 16;
 		for (iteration = index/16 + 2; IsEven(iteration); iteration /= 2) {
 			start = merge * scale;
 			mid = (merge + length) * scale;
