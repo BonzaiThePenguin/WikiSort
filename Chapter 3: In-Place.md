@@ -134,7 +134,9 @@ The next trick is to use <i>another</i> A block to store <i>another</i> set of u
     [ 1 2 3 4 ]  [ 1 1 2 7 ][ 4 5 5 8 ][ 5 5 5 9 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 3 5 6 10 ]
                          ^          ^          ^                                              ^ ^ ^
 
-Then of course when we go to merge an A block with the B values that follow it, swap the last value in the A block back into the buffer, so the original data is restored. Unlike the first buffer, the values in this one will never be moved out of order, so we won't need to sort these items when we're finished. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
+The reason we tag the last value of each A block, rather than the first, is because we use (A[first] <= B[last]) to decide where to leave the smallest A block. But we never actually do anything with the <i>last</i> value! (As long as the size of each block is >= 2, of course)
+
+Anyway, when we go to merge an A block with the B values that follow it, just swap the last value in the A block back into the buffer, so the original data is restored. Unlike the first buffer, the values in this one will never be moved out of order, so we won't need to sort these items when we're finished. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
 
 
 ============================
