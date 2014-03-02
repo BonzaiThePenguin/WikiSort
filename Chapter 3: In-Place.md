@@ -90,7 +90,20 @@ At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] \(m
 
 We went from needing to merge A and B with needing to merge an A block with a B block. Isn't that the same thing?
 
-<i>More here, to explain what changed.</i>
+Not necessarily. Let's allow ourselves to temporarily modify the array so that the first A block actually contains the first unique values within A. So, for example:
+    
+    1. we want to merge these arrays:
+    [ 1 1 1 2 2 3 3 4 4 5 5 5 5 5 5 6 ][ 2 2 3 3 3 4 4 5 5 6 7 8 8 9 9 9 10 ]
+    
+    2. the size of each A block should be √(A.length), which in this case is √16 = 4
+    [ 1 1 1 2 ][ 2 3 3 4 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
+      ^     ^      ^   ^
+    
+    3. the first A block needs to contain the first unique values in A (marked with ^ above)
+    [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
+
+Then we merge the other A blocks, but not the first one. The trick now is that since this area is large enough to hold the values of any A block, we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm! The merge process causes the items in the buffer to move out of order, but since the values are unique we can just sort them when we're finished merging the A blocks.
+
 
 ==========================
 <b>Sorry, this is still very much a work in progress!</b>
