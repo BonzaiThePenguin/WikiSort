@@ -384,6 +384,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 						}
 					}
 					
+					// merge the last w block with the remaining v blocks
 					WikiMerge(array, buffer2, last_w, RangeBetween(last_w.start + last_w.length, B.start + B.length - bufferB.length), compare);
 					
 					// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
