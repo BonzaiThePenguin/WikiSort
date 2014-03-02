@@ -19,10 +19,10 @@ This still needs a description.<br/>
         A_count = 0, B_count = 0, insert = 0
         while (A_count < A.length && B_count < B.length)
             if (buffer[A_count] <= buffer[B.start + B_count])
-                array[A.start + insert] = buffer[A_count];
+                array[A.start + insert] = buffer[A_count]
                 A_count = A_count + 1
             else
-                array[A.start + insert] = buffer[B.start + B_count];
+                array[A.start + insert] = buffer[B.start + B_count]
                 B_count = B_count + 1
             insert = insert + 1
         Copy the remaining part of the buffer back into the array
