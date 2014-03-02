@@ -116,23 +116,23 @@ That's essentially all there is to efficient in-place merging, but if you were t
 The next trick is to use <i>another</i> A block to store <i>another</i> set of unique values. While the first block is used as a buffer for the merging, <i>these</i> unique values will be used to "tag" each A block so we have some way of comparing them to determine their order. Once we pull out the unique values, loop over the remaining A blocks and swap the <i>last</i> value in each block with one of the unique values from this second buffer.
 
     1. we already pulled out unique values for the first block, but now we need another one
-    [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
+    [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
                               ^              ^
     
     2. oops, we don't have enough unique values! Fortunately we can use B just as well:
-    [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
-                                                                             ^      ^     ^    ^
+    [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
+                                                                                ^      ^     ^    ^
     
     3. notice that the last B block was resized, to make room for this reserved block
-    [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ][ 7 8 9 10 ]
+    [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
     
     4. anyway, now let's tag the A blocks with these unique values
-    [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ][ 7 8 9 10 ]
-                       ^          ^          ^                                           ^ ^ ^
+    [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
+                         ^          ^          ^                                              ^ ^ ^
     
     5. all done!
-    [ 1 2 3 4 ][ 1 1 2 7 ][ 4 5 5 8 ][ 5 5 5 9 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ][ 3 5 6 10 ]
-                       ^          ^          ^                                           ^ ^ ^
+    [ 1 2 3 4 ]  [ 1 1 2 7 ][ 4 5 5 8 ][ 5 5 5 9 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 3 5 6 10 ]
+                         ^          ^          ^                                              ^ ^ ^
 
 Then of course when we go to merge an A block with the B values that follow it, swap the last value in the A block back into the buffer, so the original data is restored. Unlike the first buffer, the values in this one will never be moved out of order, so we won't need to sort these items when we're finished. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
 
