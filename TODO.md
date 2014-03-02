@@ -12,7 +12,7 @@ At the moment, mostly-descending is noticeably slower than mostly-ascending. Thi
        for (index = 1; index < count; index++) order = order + compare(array[index], array[index - 1])
        if (order < 0) Reverse(array, MakeRange(0, count)) // the items were in descending order, so reverse it
 
-However, a naïve array reverse operation would invalidate the stability of the algorithm:
+However, a naïve array <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">reverse operation</a> would invalidate the stability of the algorithm:
 
 &nbsp;&nbsp;&nbsp;[5 a] [5 b] [4 c]  <--->  [4 c] <b>[5 b] [5 a]</b>
 
