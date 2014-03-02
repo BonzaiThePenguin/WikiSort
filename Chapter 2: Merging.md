@@ -38,7 +38,7 @@ Can we do better? <b>Of course!</b><br/><br/>
 
 
 <b>Merge sort without recursion</b><br/>
-To remove the recursion, we can use what's called a bottom-up merge sort. Here's what it looks like for an array of a size that happens to be a power of two:<br/>
+To remove the recursion, we can use what's called a <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a>. Here's what it looks like for an array of a size that happens to be a power of two:<br/>
 
     MergeSort(array, count)
        index = 0
