@@ -7,21 +7,6 @@ Well, have you thought about adding your own contributions? Sorting is a core op
 
 =======================
 
-While WikiSort is already quite fast, especially for an in-place merge sort (once thought to be of only <i>theoretical</i> interest), there are still a few things that it does not handle well. <i>Reversed</i> data in particular is probably the most common situation that can lead to supbar performance. This algorithm would benefit from the following addition:
-
-    WikiSort(array, count, compare)
-       order = 0
-       for (index = 1; index < count; index++) order = order + compare(array[index], array[index - 1])
-       if (order < 0) Reverse(array, MakeRange(0, count)) // the items are more in descending order, so reverse it
-
-However, a naïve array <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">reverse operation</a> would invalidate the stability of the algorithm:
-
-&nbsp;&nbsp;&nbsp;[5 a] [5 b] [4 c]  <--->  [4 c] <b>[5 b] [5 a]</b>
-
-A more-intelligent reversal that maintains the order of equivalent elements is needed before this can be added to the algorithm. Another possibility is creating a slightly modified duplicate of the sort function, one that works better for reversed data. Keep in mind that the reversal doesn't have to be <i>perfect</i> – as long as it maintains the order of equivalent items, any estimate of moving the items into ascending order would be better than doing nothing at all.
-
-=======================
-
 Insertion sort is only faster when comparisons are cheap. Generally you'll want to use highly-optimized compare functions anyway, but ideally this algorithm should switch back to standard merges when it detects comparisons being too slow for insertion sort to help.
 
 =======================
