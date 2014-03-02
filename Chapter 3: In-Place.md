@@ -101,7 +101,7 @@ Not necessarily. Let's allow ourselves to temporarily modify the array so that t
     3. the first A block needs to contain the first unique values in A (marked with ^ above)
     [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
     
-    4. now we merge the remaining A blocks. the first one is now reserved for other purposes
+    4. now we only merge the remaining A blocks – the first one is reserved for other purposes
     [ 1 2 3 4 ]      [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]      [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
 
 The trick now is that since this area is large enough to hold the values of any A block (seeing as how it's the same size), we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm!
