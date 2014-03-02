@@ -109,7 +109,7 @@ The merge process causes the items in the buffer to move out of order, but since
 ==========================
 <b>So close, but...</b>
 
-That's essentially all there is to efficient in-place merging, but if you were to try to implement the above directly you'd run into a problem: how are we supposed to know which A block is the smallest, after we've already moved them out of order from rolling them through the B blocks? That information isn't stored anywhere at the moment, and since the A blocks might all have the same values we can't just compare them to each other to find the smallest A block. We also can't allocate space to store this information since it'd ruin the point!
+That's essentially all there is to efficient in-place merging, but if you were to try to implement the above directly you'd run into a problem: how are we supposed to know which A block is the smallest, after we've already moved them out of order from rolling them through the B blocks? That information isn't stored anywhere at the moment, and since the A blocks might all have the same values we can't just compare them to each other to find the smallest one. We also can't allocate space to store this information since it'd ruin the point!
 
 The new trick is to use <i>another</i> A block to store <i>another</i> set of unique values. While the first block is used as a buffer for the merging, these unique values will be used to "tag" each A block so we have some way of comparing them to determine their order. Once we pull out the unique values, loop over the remaining A blocks and swap the <i>last</i> value in each block with one of the unique values from this second buffer.
 
