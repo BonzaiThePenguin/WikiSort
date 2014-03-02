@@ -459,6 +459,8 @@ int main(int argc, char argv[]) {
 	srand(/*time(NULL)*/ 10141985);
 	
 	for (total = 0; total < max_size; total += 2048 * 16) {
+		if (total == 0) continue;
+		
 		for (index = 0; index < total; index++) {
 			Test item; item.index = index;
 			
