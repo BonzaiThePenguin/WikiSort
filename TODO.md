@@ -7,15 +7,10 @@ Insertion sort is only faster when comparisons are cheap. Generally you'll want 
 
 At the moment, mostly-descending is noticeably slower than mostly-ascending. This algorithm would benefit from the following addition:
 
-    #define wikisort(array, array_count, compare) { \
-       __typeof__(array[0]) temp, *wikisort_array = array; const long wikisort_count = array_count; \
-       uint64 i, ascending = 0, descending = 0; \
-       for (i = 1; i < wikisort_count; i++) if (compare(wikisort_array[i], wikisort_array[i - 1]) >= 0) ascending++; else descending++; \
-       if (descending > ascending) { reverse(wikisort_array); swap(ascending, descending); } \
-       if (wikisort_count < 32) { \
-          /* insertion sort the array */ \
-          [...] \
-       } else if (descending > 0) { \
+    void WikiSort(WikiTest array[], const long array_count, WikiComparison compare) {
+       long index, order = 0;
+       for (index = 1; index < array_count; index++) order += compare(WikiItem(array, index), WikiItem(array, index - 1));
+       if (order < 0) WikiReverse(array, WikiMakeRange(0, array_count)); // the items were in descending order, so reverse it
 
 However, a naïve array reverse operation would invalidate the stability of the algorithm:
 
