@@ -101,9 +101,9 @@ Which is of course exactly what we wanted.<br/><br/>
              length = length * 2
              merge = merge - length
     
-The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. <b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b>
+The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. <b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b><br/><br/>
 
-Anyway, this removes the needed for the O(n log n) stack space! But what about the merge operation?<br/>
+Anyway, this removes the needed for the O(n log n) stack space! But what about the merge operation?<br/><br/><br/>
 
 
 <b>Merging using a half-size buffer</b><br/>
