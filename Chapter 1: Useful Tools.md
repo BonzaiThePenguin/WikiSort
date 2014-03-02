@@ -22,7 +22,7 @@ One function that is often needed is the ability to swap the values stored in tw
 
 <br/><br/>
 <b>Block swapping</b><br/>
-Block swapping is a convenience function for swapping multiple sequential items in an array. So block swapping array[0] and array[10] with a block size of 5 would swap items 0-4 and 10-14.
+Block swapping is a convenience function for swapping multiple sequential items in an array. So block swapping array[0] and array[10] with a block size of 5 would swap items 0-4 and 10-14.<br/><br/>
 
 <b>Reversing</b><br/>
 To reverse the items in an array, simply swap the <i>n</i>th item with the <i>(count - n)</i>th item, until we reach the middle of the array.<br/>
@@ -46,7 +46,7 @@ Rotating an array involves shifting all of the items over some number of spaces,
 <br/><br/>
 <b>Binary search</b><br/>
 - find the first place to insert a value
-- find the last place to insert a value
+- find the last place to insert a value<br/><br/>
 
 <b>Insertion sorting</b><br/>
 Hey, we're getting close to actual sorting now! Unfortunately, insertion sort is an O(n^2) operation, which means it becomes <i>incredibly</i> inefficient for large arrays. However, for small arrays it is actually quite fast, and is therefore useful as part of a larger sorting algorithm.<br/><br/>
