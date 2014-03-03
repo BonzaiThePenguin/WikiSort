@@ -32,7 +32,7 @@ That's the general idea, but it raises some questions:
 &nbsp;&nbsp;• How exactly do we "insert" each A block into B without it being an n^2 operation?<br/>
 &nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b><br/>
 
-First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length). You'll see why in a second.<br/><br/>
+First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length), which incidentally means there will be √(A.length) <i>number</i> of A blocks as well. You'll see why in a second.<br/><br/>
 
 As for how to insert the A blocks into B, the obvious solution (<a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">rotating</a> the blocks to where they belong) is an n^2 operation. So that's no good. What we'll have to do instead is also break B into blocks too, then <i>block swap</i> an A block with a B block to roll the A blocks through the array.
 
