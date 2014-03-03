@@ -107,6 +107,13 @@ Finding the last place to insert a value is identical, except we use <=
 
 <br/><br/>
 <b>Insertion sorting</b><br/>
-Hey, we're getting close to actual sorting now! Unfortunately, insertion sort is an O(n^2) operation, which means it becomes <i>incredibly</i> inefficient for large arrays. However, for small arrays it is actually quite fast, and is therefore useful as part of a larger sorting algorithm.<br/><br/>
+Hey, we're getting close to actual sorting now! Unfortunately, insertion sort is an O(n^2) operation, which means it becomes <i>incredibly</i> inefficient for large arrays. However, for small arrays it is actually quite fast, and is therefore useful as part of a larger sorting algorithm.<br/>
 
+    InsertionSort(array, range)
+        for (i = range.start + 1; i < range.end; i++)
+            temp = array[i]
+            for (j = i; j > range.start && array[j - 1] > temp; j--) array[j] = array[j - 1]
+            array[j] = temp
+
+<br/><br/>
 Speaking of larger sorting algorithms, <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">here's how merge sort works</a>!
