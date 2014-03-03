@@ -106,7 +106,7 @@ Not necessarily. Let's allow ourselves to temporarily modify the array so that t
 
 The trick now is that since this area is large enough to hold the values of any A block (seeing as how it's the same size), we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm!
 
-The merge process causes the items in the buffer to move out of order, but since the values are unique we can just sort them when we're finished merging the A blocks. And then we can just redistribute them back to where they belong in the array, which completes the sorting process.
+The merge process causes the items in the buffer to move out of order, but since the values are unique we can just insertion sort them when we're finished merging the A blocks. And then we can just redistribute them back to where they belong in the array, which completes the sorting process.
 
 ==========================
 <b>So close, but...</b>
