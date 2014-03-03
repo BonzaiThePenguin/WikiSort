@@ -322,7 +322,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 						// find the first place in B where the first item in A needs to be inserted
 						long mid = BinaryFirst(array, A.start, B, compare);
 						
-						// get the range and amount to rotate
+						// rotate A into place
 						long amount = mid - (A.start + A.length);
 						Rotate(array, amount, RangeBetween(A.start, mid));
 						
