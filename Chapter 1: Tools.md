@@ -91,6 +91,8 @@ This sorting algorithm uses two variants of the binary search, one for finding t
         return start
 
 
+Finding the last place to insert a value is identical, except we use <=
+
     BinaryLast(array, range, value)
         start = range.start
         end = range.end
