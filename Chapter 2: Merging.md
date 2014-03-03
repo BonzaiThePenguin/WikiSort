@@ -181,6 +181,10 @@ Finally, if instead of assigning values we <i>swap</i> them to and from the buff
         Block swap the remaining part of the buffer with the remaining part of the array
 
 <br/><br/>
+The items in the buffer will likely be in a different order afterwards, but at least they're still there.
+
+========================
+
 So now we can efficiently merge A and B without losing any buffer values, but we still need that additional buffer to exist. There isn't much we can do about that... but what if this extra buffer <i>was part of the original array</i>?<br/><br/>
 
 
