@@ -47,7 +47,7 @@ Rotations can be implemented as three reverse operations, like so:<br/>
         Reverse(array, MakeRange(range.start + range.length - amount, range.end))
         Reverse(array, range)
 
-And here's an example showing why and how this works:
+Here's an example showing why and how this works:
 
     1. we have [0 1 2 3 4] and we want [3 4 0 1 2] by rotating by 2
     [0 1 2 3 4]
