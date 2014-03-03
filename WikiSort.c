@@ -390,7 +390,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 						
 						// search the last value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
 						minA = blockA.start + 1;
-						for	(findA = minA + block_size; findA < blockA.start + blockA.length; findA += block_size) if (compare(array[findA], array[minA]) < 0) minA = findA;
+						for (findA = minA + block_size; findA < blockA.start + blockA.length; findA += block_size) if (compare(array[findA], array[minA]) < 0) minA = findA;
 						minA--;
 					} else if (blockB.length < block_size) {
 						// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
