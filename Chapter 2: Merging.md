@@ -144,7 +144,7 @@ The multiplication has been proven to be correct for more than 17,179,869,184 el
 
 ==========================
 
-Anyway, this removes the need for the O(log n) stack space! Although, to be fair, that wasn't really an issue – sorting 1.5 million items only recurses ~20 times anyway. The real problem is that O(n) for the separate buffer! What can we do about <i>that</i>?<br/><br/><br/>
+This removes the need for the O(log n) stack space! Although, to be fair, that wasn't really an issue – sorting 1.5 million items only recurses ~20 times anyway. The real problem is that O(n) for the separate buffer! What can we do about <i>that</i>?<br/><br/><br/>
 
 
 <b>Merging using a half-size buffer</b><br/>
