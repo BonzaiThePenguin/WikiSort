@@ -144,7 +144,7 @@ The multiplication has been proven to be correct for more than 17,179,869,184 el
 
 ==========================
 
-Anyway, this removes the need for the O(n log n) stack space! But what about the merge operation?<br/><br/><br/>
+Anyway, this removes the need for the O(log n) stack space! But what about the merge operation?<br/><br/><br/>
 
 
 <b>Merging using a half-size buffer</b><br/>
