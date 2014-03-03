@@ -180,7 +180,6 @@ Finally, if instead of assigning values we <i>swap</i> them to and from the buff
             insert = insert + 1
         Block swap the remaining part of the buffer with the remaining part of the array
 
-<br/><br/>
 The items in the buffer will likely be in a different order afterwards, but at least they're still there.
 
 ========================
