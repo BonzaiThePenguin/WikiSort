@@ -63,6 +63,17 @@ And here's an example showing why and how this works:
 
 There's more to it than that (rotating in the other direction, rotating more spaces than the size of the array, etc.), but that's the general idea. See the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c">code</a> for the full implementation.
 
+One thing to note is that rotations can be applied to sections of an array, like so:
+
+    1. we start with this:
+    [0 1 2 3 4 5 6]
+    
+    2. let's rotate [2 3 4] to the left one
+    [0 1 [2 3 4] 5 6]
+    
+    3. all done
+    [0 1 [3 4 2] 5 6]
+    
 <br/><br/>
 <b>Linear search</b><br/>
 Linear searching is nothing more than a simple loop through the items in an array, looking for the index that matches the value we want. This is an O(n) operation, meaning if there are n items in the array it has to check up to n items before it finds it.
