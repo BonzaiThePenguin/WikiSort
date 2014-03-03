@@ -146,9 +146,9 @@ void InsertionSort(Test array[], Range range, Comparison compare) {
 				memmove(&Rotate_array[Rotate_move], &Rotate_array[Rotate_range2.start], Rotate_range2.length * sizeof(Rotate_array[0])); \
 				memcpy(&Rotate_array[Rotate_copy], &cache[0], Rotate_range1.length * sizeof(Rotate_array[0])); \
 			} else { \
-				Reverse(Rotate_array, Rotate_range); \
 				Reverse(Rotate_array, Rotate_range1); \
 				Reverse(Rotate_array, Rotate_range2); \
+				Reverse(Rotate_array, Rotate_range); \
 			} \
 		} \
 	} \
@@ -318,39 +318,17 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 					// we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated
 					// we can use this knowledge to write a merge operation that is optimized for arrays of repeating values
 					
-					// this is the rotation-based variant of the Hwang-Lin merge algorithm
-					while (true) {
-						if (A.length <= B.length) {
-							if (A.length <= 0) break;
-							long block_size = Max(FloorPowerOfTwo((long)(B.length/(double)A.length)), 1);
-							
-							// merge A[first] into B
-							long index = B.start + block_size;
-							while (index < B.start + B.length && compare(array[index], array[A.start]) < 0) index += block_size;
-							
-							// binary search to find the first index where B[index - 1] < A[first] <= B[index]
-							long min1 = BinaryFirst(array, A.start, RangeBetween(index - block_size, Min(index, B.start + B.length)), compare);
-							
-							// rotate [A B1] B2 to [B1 A] B2 and recalculate A and B
-							Rotate(array, -A.length, RangeBetween(A.start, min1));
-							A.length--; A.start = min1 - A.length;
-							B = RangeBetween(min1, B.start + B.length);
-						} else {
-							if (B.length <= 0) break;
-							long block_size = Max(FloorPowerOfTwo((long)(A.length/(double)B.length)), 1);
-							
-							// merge B[last] into A
-							long index = B.start - block_size;
-							while (index >= A.start && compare(array[index], array[B.start + B.length - 1]) >= 0) index -= block_size;
-							
-							// binary search to find the last index where A[index - 1] <= B[last] < A[index]
-							long min1 = BinaryLast(array, B.start + B.length - 1, RangeBetween(Max(index, A.start), index + block_size), compare);
-							
-							// rotate A1 [A2 B] to A1 [B A2] and recalculate A and B
-							Rotate(array, B.length, RangeBetween(min1, B.start + B.length));
-							A = RangeBetween(A.start, min1);
-							B = MakeRange(min1, B.length - 1);
-						}
+					while (A.length > 0 && B.length > 0) {
+						// find the first place in B where the first item in A needs to be inserted
+						long mid = BinaryFirst(array, A.start, B, compare);
+						
+						// get the range and amount to rotate
+						long amount = mid - (A.start + A.length);
+						Rotate(array, amount, RangeBetween(A.start, mid));
+						
+						// calculate the new A and B ranges
+						B = RangeBetween(mid, B.start + B.length);
+						A = RangeBetween(BinaryLast(array, A.start + amount, A, compare), B.start);
 					}
 					
 					continue;
