@@ -112,7 +112,8 @@ Hey, we're getting close to actual sorting now! Unfortunately, insertion sort is
     InsertionSort(array, range)
         for (i = range.start + 1; i < range.end; i++)
             temp = array[i]
-            for (j = i; j > range.start && array[j - 1] > temp; j--) array[j] = array[j - 1]
+            for (j = i; j > range.start && array[j - 1] > temp; j--)
+                array[j] = array[j - 1]
             array[j] = temp
 
 <br/><br/>
