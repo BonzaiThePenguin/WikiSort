@@ -38,30 +38,30 @@ To reverse the items in an array, simply swap the <i>n</i>th item with the <i>(c
 
 <br/><br/>
 <b>Rotating</b><br/>
-Rotating an array involves shifting all of the items over some number of spaces, with items wrapping around to the other side as needed. So, for example, [0 1 2 3 4] might become [2 3 4 0 1] after rotating it by 2.<br/>
+Rotating an array involves shifting all of the items over some number of spaces, with items wrapping around to the other side as needed. So, for example, [0 1 2 3 4] might become [3 4 0 1 2] after rotating it by 2.<br/>
 
 Rotations can be implemented as three reverse operations, like so:<br/>
 
     Rotate(array, range, amount)
-        Reverse(array, MakeRange(range.start, range.start + amount))
-        Reverse(array, MakeRange(range.start + amount, range.end))
+        Reverse(array, MakeRange(range.start, range.start + range.length - amount))
+        Reverse(array, MakeRange(range.start + range.length - amount, range.end))
         Reverse(array, range)
 
 And here's an example showing why and how this works:
 
-    1. we have [0 1 2 3 4] and we want [2 3 4 0 1] by rotating by 2
+    1. we have [0 1 2 3 4] and we want [3 4 0 1 2] by rotating by 2
     [0 1 2 3 4]
     
-    2. reverse the first two items
-    [1 0][2 3 4]
+    2. reverse the first three items
+    [2 1 0][3 4]
     
-    3. reverse the last three items
-    [1 0][4 3 2]
+    3. reverse the last two items
+    [2 1 0][4 3]
     
-    4. reverse the entire thing
-    [2 3 4][0 1]
+    4. reverse the entire array
+    [3 4][0 1 2]
 
-There's more to it than that (rotating in the other direction, rotating more spaces than the size of the array, etc.), but that's the general idea. See the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.md">code</a> for the full implementation.
+There's more to it than that (rotating in the other direction, rotating more spaces than the size of the array, etc.), but that's the general idea. See the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c">code</a> for the full implementation.
 
 <br/><br/>
 <b>Linear search</b><br/>
