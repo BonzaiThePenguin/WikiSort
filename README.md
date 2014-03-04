@@ -11,10 +11,9 @@ This algorithm is based on the one described in <a href="http://www.researchgate
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/><br/>
 
 <b>Features:</b><br/>
-&nbsp;&nbsp;• Does not use recursion or dynamic allocations, so it optimizes/inlines well.<br/>
+&nbsp;&nbsp;• Does not use recursion or dynamic allocations.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
 &nbsp;&nbsp;• Is a stable sort, which means equal items retain their order in relation to each other.<br/>
-&nbsp;&nbsp;• Despite being an in-place merge, it's highly competitive in speed!<br/>
 
 <br/>
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.<br/><br/>
