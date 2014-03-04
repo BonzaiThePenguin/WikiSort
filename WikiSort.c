@@ -21,6 +21,8 @@ int Compare(Test item1, Test item2) {
 
 
 // various #defines for the C code
+// (apologies for throwing everything into one file...
+// the original code relies on a framework which had to be partially reimplemented here)
 #ifndef true
 	#define true 1
 	#define false 0
