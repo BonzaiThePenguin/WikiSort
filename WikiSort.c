@@ -24,6 +24,7 @@ int Compare(Test item1, Test item2) {
 #ifndef true
 	#define true 1
 	#define false 0
+	typedef uint8_t bool;
 #endif
 #define Var(name, value...) __typeof__(value) name = value
 #define Max(x, y) ({ Var(x1, x); Var(y1, y); (x1 > y1) ? x1 : y1; })
