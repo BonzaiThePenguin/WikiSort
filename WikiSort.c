@@ -11,12 +11,12 @@
 
 // structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
 typedef struct { int value, index; } Test;
+typedef int (*Comparison)(Test, Test);
 int Compare(Test item1, Test item2) {
 	if (item1.value < item2.value) return -1;
 	if (item1.value > item2.value) return 1;
 	return 0;
 }
-typedef int (*Comparison)(Test, Test);
 
 
 
@@ -42,21 +42,22 @@ typedef struct { long start, length; } Range;
 
 // toolbox functions used by the sorter
 
+// if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value)
+bool IsEven(long value) { return ((value & 0x1) == 0x0); }
+
 // 63 -> 32, 64 -> 64, etc.
 // if you want to use this outside of the sort function for general use,
 // you should probably switch this over to uint64_t
-long FloorPowerOfTwo(long x) {
-	x |= (x >> 1); x |= (x >> 2); x |= (x >> 4);
-	x |= (x >> 8); x |= (x >> 16); x |= (x >> 32);
-	x -= (x >> 1) & 0x5555555555555555;
-	x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
-	x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
-	x += x >> 8; x += x >> 16; x += x >> 32;
-	x &= 0x7F; return (x == 0) ? 0 : (1 << (x - 1));
+// apparently this comes from Hacker's Delight?
+long FloorPowerOfTwo (long x) {
+	x = x | (x >> 1);
+	x = x | (x >> 2);
+	x = x | (x >> 4);
+	x = x | (x >> 8);
+	x = x | (x >> 16);
+	if (sizeof(x) == sizeof(uint64_t)) x = x | (x >> 32);
+	return x - (x >> 1);
 }
-
-// if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value)
-#define IsEven(value) (((value) & 0x1) == 0x0)
 
 // swap value1 and value2
 #define Swap(value1, value2) { \
@@ -73,32 +74,6 @@ long FloorPowerOfTwo(long x) {
 	long Reverse_index; \
 	for (Reverse_index = Reverse_range.length/2 - 1; Reverse_index >= 0; Reverse_index--) \
 		Swap(Reverse_array[Reverse_range.start + Reverse_index], Reverse_array[Reverse_range.start + Reverse_range.length - Reverse_index - 1]); \
-}
-
-// find the index of the first value within the range that is equal to array[index]
-long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
-	long start = range.start, end = range.start + range.length - 1;
-	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) < 0) start = mid + 1; else end = mid; }
-	if (start == range.start + range.length - 1 && compare(array[start], array[index]) < 0) start++;
-	return start;
-}
-
-// find the index of the last value within the range that is equal to array[index], plus 1
-long BinaryLast(Test array[], long index, Range range, Comparison compare) {
-	long start = range.start, end = range.start + range.length - 1;
-	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) <= 0) start = mid + 1; else end = mid; }
-	if (start == range.start + range.length - 1 && compare(array[start], array[index]) <= 0) start++;
-	return start;
-}
-
-// n^2 sorting algorithm used to sort tiny chunks of the full array
-void InsertionSort(Test array[], Range range, Comparison compare) {
-	long i, j;
-	for (i = range.start + 1; i < range.start + range.length; i++) {
-		Test temp = array[i];
-		for (j = i; j > range.start && compare(array[j - 1], temp) > 0; j--) array[j] = array[j - 1];
-		array[j] = temp;
-	}
 }
 
 // swap a series of values in the array
@@ -154,6 +129,32 @@ void InsertionSort(Test array[], Range range, Comparison compare) {
 	} \
 })
 
+// find the index of the first value within the range that is equal to array[index]
+long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
+	long start = range.start, end = range.start + range.length - 1;
+	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) < 0) start = mid + 1; else end = mid; }
+	if (start == range.start + range.length - 1 && compare(array[start], array[index]) < 0) start++;
+	return start;
+}
+
+// find the index of the last value within the range that is equal to array[index], plus 1
+long BinaryLast(Test array[], long index, Range range, Comparison compare) {
+	long start = range.start, end = range.start + range.length - 1;
+	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) <= 0) start = mid + 1; else end = mid; }
+	if (start == range.start + range.length - 1 && compare(array[start], array[index]) <= 0) start++;
+	return start;
+}
+
+// n^2 sorting algorithm used to sort tiny chunks of the full array
+void InsertionSort(Test array[], Range range, Comparison compare) {
+	long i, j;
+	for (i = range.start + 1; i < range.start + range.length; i++) {
+		Test temp = array[i];
+		for (j = i; j > range.start && compare(array[j - 1], temp) > 0; j--) array[j] = array[j - 1];
+		array[j] = temp;
+	}
+}
+
 // merge operation which uses an internal or external buffer
 #define WikiMerge(array, buffer, A, B) ({ \
 	Var(Merge_array, array); Var(Merge_buffer, buffer); Var(Merge_A, A); Var(Merge_B, B); \
@@ -174,7 +175,6 @@ void InsertionSort(Test array[], Range range, Comparison compare) {
 			} \
 			memcpy(&Merge_array[Merge_A.start + insert], &cache[A_count], (Merge_A.length - A_count) * sizeof(Merge_array[0])); \
 		} else { \
-			assert(Merge_A.length <= Merge_buffer.length); \
 			BlockSwap(Merge_array, Merge_buffer.start, Merge_A.start, Merge_A.length); \
 			while (true) { \
 				if (compare(Merge_array[Merge_buffer.start + A_count], Merge_array[Merge_B.start + B_count]) <= 0) { \
