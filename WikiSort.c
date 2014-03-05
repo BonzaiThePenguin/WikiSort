@@ -501,7 +501,7 @@ void MergeSort(Test array[], const long array_count, Comparison compare) {
 }
 
 
-int main(int argc, char **argv) {
+int main() {
 	long total, index;
 	const long max_size = 1500000;
 	Var(array1, Allocate(Test, max_size));
