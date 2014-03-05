@@ -1,5 +1,5 @@
 /*
- gcc -o WikiSort.x WikiSort.cpp -O3
+ gcc -o WikiSort.x WikiSort.c -O3
  ./WikiSort.x
 */
 
