@@ -21,5 +21,5 @@ This algorithm is based on the one described in <a href="http://www.researchgate
 
 And, just in case you're completely new to this, type this in the Terminal to compile and run:
 
-    gcc -o WikiSort.x WikiSort.c
+    gcc -o WikiSort.x WikiSort.c -O3
     ./WikiSort.x
