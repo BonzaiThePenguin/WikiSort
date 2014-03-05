@@ -19,7 +19,6 @@ int Compare(Test item1, Test item2) {
 }
 
 
-
 // various #defines for the C code
 // (apologies for throwing everything into one file; the original code used a framework which had to be partially reimplemented)
 #ifndef true
@@ -27,6 +26,7 @@ int Compare(Test item1, Test item2) {
 	#define false 0
 	typedef uint8_t bool;
 #endif
+
 #define Var(name, value...) __typeof__(value) name = value
 #define Max(x, y) ({ Var(x1, x); Var(y1, y); (x1 > y1) ? x1 : y1; })
 #define Min(x, y) ({ Var(x1, x); Var(y1, y); (x1 < y1) ? x1 : y1; })
@@ -61,6 +61,44 @@ long FloorPowerOfTwo (long x) {
 	return x - (x >> 1);
 }
 
+// find the index of the first value within the range that is equal to array[index]
+long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
+	long start = range.start, end = range.start + range.length - 1;
+	while (start < end) {
+		long mid = start + (end - start)/2;
+		if (compare(array[mid], array[index]) < 0)
+			start = mid + 1;
+		else
+			end = mid;
+	}
+	if (start == range.start + range.length - 1 && compare(array[start], array[index]) < 0) start++;
+	return start;
+}
+
+// find the index of the last value within the range that is equal to array[index], plus 1
+long BinaryLast(Test array[], long index, Range range, Comparison compare) {
+	long start = range.start, end = range.start + range.length - 1;
+	while (start < end) {
+		long mid = start + (end - start)/2;
+		if (compare(array[mid], array[index]) <= 0)
+			start = mid + 1;
+		else
+			end = mid;
+	}
+	if (start == range.start + range.length - 1 && compare(array[start], array[index]) <= 0) start++;
+	return start;
+}
+
+// n^2 sorting algorithm used to sort tiny chunks of the full array
+void InsertionSort(Test array[], Range range, Comparison compare) {
+	long i, j;
+	for (i = range.start + 1; i < range.start + range.length; i++) {
+		Test temp = array[i];
+		for (j = i; j > range.start && compare(array[j - 1], temp) > 0; j--) array[j] = array[j - 1];
+		array[j] = temp;
+	}
+}
+
 // swap value1 and value2
 #define Swap(value1, value2) { \
 	Var(SwapValue1, &(value1)); \
@@ -79,122 +117,64 @@ long FloorPowerOfTwo (long x) {
 }
 
 // swap a series of values in the array
-#define BlockSwap(array, start1, start2, block_size) ({ \
+#define BlockSwap(array, start1, start2, block_size) { \
 	Var(Swap_array, array); Var(Swap_start1, start1); Var(Swap_start2, start2); Var(Swap_size, block_size); \
-	if (Swap_size <= cache_size) { \
-		memcpy(&cache[0], &Swap_array[Swap_start1], Swap_size * sizeof(Swap_array[0])); \
-		memmove(&Swap_array[Swap_start1], &Swap_array[Swap_start2], Swap_size * sizeof(Swap_array[0])); \
-		memcpy(&Swap_array[Swap_start2], &cache[0], Swap_size * sizeof(Swap_array[0])); \
-	} else { \
-		Var(Swap_array, array); Var(Swap_start1, start1); Var(Swap_start2, start2); Var(Swap_size, block_size); \
-		long Swap_index; \
-		for (Swap_index = 0; Swap_index < Swap_size; Swap_index++) Swap(Swap_array[Swap_start1 + Swap_index], Swap_array[Swap_start2 + Swap_index]); \
-	} \
-})
+	long Swap_index; \
+	for (Swap_index = 0; Swap_index < Swap_size; Swap_index++) Swap(Swap_array[Swap_start1 + Swap_index], Swap_array[Swap_start2 + Swap_index]); \
+}
 
 // rotate the values in an array ([0 1 2 3] becomes [3 0 1 2] if we rotate by +1)
-#define Rotate(array, amount, range) ({ \
+#define Rotate(array, amount, range) { \
 	Var(Rotate_array, array); long Rotate_amount = amount; Range Rotate_range = range; \
+	Range Rotate_range1, Rotate_range2; \
 	if (Rotate_range.length != 0) { \
-		long Rotate_split, Rotate_move, Rotate_copy; \
-		if (Rotate_amount < 0) Rotate_split = Rotate_amount = (-Rotate_amount) % Rotate_range.length; \
-		else { Rotate_amount = Rotate_amount % Rotate_range.length; Rotate_split = Rotate_range.length - Rotate_amount; } \
-		if (Rotate_amount != 0) { \
-			/* Rotate_range1 will be the smaller of the two ranges */ \
-			Range Rotate_range1 = MakeRange(Rotate_range.start, Rotate_split); \
-			Range Rotate_range2 = MakeRange(Rotate_range.start + Rotate_split, Rotate_range.length - Rotate_split); \
-			if (Rotate_range2.length < Rotate_range1.length) { \
-				Rotate_move = Rotate_range2.start + Rotate_range2.length - Rotate_range1.length; \
-				Rotate_copy = Rotate_range1.start; \
-				Swap(Rotate_range1, Rotate_range2); \
-			} else { \
-				Rotate_move = Rotate_range1.start; \
-				Rotate_copy = Rotate_range1.start + Rotate_range2.length; \
-			} \
-			/* when range1 has length 1 it should use a local variable rather than using memcpy */ \
-			/* when range1 has length <= cache_size it should memcpy to the cache rather than reversing */ \
-			/* otherwise it should perform a standard rotation by using three reverse calls */ \
-			if (Rotate_range1.length == 1) { \
-				Var(Rotate_value, Rotate_array[Rotate_range1.start]); \
-				memmove(&Rotate_array[Rotate_move], &Rotate_array[Rotate_range2.start], Rotate_range2.length * sizeof(Rotate_array[0])); \
-				Rotate_array[Rotate_copy] = Rotate_value; \
-			} else if (Rotate_range1.length <= cache_size) { \
-				memcpy(&cache[0], &Rotate_array[Rotate_range1.start], Rotate_range1.length * sizeof(Rotate_array[0])); \
-				memmove(&Rotate_array[Rotate_move], &Rotate_array[Rotate_range2.start], Rotate_range2.length * sizeof(Rotate_array[0])); \
-				memcpy(&Rotate_array[Rotate_copy], &cache[0], Rotate_range1.length * sizeof(Rotate_array[0])); \
-			} else { \
-				Reverse(Rotate_array, Rotate_range1); \
-				Reverse(Rotate_array, Rotate_range2); \
-				Reverse(Rotate_array, Rotate_range); \
-			} \
-		} \
-	} \
-})
-
-// find the index of the first value within the range that is equal to array[index]
-long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
-	long start = range.start, end = range.start + range.length - 1;
-	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) < 0) start = mid + 1; else end = mid; }
-	if (start == range.start + range.length - 1 && compare(array[start], array[index]) < 0) start++;
-	return start;
-}
-
-// find the index of the last value within the range that is equal to array[index], plus 1
-long BinaryLast(Test array[], long index, Range range, Comparison compare) {
-	long start = range.start, end = range.start + range.length - 1;
-	while (start < end) { long mid = start + (end - start)/2; if (compare(array[mid], array[index]) <= 0) start = mid + 1; else end = mid; }
-	if (start == range.start + range.length - 1 && compare(array[start], array[index]) <= 0) start++;
-	return start;
-}
-
-// n^2 sorting algorithm used to sort tiny chunks of the full array
-void InsertionSort(Test array[], Range range, Comparison compare) {
-	long i, j;
-	for (i = range.start + 1; i < range.start + range.length; i++) {
-		Test temp = array[i];
-		for (j = i; j > range.start && compare(array[j - 1], temp) > 0; j--) array[j] = array[j - 1];
-		array[j] = temp;
-	}
-}
-
-// merge operation which uses an internal or external buffer
-#define WikiMerge(array, buffer, A, B) ({ \
-	Var(Merge_array, array); Var(Merge_buffer, buffer); Var(Merge_A, A); Var(Merge_B, B); \
-	if (Merge_B.length > 0 && compare(Merge_array[Merge_A.start + Merge_A.length - 1], Merge_array[Merge_B.start]) > 0) { \
-		/* find the part where B will first be inserted into A, as everything before that point is already sorted */ \
-		Merge_A = RangeBetween(BinaryLast(Merge_array, Merge_B.start, Merge_A, compare), Merge_A.start + Merge_A.length); \
-		long A_count = 0, B_count = 0, insert = 0; \
-		if (Merge_A.length <= cache_size) { \
-			memcpy(&cache[0], &Merge_array[Merge_A.start], Merge_A.length * sizeof(Merge_array[0])); \
-			while (true) { \
-				if (compare(cache[A_count], Merge_array[Merge_B.start + B_count]) <= 0) { \
-					Merge_array[Merge_A.start + insert++] = cache[A_count++]; \
-					if (A_count >= Merge_A.length) break; \
-				} else { \
-					Merge_array[Merge_A.start + insert++] = Merge_array[Merge_B.start + B_count++]; \
-					if (B_count >= Merge_B.length) break; \
-				} \
-			} \
-			memcpy(&Merge_array[Merge_A.start + insert], &cache[A_count], (Merge_A.length - A_count) * sizeof(Merge_array[0])); \
+		if (Rotate_amount < 0) { \
+			Rotate_amount = (-Rotate_amount) % Rotate_range.length; \
+			Rotate_range1 = MakeRange(Rotate_range.start + Rotate_range.length - Rotate_amount, Rotate_amount); \
+			Rotate_range2 = MakeRange(Rotate_range.start, Rotate_range.length - Rotate_amount); \
 		} else { \
-			BlockSwap(Merge_array, Merge_buffer.start, Merge_A.start, Merge_A.length); \
-			while (true) { \
-				if (compare(Merge_array[Merge_buffer.start + A_count], Merge_array[Merge_B.start + B_count]) <= 0) { \
-					Swap(Merge_array[Merge_A.start + insert++], Merge_array[Merge_buffer.start + A_count++]); \
-					if (A_count >= Merge_A.length) break; \
-				} else { \
-					Swap(Merge_array[Merge_A.start + insert++], Merge_array[Merge_B.start + B_count++]); \
-					if (B_count >= Merge_B.length) break; \
-				} \
-			} \
-			BlockSwap(Merge_array, Merge_buffer.start + A_count, Merge_A.start + insert, Merge_A.length - A_count); \
+			Rotate_amount = Rotate_amount % Rotate_range.length; \
+			Rotate_range1 = MakeRange(Rotate_range.start, Rotate_amount); \
+			Rotate_range2 = MakeRange(Rotate_range.start + Rotate_amount, Rotate_range.length - Rotate_amount); \
 		} \
+		Reverse(Rotate_array, Rotate_range1); \
+		Reverse(Rotate_array, Rotate_range2); \
+		Reverse(Rotate_array, Rotate_range); \
 	} \
-})
+}
+
+// standard merge operation using an internal buffer
+void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare) {
+	if (B.length <= 0 || A.length <= 0) return;
+	if (compare(array[A.start + A.length - 1], array[B.start]) <= 0) return;
+	
+	// find the part where B will first be inserted into A, as everything before that point is already sorted
+	A = RangeBetween(BinaryLast(array, B.start, A, compare), A.start + A.length);
+	
+	// swap the rest of A into the buffer
+	BlockSwap(array, buffer.start, A.start, A.length);
+	
+	// whenever we find a value to add to the final array, swap it with the value that's already in that spot
+	// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
+	long A_count = 0, B_count = 0, insert = 0;
+	while (A_count < A.length && B_count < B.length) {
+		if (compare(array[buffer.start + A_count], array[B.start + B_count]) <= 0) {
+			Swap(array[A.start + insert], array[buffer.start + A_count]);
+			A_count++;
+		} else {
+			Swap(array[A.start + insert], array[B.start + B_count]);
+			B_count++;
+		}
+		insert++;
+	}
+	
+	// swap the remainder of A into the final array
+	BlockSwap(array, buffer.start + A_count, A.start + insert, A.length - A_count);
+}
 
 // bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 void WikiSort(Test array[], const long array_count, Comparison compare) {
-	// reverse ranges of purely descending values
+	// reverse any descending ranges in the array, as that will allow them to sort faster
 	Range reverse = ZeroRange();
 	long index, counter;
 	for (index = 1; index < array_count; index++) {
@@ -202,11 +182,6 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 		else { Reverse(array, reverse); reverse = MakeRange(index, 0); }
 	}
 	Reverse(array, reverse);
-	
-	// the various toolbox functions are optimized to take advantage of this cache, so tweak it as desired
-	// generally this cache is suitable for arrays of up to size (cache_size^2)
-	const long cache_size = 1024;
-	Test cache[cache_size];
 	
 	if (array_count < 32) {
 		// insertion sort the array, as there are fewer than 32 items
@@ -229,104 +204,109 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 		
 		// here's where the fake recursion is handled
 		// it's a bottom-up merge sort, but multiplying by scale is more efficient than using min(end, array_count)
-		// the merges get twice as large after each iteration, until eventually we merge the entire array
 		long count, minA, indexA, findA;
 		long iteration, merge = counter, length = 16;
-		for (iteration = counter/16 + 2; IsEven(iteration); iteration /= 2, length += length, merge -= length) {
+		for (iteration = counter/16 + 2; IsEven(iteration); iteration /= 2) {
 			start = merge * scale;
 			mid = (merge + length) * scale;
 			end = (merge + length + length) * scale;
 			
+			// the merges get twice as large after each iteration, until eventually we merge the entire array
+			length += length; merge -= length;
+			
 			if (compare(array[start], array[end - 1]) > 0) {
 				// the two ranges are in reverse order, so a simple rotation should fix it
-				Rotate(array, start - mid, RangeBetween(start, end));
+				Rotate(array, mid - start, RangeBetween(start, end));
 			} else if (compare(array[mid - 1], array[mid]) > 0) {
 				// these two ranges weren't already in order, so we'll need to merge them!
 				Range A = RangeBetween(start, mid), B = RangeBetween(mid, end);
 				
 				// find the first place in A where B will be inserted, since everything before that point is already in order
-				A = RangeBetween(BinaryLast(array, B.start, A, compare), A.start + A.length);
-				
-				// if A fits into the cache, perform a simple merge; otherwise perform a trickier in-place merge
-				if (A.length <= cache_size) {
-					WikiMerge(array, ZeroRange(), A, B);
-					continue;
-				}
+				//A = RangeBetween(BinaryLast(array, B.start, A, compare), A.start + A.length);
 				
 				// try to fill up two buffers with unique values in ascending order
-				Range bufferA, bufferB, buffer1, buffer2; long block_size = Max(sqrt(A.length), 3), buffer_size = A.length/block_size;
-				for (buffer1.start = A.start + 1, buffer1.length = 1; buffer1.start < A.start + A.length && buffer1.length < buffer_size; buffer1.start++)
-					if (compare(array[buffer1.start - 1], array[buffer1.start]) != 0) buffer1.length++;
+				Range bufferA, bufferB, buffer1, buffer2;
+				long block_size = Max(sqrt(A.length), 3);
+				long buffer_size = A.length/block_size;
 				
-				// if the size of each block fits into the cache, we only need one buffer for tagging the A blocks
-				// this is because the other buffer is used as a swap space for merging the A blocks into the B values that follow it,
-				// but we can just use the cache as the buffer instead. this skips some memmoves and an insertion sort
-				if (block_size <= cache_size) {
-					bufferB = MakeRange(B.start + B.length, 0);
-					buffer2 = MakeRange(A.start, 0);
-					
-					if (buffer1.length < buffer_size) {
-						// we couldn't find enough unique values for the buffer in A, so try B
-						bufferA = MakeRange(A.start, 0);
-						for (buffer1.start = B.start + B.length - 1, buffer1.length = 1; buffer1.start >= B.start && buffer1.length < buffer_size; buffer1.start--)
-							if (buffer1.start == B.start || compare(array[buffer1.start - 1], array[buffer1.start]) != 0) buffer1.length++;
-						if (buffer1.length == buffer_size) {
-							bufferB = MakeRange(buffer1.start, buffer_size);
-							buffer1 = MakeRange(B.start + B.length - buffer_size, buffer_size);
-							buffer2 = MakeRange(buffer1.start, 0);
-						} else buffer1.length = 0; // failure
-					} else {
-						bufferA = MakeRange(buffer1.start, buffer_size);
-						buffer1 = MakeRange(A.start, buffer_size);
-					}
-				} else {
-					for (buffer2.start = buffer1.start, buffer2.length = 0; buffer2.start < A.start + A.length && buffer2.length < buffer_size; buffer2.start++)
-						if (compare(array[buffer2.start - 1], array[buffer2.start]) != 0) buffer2.length++;
-					
-					if (buffer2.length == buffer_size) {
-						// we found enough values for both buffers in A
-						bufferA = MakeRange(buffer2.start, buffer_size * 2);
-						bufferB = MakeRange(B.start + B.length, 0);
-						buffer1 = MakeRange(A.start, buffer_size);
-						buffer2 = MakeRange(A.start + buffer_size, buffer_size);
-					} else if (buffer1.length == buffer_size) {
-						// we found enough values for one buffer in A, so we'll need to find one buffer in B
-						bufferA = MakeRange(buffer1.start, buffer_size);
-						buffer1 = MakeRange(A.start, buffer_size);
-						
-						for (buffer2.start = B.start + B.length - 1, buffer2.length = 1; buffer2.start >= B.start && buffer2.length < buffer_size; buffer2.start--)
-							if (buffer2.start == B.start || compare(array[buffer2.start - 1], array[buffer2.start]) != 0) buffer2.length++;
-						if (buffer2.length == buffer_size) {
-							bufferB = MakeRange(buffer2.start, buffer_size);
-							buffer2 = MakeRange(B.start + B.length - buffer_size, buffer_size);
-						} else buffer1.length = 0; // failure
-					} else {
-						// we were unable to find a single buffer in A, so we'll need to find two buffers in B
-						for (buffer1.start = B.start + B.length - 1, buffer1.length = 1; buffer1.start >= B.start && buffer1.length < buffer_size; buffer1.start--)
-							if (buffer1.start == B.start || compare(array[buffer1.start - 1], array[buffer1.start]) != 0) buffer1.length++;
-						for (buffer2.start = buffer1.start - 1, buffer2.length = 1; buffer2.start >= B.start && buffer2.length < buffer_size; buffer2.start--)
-							if (buffer2.start == B.start || compare(array[buffer2.start - 1], array[buffer2.start]) != 0) buffer2.length++;
-						
-						if (buffer2.length == buffer_size) {
-							bufferA = MakeRange(A.start, 0);
-							bufferB = MakeRange(buffer2.start, buffer_size * 2);
-							buffer1 = MakeRange(B.start + B.length - buffer_size, buffer_size);
-							buffer2 = MakeRange(buffer1.start - buffer_size, buffer_size);
-						} else buffer1.length = 0; // failure
+				// the first item is always going to be the first unique value, so let's start searching at the next index
+				buffer1.length = 1;
+				for (buffer1.start = A.start + 1; buffer1.start < A.start + A.length; buffer1.start++) {
+					if (compare(array[buffer1.start - 1], array[buffer1.start]) != 0) {
+						buffer1.length++;
+						if (buffer1.length == buffer_size) break;
 					}
 				}
 				
-				if (buffer1.length < buffer_size) {
+				// the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too
+				buffer2.length = 0;
+				for (buffer2.start = buffer1.start; buffer2.start < A.start + A.length; buffer2.start++) {
+					if (compare(array[buffer2.start - 1], array[buffer2.start]) != 0) {
+						buffer2.length++;
+						if (buffer2.length == buffer_size) break;
+					}
+				}
+				
+				if (buffer2.length == buffer_size) {
+					// we found enough values for both buffers in A
+					bufferA = MakeRange(buffer2.start, buffer_size * 2);
+					bufferB = MakeRange(B.start + B.length, 0);
+					buffer1 = MakeRange(A.start, buffer_size);
+					buffer2 = MakeRange(A.start + buffer_size, buffer_size);
+				} else if (buffer1.length == buffer_size) {
+					// we found enough values for one buffer in A, so we'll need to find one buffer in B
+					bufferA = MakeRange(buffer1.start, buffer_size);
+					buffer1 = MakeRange(A.start, buffer_size);
+					
+					// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
+					buffer2.length = 1;
+					for (buffer2.start = B.start + B.length - 2; buffer2.start >= B.start; buffer2.start--) {
+						if (compare(array[buffer2.start], array[buffer2.start + 1]) != 0) {
+							buffer2.length++;
+							if (buffer2.length == buffer_size) break;
+						}
+					}
+					
+					if (buffer2.length == buffer_size) {
+						bufferB = MakeRange(buffer2.start, buffer_size);
+						buffer2 = MakeRange(B.start + B.length - buffer_size, buffer_size);
+					}
+				} else {
+					// we were unable to find a single buffer in A, so we'll need to find two buffers in B
+					buffer1.length = 1;
+					for (buffer1.start = B.start + B.length - 2; buffer1.start >= B.start; buffer1.start--) {
+						if (compare(array[buffer1.start], array[buffer1.start + 1]) != 0) {
+							buffer1.length++;
+							if (buffer1.length == buffer_size) break;
+						}
+					}
+					
+					buffer2.length = 0;
+					for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--) {
+						if (compare(array[buffer2.start], array[buffer2.start + 1]) != 0) {
+							buffer2.length++;
+							if (buffer2.length == buffer_size) break;
+						}
+					}
+					
+					if (buffer2.length == buffer_size) {
+						bufferA = MakeRange(A.start, 0);
+						bufferB = MakeRange(buffer2.start, buffer_size * 2);
+						buffer1 = MakeRange(B.start + B.length - buffer_size, buffer_size);
+						buffer2 = MakeRange(buffer1.start - buffer_size, buffer_size);
+					}
+				}
+				
+				if (buffer2.length < buffer_size) {
 					// we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated
 					// we can use this knowledge to write a merge operation that is optimized for arrays of repeating values
-					
 					while (A.length > 0 && B.length > 0) {
 						// find the first place in B where the first item in A needs to be inserted
 						long mid = BinaryFirst(array, A.start, B, compare);
 						
 						// rotate A into place
 						long amount = mid - (A.start + A.length);
-						Rotate(array, amount, RangeBetween(A.start, mid));
+						Rotate(array, -amount, RangeBetween(A.start, mid));
 						
 						// calculate the new A and B ranges
 						B = RangeBetween(mid, B.start + B.length);
@@ -336,20 +316,23 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 					continue;
 				}
 				
+				//for (index = A.start + 1; index < A.start + A.length; index++) assert(compare(array[index], array[index - 1]) > 0 || (compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index));
+				//for (index = B.start + 1; index < B.start + B.length; index++) assert(compare(array[index], array[index - 1]) > 0 || (compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index));
+				
 				// move the unique values to the start of A if needed
-				if (bufferA.start > A.start + bufferA.length) for (index = bufferA.start - 2, count = 1; count < bufferA.length; index--) {
+				for (index = bufferA.start, count = 0; count < bufferA.length; index--) {
 					if (index == A.start || compare(array[index - 1], array[index]) != 0) {
-						Rotate(array, count, RangeBetween(index + 1, bufferA.start));
-						count++; bufferA.start = index + count;
+						Rotate(array, -count, RangeBetween(index + 1, bufferA.start + 1));
+						bufferA.start = index + count; count++;
 					}
 				}
 				bufferA.start = A.start;
 				
 				// move the unique values to the end of B if needed
-				if (bufferB.start < B.start + B.length - bufferB.length) for (index = bufferB.start + 1, count = 0; count < bufferB.length; index++) {
-					if (index == B.start + B.length || compare(array[index - 1], array[index]) != 0) {
-						Rotate(array, -(count + 1), RangeBetween(bufferB.start, index));
-						count++; bufferB.start = index - count;
+				for (index = bufferB.start, count = 0; count < bufferB.length; index++) {
+					if (index == B.start + B.length - 1 || compare(array[index], array[index + 1]) != 0) {
+						Rotate(array, count, RangeBetween(bufferB.start, index));
+						bufferB.start = index - count; count++;
 					}
 				}
 				bufferB.start = B.start + B.length - bufferB.length;
@@ -361,9 +344,12 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 				// swap the second value of each A block with the value in buffer1
 				for (index = 0, indexA = firstA.start + firstA.length + 1; indexA < blockA.start + blockA.length; index++, indexA += block_size) Swap(array[buffer1.start + index], array[indexA]);
 				
+				// start rolling the A blocks through the B blocks!
+				// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
 				Range lastA = firstA, lastB = ZeroRange(), blockB = MakeRange(B.start, Min(block_size, B.length - bufferB.length));
 				blockA.start += firstA.length; blockA.length -= firstA.length;
-				minA = blockA.start; indexA = 0;
+				long minA = blockA.start, indexA = 0;
+				
 				while (true) {
 					// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
 					if ((lastB.length > 0 && compare(array[minA], array[lastB.start + lastB.length - 1]) <= 0) || blockB.length == 0) {
@@ -379,10 +365,10 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 						Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 						
 						// now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation
-						Rotate(array, -B_remaining, RangeBetween(B_split, blockA.start + block_size));
+						Rotate(array, B_remaining, RangeBetween(B_split, blockA.start + block_size));
 						
 						// locally merge the previous A block with the B values that follow it, using the buffer as swap space
-						WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B_split));
+						WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B_split), compare);
 						
 						// now we need to update the ranges and stuff
 						lastA = MakeRange(blockA.start - B_remaining, block_size);
@@ -390,13 +376,13 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 						blockA.start += block_size; blockA.length -= block_size;
 						if (blockA.length == 0) break;
 						
-						// search the last value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
+						// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
 						minA = blockA.start + 1;
 						for (findA = minA + block_size; findA < blockA.start + blockA.length; findA += block_size) if (compare(array[findA], array[minA]) < 0) minA = findA;
-						minA--;
+						minA = minA - 1; // decrement once to get back to the start of that A block
 					} else if (blockB.length < block_size) {
 						// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-						Rotate(array, blockB.length, RangeBetween(blockA.start, blockB.start + blockB.length));
+						Rotate(array, -blockB.length, RangeBetween(blockA.start, blockB.start + blockB.length));
 						lastB = MakeRange(blockA.start, blockB.length);
 						blockA.start += blockB.length; minA += blockB.length;
 						blockB.length = 0;
@@ -412,7 +398,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 				}
 				
 				// merge the last A block with the remaining B blocks
-				WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B.start + B.length - bufferB.length));
+				WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B.start + B.length - bufferB.length), compare);
 				
 				// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
 				// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
@@ -422,7 +408,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 				for (index = bufferA.start + bufferA.length; bufferA.length > 0; index++) {
 					if (index == bufferB.start || compare(array[index], array[bufferA.start]) >= 0) {
 						long amount = index - (bufferA.start + bufferA.length);
-						Rotate(array, amount, RangeBetween(bufferA.start, index));
+						Rotate(array, -amount, RangeBetween(bufferA.start, index));
 						bufferA.start += amount + 1; bufferA.length--; index--;
 					}
 				}
@@ -431,10 +417,13 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 				for (index = bufferB.start; bufferB.length > 0; index--) {
 					if (index == A.start || compare(array[index - 1], array[bufferB.start + bufferB.length - 1]) <= 0) {
 						long amount = bufferB.start - index;
-						Rotate(array, -amount, RangeBetween(index, bufferB.start + bufferB.length));
+						Rotate(array, amount, RangeBetween(index, bufferB.start + bufferB.length));
 						bufferB.start -= amount; bufferB.length--; index++;
 					}
 				}
+				
+				//for (index = A.start + 1; index < B.start + B.length; index++)
+				//	assert(compare(array[index], array[index - 1]) > 0 || (compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index));
 			}
 		}
 	}
@@ -488,14 +477,19 @@ int main(int argc, char argv[]) {
 			Test item; item.index = index;
 			
 			// uncomment the type of data you want to fill the arrays with
-			item.value = rand();
+			//if (index == 0) item.value = 10;
+			//else if (index < total/2) item.value = 11;
+			//else if (index == total - 1) item.value = 10;
+			//else item.value = 9;
+			
+			//item.value = rand();
 			//item.value = total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
 			//item.value = index + rand() * 1.0/RAND_MAX * 5 - 2.5;
 			//item.value = index;
 			//item.value = total - index;
 			//item.value = 1000;
 			//item.value = (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
-			//item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
+			item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
 			
 			array1[index] = array2[index] = item;
 		}
