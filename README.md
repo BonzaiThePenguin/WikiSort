@@ -17,9 +17,3 @@ This algorithm is based on the one described in <a href="http://www.researchgate
 
 <br/>
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.<br/><br/>
-
-
-And, just in case you're completely new to this, type this in the Terminal to compile and run:
-
-    gcc -o WikiSort.x WikiSort.c -O3
-    ./WikiSort.x
