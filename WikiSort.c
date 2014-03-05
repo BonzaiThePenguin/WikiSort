@@ -271,7 +271,7 @@ void WikiSort(Test array[], const long array_count, Comparison compare) {
 				
 				/* the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too */
 				buffer2.length = 0;
-				for (buffer2.start = buffer1.start; buffer2.start < A.start + A.length; buffer2.start++) {
+				for (buffer2.start = buffer1.start + 1; buffer2.start < A.start + A.length; buffer2.start++) {
 					if (compare(array[buffer2.start - 1], array[buffer2.start]) != 0) {
 						buffer2.length++;
 						if (buffer2.length == buffer_size) break;
