@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
 			 item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
 			*/
 			
-			item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
+			item.value = rand();
 			
 			array1[index] = array2[index] = item;
 		}
