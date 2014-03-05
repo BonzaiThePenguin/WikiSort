@@ -21,8 +21,7 @@ int Compare(Test item1, Test item2) {
 
 
 // various #defines for the C code
-// (apologies for throwing everything into one file...
-// the original code relies on a framework which had to be partially reimplemented here)
+// (apologies for throwing everything into one file; the original code used a framework which had to be partially reimplemented)
 #ifndef true
 	#define true 1
 	#define false 0
@@ -49,8 +48,6 @@ typedef struct { long start, length; } Range;
 bool IsEven(long value) { return ((value & 0x1) == 0x0); }
 
 // 63 -> 32, 64 -> 64, etc.
-// if you want to use this outside of the sort function for general use,
-// you should probably switch this over to uint64_t
 // apparently this comes from Hacker's Delight?
 long FloorPowerOfTwo (long x) {
 	x = x | (x >> 1);
@@ -58,7 +55,9 @@ long FloorPowerOfTwo (long x) {
 	x = x | (x >> 4);
 	x = x | (x >> 8);
 	x = x | (x >> 16);
-	if (sizeof(x) == sizeof(uint64_t)) x = x | (x >> 32);
+#if __LP64__
+	x = x | (x >> 32);
+#endif
 	return x - (x >> 1);
 }
 
