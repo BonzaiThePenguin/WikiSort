@@ -399,7 +399,7 @@ bool TestCompare(Test item1, Test item2) { return (item1.value < item2.value); }
 
 int main() {
 	const long max_size = 1500000;
-	__typeof__(&TestCompare) compare = TestCompare;
+	Var(compare, TestCompare);
 	vector<Test> array1, array2;
 	
 	// initialize the random-number generator
