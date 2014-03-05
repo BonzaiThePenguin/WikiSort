@@ -1,5 +1,5 @@
 /*
- g++ -o WikiSort.x WikiSort.cpp -O3 -Wall -pedantic
+ g++ -o WikiSort.x WikiSort.cpp -O3
  ./WikiSort.x
 */
 
