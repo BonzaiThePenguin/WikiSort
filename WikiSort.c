@@ -1,3 +1,8 @@
+/*
+ gcc -o WikiSort.x WikiSort.cpp -O3
+ ./WikiSort.x
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
