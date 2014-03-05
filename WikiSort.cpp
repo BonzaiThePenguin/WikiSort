@@ -11,7 +11,7 @@
 
 using namespace std;
 
-#define Seconds()					(clock() * 1.0/CLOCKS_PER_SEC)
+#define Seconds()				(clock() * 1.0/CLOCKS_PER_SEC)
 #define Var(name, value)			__typeof__(value) name = value
 
 
