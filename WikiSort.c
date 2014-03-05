@@ -18,8 +18,8 @@
 #endif
 
 #define Var(name, value)				__typeof__(value) name = value
-#define Allocate(type, count)			(type *)malloc((count) * sizeof(type))
-#define Seconds()						(clock() * 1.0/CLOCKS_PER_SEC)
+#define Allocate(type, count)				(type *)malloc((count) * sizeof(type))
+#define Seconds()					(clock() * 1.0/CLOCKS_PER_SEC)
 
 long Min(long a, long b) {
 	if (a < b) return a;
@@ -77,12 +77,12 @@ Range ZeroRange() {
 
 /* swap value1 and value2 */
 #define Swap(value1, value2) { \
-	Var(Swap_value1, &(value1)); \
-	Var(Swap_value2, &(value2)); \
+	Var(a, &(value1)); \
+	Var(b, &(value2)); \
 	\
-	Var(Swap_value, *Swap_value1); \
-	*Swap_value1 = *Swap_value2; \
-	*Swap_value2 = Swap_value; \
+	Var(c, *a); \
+	*a = *b; \
+	*b = c; \
 }
 
 /* if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value) */
