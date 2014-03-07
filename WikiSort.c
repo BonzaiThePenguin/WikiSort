@@ -31,12 +31,12 @@
 #define Allocate(type, count)				(type *)malloc((count) * sizeof(type))
 #define Seconds()					(clock() * 1.0/CLOCKS_PER_SEC)
 
-long Min(long a, long b) {
+long Min(const long a, const long b) {
 	if (a < b) return a;
 	return b;
 }
 
-long Max(long a, long b) {
+long Max(const long a, const long b) {
 	if (a > b) return a;
 	return b;
 }
@@ -61,14 +61,14 @@ typedef struct {
 	long length;
 } Range;
 
-Range MakeRange(long start, long length) {
+Range MakeRange(const long start, const long length) {
 	Range range;
 	range.start = start;
 	range.length = length;
 	return range;
 }
 
-Range RangeBetween(long start, long end) {
+Range RangeBetween(const long start, const long end) {
 	return MakeRange(start, end - start);
 }
 
@@ -92,11 +92,12 @@ Range ZeroRange() {
 }
 
 /* if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value) */
-bool IsEven(long value) { return ((value & 0x1) == 0x0); }
+bool IsEven(const long value) { return ((value & 0x1) == 0x0); }
 
 /* 63 -> 32, 64 -> 64, etc. */
 /* apparently this comes from Hacker's Delight? */
-long FloorPowerOfTwo (long x) {
+long FloorPowerOfTwo (const long value) {
+	long x = value;
 	x = x | (x >> 1);
 	x = x | (x >> 2);
 	x = x | (x >> 4);
@@ -109,7 +110,7 @@ long FloorPowerOfTwo (long x) {
 }
 
 /* find the index of the first value within the range that is equal to array[index] */
-long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
+long BinaryFirst(const Test array[], const long index, const Range range, const Comparison compare) {
 	long start = range.start, end = range.start + range.length - 1;
 	while (start < end) {
 		long mid = start + (end - start)/2;
@@ -123,7 +124,7 @@ long BinaryFirst(Test array[], long index, Range range, Comparison compare) {
 }
 
 /* find the index of the last value within the range that is equal to array[index], plus 1 */
-long BinaryLast(Test array[], long index, Range range, Comparison compare) {
+long BinaryLast(const Test array[], const long index, const Range range, const Comparison compare) {
 	long start = range.start, end = range.start + range.length - 1;
 	while (start < end) {
 		long mid = start + (end - start)/2;
@@ -137,7 +138,7 @@ long BinaryLast(Test array[], long index, Range range, Comparison compare) {
 }
 
 /* n^2 sorting algorithm used to sort tiny chunks of the full array */
-void InsertionSort(Test array[], Range range, Comparison compare) {
+void InsertionSort(Test array[], const Range range, const Comparison compare) {
 	long i, j;
 	for (i = range.start + 1; i < range.start + range.length; i++) {
 		Test temp = array[i];
@@ -148,29 +149,29 @@ void InsertionSort(Test array[], Range range, Comparison compare) {
 }
 
 /* reverse a range within the array */
-void Reverse(Test array[], Range range) {
+void Reverse(Test array[], const Range range) {
 	long index;
 	for (index = range.length/2 - 1; index >= 0; index--)
 		Swap(array[range.start + index], array[range.start + range.length - index - 1]);
 }
 
 /* swap a series of values in the array */
-void BlockSwap(Test array[], long start1, long start2, long block_size) {
+void BlockSwap(Test array[], const long start1, const long start2, const long block_size) {
 	long index;
 	for (index = 0; index < block_size; index++) Swap(array[start1 + index], array[start2 + index]);
 }
 
 /* rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1) */
-void Rotate(Test array[], long amount, Range range, Test cache[], const long cache_size) {
-	Range range1, range2;
+void Rotate(Test array[], const long amount, const Range range, Test cache[], const long cache_size) {
+	Range range1, range2; long split;
 	
 	if (range.length == 0) return;
 	
-	if (amount >= 0) amount = range.start + (amount % range.length);
-	else amount = range.start + range.length - ((-amount) % range.length);
+	if (amount >= 0) split = range.start + (amount % range.length);
+	else split = range.start + range.length - ((-amount) % range.length);
 	
-	range1 = RangeBetween(range.start, amount);
-	range2 = RangeBetween(amount, range.start + range.length);
+	range1 = RangeBetween(range.start, split);
+	range2 = RangeBetween(split, range.start + range.length);
 	
 	/* if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over */
 	if (range1.length <= range2.length) {
@@ -195,7 +196,7 @@ void Rotate(Test array[], long amount, Range range, Test cache[], const long cac
 }
 
 /* make sure the items within the given range are in a stable order */
-void Verify(Test array[], Range range, Comparison compare, const char *msg) {
+void Verify(const Test array[], const Range range, const Comparison compare, const char *msg) {
 	long index, index2;
 	for (index = range.start + 1; index < range.start + range.length; index++) {
 		if (!(compare(array[index - 1], array[index]) || (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
@@ -207,7 +208,7 @@ void Verify(Test array[], Range range, Comparison compare, const char *msg) {
 }
 
 /* standard merge operation using an internal buffer */
-void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare, Test cache[], const long cache_size) {
+void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, const Comparison compare, Test cache[], const long cache_size) {
 	long A_count = 0, B_count = 0, insert = 0;
 	
 	if (B.length <= 0 || A.length <= 0) return;
@@ -256,7 +257,7 @@ void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare,
 }
 
 /* bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use */
-void WikiSort(Test array[], const long size, Comparison compare) {
+void WikiSort(Test array[], const long size, const Comparison compare) {
 	long merge_index, merge_size, index;
 	
 	/* use a small cache to speed up some of the operations */
@@ -594,7 +595,7 @@ void WikiSort(Test array[], const long size, Comparison compare) {
 
 
 /* standard merge sort, so we have a baseline for how well the in-place merge works */
-void MergeSortR(Test array[], Range range, Comparison compare, Test buffer[]) {
+void MergeSortR(Test array[], const Range range, const Comparison compare, Test buffer[]) {
 	long mid, A_count = 0, B_count = 0, insert = 0;
 	Range A, B;
 	
@@ -623,7 +624,7 @@ void MergeSortR(Test array[], Range range, Comparison compare, Test buffer[]) {
 	memcpy(&array[A.start + insert], &buffer[A_count], (A.length - A_count) * sizeof(array[0]));
 }
 
-void MergeSort(Test array[], const long array_count, Comparison compare) {
+void MergeSort(Test array[], const long array_count, const Comparison compare) {
 	Var(buffer, Allocate(Test, array_count));
 	MergeSortR(array, MakeRange(0, array_count), compare, buffer);
 	free(buffer);
