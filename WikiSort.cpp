@@ -136,8 +136,8 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 	if (range.length == 0) return;
 	
 	long split;
-	if (amount >= 0) split = range.start + (amount % range.length);
-	else split = range.start + range.length - ((-amount) % range.length);
+	if (amount >= 0) split = range.start + amount;
+	else split = range.start + range.length + amount;
 	
 	Range range1 = RangeBetween(range.start, split);
 	Range range2 = RangeBetween(split, range.start + range.length);
@@ -584,6 +584,7 @@ int main() {
 	srand(/*time(NULL)*/ 10141985);
 	
 	double total_time = Seconds();
+	double total_time1 = 0, total_time2 = 0;
 	
 	for (long total = 0; total < max_size; total += 2048 * 16) {
 		array1.resize(total);
@@ -614,10 +615,12 @@ int main() {
 		double time1 = Seconds();
 		WikiSort(array1, compare);
 		time1 = Seconds() - time1;
+		total_time1 += time1;
 		
 		double time2 = Seconds();
 		stable_sort(array2.begin(), array2.end(), compare);
 		time2 = Seconds() - time2;
+		total_time2 += time2;
 		
 		cout << "[" << total << "] wiki: " << time1 << ", merge: " << time2 << " (" << time2/time1 * 100.0 << "%)" << endl;
 		
@@ -631,6 +634,7 @@ int main() {
 	
 	total_time = Seconds() - total_time;
 	cout << "tests completed in " << total_time << " seconds" << endl;
+	cout << "wiki: " << total_time1 << ", merge: " << total_time2 << " (" << total_time2/total_time1 * 100.0 << "%)" << endl;
 	
 	return 0;
 }
