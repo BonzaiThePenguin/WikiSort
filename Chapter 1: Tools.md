@@ -3,15 +3,6 @@ Chapter 1: Tools
 
 Here are some useful functions that will be needed later:<br/><br/>
 
-<b>Comparing</b><br/>
-At the heart of any sorting algorithm is a function that compares two items in the array with each other. By convention, returning 0 means the two items are equal, +1 means the first item was greater than the second, and -1 means the first item was less than the second.<br/>
-
-    Compare(a, b)
-        if (a > b) return 1
-        if (a < b) return -1
-        return 0
-
-<br/><br/>
 <b>Swapping</b><br/>
 One function that is often needed is the ability to swap the values stored in two variables. This is quite simple – just use a <i>third</i> variable to temporarily hold one of the values, then reassign them.<br/>
 
