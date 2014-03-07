@@ -177,7 +177,7 @@ void Rotate(Test array[], long amount, Range range) {
 }
 
 /* standard merge operation using an internal buffer */
-void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare) {
+void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare, Test cache[], const long cache_size) {
 	long A_count = 0, B_count = 0, insert = 0;
 	
 	if (B.length <= 0 || A.length <= 0) return;
@@ -185,6 +185,29 @@ void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare)
 	
 	/* find the part where B will first be inserted into A, as everything before that point is already sorted */
 	A = RangeBetween(BinaryLast(array, B.start, A, compare), A.start + A.length);
+	
+	/* if A fits into the cache, use that instead of the internal buffer */
+	if (A.length <= cache_size) {
+		long A_count = 0, B_count = 0, insert = 0;
+		
+		/* copy the rest of A into the buffer */
+		memcpy(&cache[0], &array[A.start], A.length * sizeof(array[0]));
+		
+		while (A_count < A.length && B_count < B.length) {
+			if (!compare(array[B.start + B_count], cache[A_count])) {
+				array[A.start + insert] = cache[A_count];
+				A_count++;
+			} else {
+				array[A.start + insert] = array[B.start + B_count];
+				B_count++;
+			}
+			insert++;
+		}
+		
+		/* copy the remainder of A into the final array */
+		memcpy(&array[A.start + insert], &cache[A_count], (A.length - A_count) * sizeof(array[0]));
+		return;
+	}
 	
 	/* swap the rest of A into the buffer */
 	BlockSwap(array, buffer.start, A.start, A.length);
@@ -272,29 +295,11 @@ void WikiSort(Test array[], const long size, Comparison compare) {
 				
 				/* use the cache to speed up the many, many merges at the lower levels */
 				if (A.length <= cache_size) {
-					long A_count = 0, B_count = 0, insert = 0;
-					
-					/* find the part where B will first be inserted into A, as everything before that point is already sorted */
-					A = RangeBetween(BinaryLast(array, B.start, A, compare), A.start + A.length);
-					
-					/* copy the rest of A into the buffer */
-					memcpy(&cache[0], &array[A.start], A.length * sizeof(array[0]));
-					
-					while (A_count < A.length && B_count < B.length) {
-						if (!compare(array[B.start + B_count], cache[A_count])) {
-							array[A.start + insert] = cache[A_count];
-							A_count++;
-						} else {
-							array[A.start + insert] = array[B.start + B_count];
-							B_count++;
-						}
-						insert++;
-					}
-					
-					/* copy the remainder of A into the final array */
-					memcpy(&array[A.start + insert], &cache[A_count], (A.length - A_count) * sizeof(array[0]));
+					WikiMerge(array, ZeroRange(), A, B, compare, cache, cache_size);
 					continue;
-				} else if (level1.length > 0) {
+				}
+				
+				if (level1.length > 0) {
 					bufferA = MakeRange(A.start, 0);
 					bufferB = MakeRange(B.start + B.length, 0);
 					buffer1 = level1;
@@ -309,66 +314,98 @@ void WikiSort(Test array[], const long size, Comparison compare) {
 						}
 					}
 					
-					/* the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too */
-					buffer2.length = 0;
-					for (buffer2.start = buffer1.start + 1; buffer2.start < A.start + A.length; buffer2.start++) {
-						if (compare(array[buffer2.start - 1], array[buffer2.start]) || compare(array[buffer2.start], array[buffer2.start - 1])) {
-							buffer2.length++;
-							if (buffer2.length == buffer_size) break;
-						}
-					}
-					
-					if (buffer2.length == buffer_size) {
-						/* we found enough values for both buffers in A */
-						bufferA = MakeRange(buffer2.start, buffer_size * 2);
-						bufferB = MakeRange(B.start + B.length, 0);
-						buffer1 = MakeRange(A.start, buffer_size);
-						buffer2 = MakeRange(A.start + buffer_size, buffer_size);
-					} else if (buffer1.length == buffer_size) {
-						/* we found enough values for one buffer in A, so we'll need to find one buffer in B */
-						bufferA = MakeRange(buffer1.start, buffer_size);
-						buffer1 = MakeRange(A.start, buffer_size);
+					/* if the size of each block fits into the cache, we only need one buffer for tagging the A blocks */
+					/* this is because the other buffer is used as a swap space for merging the A blocks into the B values that follow it, */
+					/* but we can just use the cache as the buffer instead. this skips some memmoves and an insertion sort */
+					if (buffer_size <= cache_size) {
+						buffer2 = MakeRange(A.start, 0);
 						
-						/* like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index */
-						buffer2.length = 1;
-						for (buffer2.start = B.start + B.length - 2; buffer2.start >= B.start; buffer2.start--) {
-							if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start])) {
-								buffer2.length++;
-								if (buffer2.length == buffer_size) break;
+						if (buffer1.length == buffer_size) {
+							/* we found enough values for the buffer in A */
+							bufferA = MakeRange(buffer1.start, buffer_size);
+							bufferB = MakeRange(B.start + B.length, 0);
+							buffer1 = MakeRange(A.start, buffer_size);
+						} else {
+							/* we were unable to find enough unique values in A, so try B */
+							bufferA = MakeRange(buffer1.start, 0);
+							buffer1 = MakeRange(A.start, 0);
+							
+							/* the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index */
+							buffer1.length = 1;
+							for (buffer1.start = B.start + B.length - 2; buffer1.start >= B.start; buffer1.start--) {
+								if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start])) {
+									buffer1.length++;
+									if (buffer1.length == buffer_size) break;
+								}
 							}
-						}
-						
-						if (buffer2.length == buffer_size) {
-							bufferB = MakeRange(buffer2.start, buffer_size);
-							buffer2 = MakeRange(B.start + B.length - buffer_size, buffer_size);
+							
+							if (buffer1.length == buffer_size) {
+								bufferB = MakeRange(buffer2.start, buffer_size);
+								buffer1 = MakeRange(B.start + B.length - buffer_size, buffer_size);
+							}
 						}
 					} else {
-						/* we were unable to find a single buffer in A, so we'll need to find two buffers in B */
-						buffer1.length = 1;
-						for (buffer1.start = B.start + B.length - 2; buffer1.start >= B.start; buffer1.start--) {
-							if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start])) {
-								buffer1.length++;
-								if (buffer1.length == buffer_size) break;
-							}
-						}
-						
+						/* the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too */
 						buffer2.length = 0;
-						for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--) {
-							if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start])) {
+						for (buffer2.start = buffer1.start + 1; buffer2.start < A.start + A.length; buffer2.start++) {
+							if (compare(array[buffer2.start - 1], array[buffer2.start]) || compare(array[buffer2.start], array[buffer2.start - 1])) {
 								buffer2.length++;
 								if (buffer2.length == buffer_size) break;
 							}
 						}
 						
 						if (buffer2.length == buffer_size) {
-							bufferA = MakeRange(A.start, 0);
-							bufferB = MakeRange(buffer2.start, buffer_size * 2);
-							buffer1 = MakeRange(B.start + B.length - buffer_size, buffer_size);
-							buffer2 = MakeRange(buffer1.start - buffer_size, buffer_size);
+							/* we found enough values for both buffers in A */
+							bufferA = MakeRange(buffer2.start, buffer_size * 2);
+							bufferB = MakeRange(B.start + B.length, 0);
+							buffer1 = MakeRange(A.start, buffer_size);
+							buffer2 = MakeRange(A.start + buffer_size, buffer_size);
+						} else if (buffer1.length == buffer_size) {
+							/* we found enough values for one buffer in A, so we'll need to find one buffer in B */
+							bufferA = MakeRange(buffer1.start, buffer_size);
+							buffer1 = MakeRange(A.start, buffer_size);
+							
+							/* like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index */
+							buffer2.length = 1;
+							for (buffer2.start = B.start + B.length - 2; buffer2.start >= B.start; buffer2.start--) {
+								if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start])) {
+									buffer2.length++;
+									if (buffer2.length == buffer_size) break;
+								}
+							}
+							
+							if (buffer2.length == buffer_size) {
+								bufferB = MakeRange(buffer2.start, buffer_size);
+								buffer2 = MakeRange(B.start + B.length - buffer_size, buffer_size);
+							} else buffer1.length = 0; /* failure */
+						} else {
+							/* we were unable to find a single buffer in A, so we'll need to find two buffers in B */
+							buffer1.length = 1;
+							for (buffer1.start = B.start + B.length - 2; buffer1.start >= B.start; buffer1.start--) {
+								if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start])) {
+									buffer1.length++;
+									if (buffer1.length == buffer_size) break;
+								}
+							}
+							
+							buffer2.length = 0;
+							for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--) {
+								if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start])) {
+									buffer2.length++;
+									if (buffer2.length == buffer_size) break;
+								}
+							}
+							
+							if (buffer2.length == buffer_size) {
+								bufferA = MakeRange(A.start, 0);
+								bufferB = MakeRange(buffer2.start, buffer_size * 2);
+								buffer1 = MakeRange(B.start + B.length - buffer_size, buffer_size);
+								buffer2 = MakeRange(buffer1.start - buffer_size, buffer_size);
+							} else buffer1.length = 0; /* failure */
 						}
 					}
 					
-					if (buffer2.length < buffer_size) {
+					if (buffer1.length < buffer_size) {
 						/* we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated */
 						/* we can use this knowledge to write a merge operation that is optimized for arrays of repeating values */
 						while (A.length > 0 && B.length > 0) {
@@ -447,7 +484,7 @@ void WikiSort(Test array[], const long size, Comparison compare) {
 						Rotate(array, B_remaining, RangeBetween(B_split, blockA.start + block_size));
 						
 						/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
-						WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B_split), compare);
+						WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B_split), compare, cache, cache_size);
 						
 						/* now we need to update the ranges and stuff */
 						lastA = MakeRange(blockA.start - B_remaining, block_size);
@@ -478,7 +515,7 @@ void WikiSort(Test array[], const long size, Comparison compare) {
 				}
 				
 				/* merge the last A block with the remaining B blocks */
-				WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B.start + B.length - bufferB.length), compare);
+				WikiMerge(array, buffer2, lastA, RangeBetween(lastA.start + lastA.length, B.start + B.length - bufferB.length), compare, cache, cache_size);
 				
 				/* when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up */
 				/* insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer */
