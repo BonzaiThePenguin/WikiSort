@@ -1,5 +1,6 @@
 /*
- g++ -o WikiSort.x WikiSort.cpp -O3
+ clang++ -o WikiSort.x WikiSort.cpp -O3
+ (or replace 'clang++' with 'g++')
  ./WikiSort.x
 */
 
