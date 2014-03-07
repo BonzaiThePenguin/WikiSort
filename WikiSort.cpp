@@ -25,18 +25,18 @@ typedef struct {
 	long length;
 } Range;
 
-Range MakeRange(const long start, const long length) {
+Range MakeRange(const long start, const long length) throw() {
 	Range range;
 	range.start = start;
 	range.length = length;
 	return range;
 }
 
-Range RangeBetween(const long start, const long end) {
+Range RangeBetween(const long start, const long end) throw() {
 	return MakeRange(start, end - start);
 }
 
-Range ZeroRange() {
+Range ZeroRange() throw() {
 	return MakeRange(0, 0);
 }
 
@@ -44,11 +44,11 @@ Range ZeroRange() {
 // toolbox functions used by the sorter
 
 // if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value)
-bool IsEven(const long value) { return ((value & 0x1) == 0x0); }
+bool IsEven(const long value) throw() { return ((value & 0x1) == 0x0); }
 
 // 63 -> 32, 64 -> 64, etc.
 // apparently this comes from Hacker's Delight?
-long FloorPowerOfTwo (const long value) {
+long FloorPowerOfTwo (const long value) throw() {
 	long x = value;
 	x = x | (x >> 1);
 	x = x | (x >> 2);
@@ -63,7 +63,7 @@ long FloorPowerOfTwo (const long value) {
 
 // find the index of the first value within the range that is equal to array[index]
 template <typename T, class Comparison>
-long BinaryFirst(const T array[], const long index, const Range range, const Comparison compare) {
+long BinaryFirst(const T array[], const long index, const Range range, const Comparison compare) throw() {
 	long start = range.start, end = range.start + range.length - 1;
 	while (start < end) {
 		long mid = start + (end - start)/2;
@@ -77,14 +77,14 @@ long BinaryFirst(const T array[], const long index, const Range range, const Com
 }
 
 //template <typename T, class Comparison>
-//long BinaryFirst(const vector<T> &array, const long index, const Range range, const Comparison compare) {
+//long BinaryFirst(const vector<T> &array, const long index, const Range range, const Comparison compare) throw() {
 //	typename vector<T>::const_iterator first = lower_bound(array.begin() + range.start, array.begin() + range.start + range.length, array[index], compare);
 //	return (first - array.begin());
 //}
 
 // find the index of the last value within the range that is equal to array[index], plus 1
 template <typename T, class Comparison>
-long BinaryLast(const T array[], const long index, const Range range, const Comparison compare) {
+long BinaryLast(const T array[], const long index, const Range range, const Comparison compare) throw() {
 	long start = range.start, end = range.start + range.length - 1;
 	while (start < end) {
 		long mid = start + (end - start)/2;
@@ -98,14 +98,14 @@ long BinaryLast(const T array[], const long index, const Range range, const Comp
 }
 
 //template <typename T, class Comparison>
-//long BinaryLast(const vector<T> &array, const long index, const Range range, const Comparison compare) {
+//long BinaryLast(const vector<T> &array, const long index, const Range range, const Comparison compare) throw() {
 //	typename vector<T>::const_iterator last = upper_bound(array.begin() + range.start, array.begin() + range.start + range.length, array[index], compare);
 //	return (last - array.begin());
 //}
 
 // n^2 sorting algorithm used to sort tiny chunks of the full array
 template <typename T, class Comparison>
-void InsertionSort(T array[], const Range range, const Comparison compare) {
+void InsertionSort(T array[], const Range range, const Comparison compare) throw() {
 	for (long i = range.start + 1; i < range.start + range.length; i++) {
 		const T temp = array[i]; long j;
 		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
@@ -117,7 +117,7 @@ void InsertionSort(T array[], const Range range, const Comparison compare) {
 // reverse a range within the array
 // reverse(&array[range.start], &array[range.start + range.length]);
 template <typename T>
-void Reverse(T array[], const Range range) {
+void Reverse(T array[], const Range range) throw() {
 	for (long index = range.length/2 - 1; index >= 0; index--)
 		swap(array[range.start + index], array[range.start + range.length - index - 1]);
 }
@@ -125,14 +125,14 @@ void Reverse(T array[], const Range range) {
 // swap a series of values in the array
 // swap_ranges(&array[start1], &array[start1 + block_size], &array[start2]);
 template <typename T>
-void BlockSwap(T array[], const long start1, const long start2, const long block_size) {
+void BlockSwap(T array[], const long start1, const long start2, const long block_size) throw() {
 	for (long index = 0; index < block_size; index++)
 		swap(array[start1 + index], array[start2 + index]);
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 template <typename T>
-void Rotate(T array[], const long amount, const Range range, T cache[], const long cache_size) {
+void Rotate(T array[], const long amount, const Range range, T cache[], const long cache_size) throw() {
 	if (range.length == 0) return;
 	
 	long split;
@@ -167,7 +167,7 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 
 // make sure the items within the given range are in a stable order
 template <typename T, class Comparison>
-void Verify(const T array[], const Range range, const Comparison compare, const string msg) {
+void Verify(const T array[], const Range range, const Comparison compare, const string msg) throw() {
 	for (long index = range.start + 1; index < range.start + range.length; index++) {
 		if (!(compare(array[index - 1], array[index]) || (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 			for (long index2 = range.start; index2 < range.start + range.length; index2++) cout << array[index2].value << " (" << array[index2].index << ") ";
@@ -177,9 +177,9 @@ void Verify(const T array[], const Range range, const Comparison compare, const 
 	}
 }
 
-// standard merge operation using an internal buffer
+// standard merge operation using an internal or external buffer
 template <typename T, class Comparison>
-void WikiMerge(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) {
+void WikiMerge(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) throw() {
 	if (B.length <= 0 || A.length <= 0) return;
 	if (!compare(array[B.start], array[A.start + A.length - 1])) return;
 	
@@ -227,7 +227,7 @@ void WikiMerge(T array[], const Range buffer, const Range A, const Range B, cons
 
 // bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 template <typename T, class Comparison>
-void WikiSort(vector<T> &vec, const Comparison compare) {
+void WikiSort(vector<T> &vec, const Comparison compare) throw() {
 	// switch over to a C-array, as it runs faster and we never resize the vector
 	T *array = &vec[0];
 	const long size = vec.size();
@@ -255,9 +255,10 @@ void WikiSort(vector<T> &vec, const Comparison compare) {
 	double scale = size/(double)power_of_two; // 1.0 <= scale < 2.0
 	
 	// first insertion sort everything the lowest level, which is 16-31 items at a time
+	long start, mid, end = 0;
 	for (long merge_index = 0; merge_index < power_of_two; merge_index += 16) {
-		long start = merge_index * scale;
-		long end = (merge_index + 16) * scale;
+		start = end;
+		end = (merge_index + 16) * scale;
 		InsertionSort(array, RangeBetween(start, end), compare);
 	}
 	
@@ -270,12 +271,13 @@ void WikiSort(vector<T> &vec, const Comparison compare) {
 		// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
 		Range level1 = ZeroRange(), level2, levelA, levelB;
 		
+		end = 0;
 		for (long merge_index = 0; merge_index < power_of_two - merge_size; merge_index += merge_size + merge_size) {
 			// the floating-point multiplication here is consistently about 10% faster than using min(merge_index + merge_size + merge_size, size),
 			// probably because the overhead of the multiplication is offset by guaranteeing evenly sized subarrays, which is optimal
-			long start = merge_index * scale;
-			long mid = (merge_index + merge_size) * scale;
-			long end = (merge_index + merge_size + merge_size) * scale;
+			start = end;
+			mid = (merge_index + merge_size) * scale;
+			end = (merge_index + merge_size + merge_size) * scale;
 			
 			if (compare(array[end - 1], array[start])) {
 				// the two ranges are in reverse order, so a simple rotation should fix it
@@ -550,7 +552,7 @@ void WikiSort(vector<T> &vec, const Comparison compare) {
 			}
 			if (VerifyWhileSorting) Verify(array, RangeBetween(level_start, levelB.start), compare, "redistributed levelA back into the array");
 			
-			// redistribute levelB back into the array
+			// redistribute bufferB back into the array
 			long level_end = levelB.start + levelB.length;
 			for (long index = levelB.start; levelB.length > 0; index--) {
 				if (index == level_start || !compare(array[levelB.start + levelB.length - 1], array[index - 1])) {
