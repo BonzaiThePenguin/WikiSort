@@ -100,8 +100,7 @@ void Reverse(vector<T> &array, Range range) {
 // swap a series of values in the array
 template <typename T>
 void BlockSwap(vector<T> &array, long start1, long start2, long block_size) {
-	for (long index = 0; index < block_size; index++)
-		swap(array[start1 + index], array[start2 + index]);
+	swap_ranges(array.begin() + start1, array.begin() + start1 + block_size, array.begin() + start2);
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [3 0 1 2] if we rotate by +1)
