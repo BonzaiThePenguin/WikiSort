@@ -1,5 +1,6 @@
 /*
- gcc -o WikiSort.x WikiSort.c -O3
+ clang -o WikiSort.x WikiSort.c -O3
+ (or replace 'clang' with 'gcc')
  ./WikiSort.x
 */
 
