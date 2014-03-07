@@ -155,7 +155,7 @@ void BlockSwap(Test array[], long start1, long start2, long block_size) {
 	for (index = 0; index < block_size; index++) Swap(array[start1 + index], array[start2 + index]);
 }
 
-/* rotate the values in an array ([0 1 2 3] becomes [3 0 1 2] if we rotate by +1) */
+/* rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1) */
 void Rotate(Test array[], long amount, Range range, Test cache[], const long cache_size) {
 	Range range1, range2;
 	
