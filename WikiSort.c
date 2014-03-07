@@ -207,7 +207,7 @@ void Verify(const Test array[], const Range range, const Comparison compare, con
 	}
 }
 
-/* standard merge operation using an internal buffer */
+/* standard merge operation using an internal or external buffer */
 void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, const Comparison compare, Test cache[], const long cache_size) {
 	long A_count = 0, B_count = 0, insert = 0;
 	
@@ -579,7 +579,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 			}
 			if (VerifyWhileSorting) Verify(array, RangeBetween(level_start, levelB.start), compare, "redistributed levelA back into the array");
 			
-			/* redistribute levelB back into the array */
+			/* redistribute bufferB back into the array */
 			level_end = levelB.start + levelB.length;
 			for (index = levelB.start; levelB.length > 0; index--) {
 				if (index == level_start || !compare(array[levelB.start + levelB.length - 1], array[index - 1])) {
@@ -633,7 +633,7 @@ void MergeSort(Test array[], const long array_count, const Comparison compare) {
 
 int main() {
 	long total, index;
-	double total_time;
+	double total_time, total_time1, total_time2;
 	const long max_size = 1500000;
 	Var(array1, Allocate(Test, max_size));
 	Var(array2, Allocate(Test, max_size));
@@ -643,6 +643,7 @@ int main() {
 	srand(/*time(NULL)*/ 10141985);
 	
 	total_time = Seconds();
+	total_time1 = total_time2 = 0;
 	
 	for (total = 0; total < max_size; total += 2048 * 16) {
 		double time1, time2;
@@ -674,10 +675,12 @@ int main() {
 		time1 = Seconds();
 		WikiSort(array1, total, compare);
 		time1 = Seconds() - time1;
+		total_time1 += time1;
 		
 		time2 = Seconds();
 		MergeSort(array2, total, compare);
 		time2 = Seconds() - time2;
+		total_time2 += time2;
 		
 		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
 		
@@ -693,6 +696,7 @@ int main() {
 	
 	total_time = Seconds() - total_time;
 	printf("tests completed in %f seconds\n", total_time);
+	printf("wiki: %f, merge: %f (%f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
 	
 	free(array1); free(array2);
 	return 0;
