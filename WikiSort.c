@@ -258,7 +258,7 @@ void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, c
 
 /* bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use */
 void WikiSort(Test array[], const long size, const Comparison compare) {
-	long merge_index, merge_size, index;
+	long merge_index, merge_size, index, start, mid, end;
 	
 	/* use a small cache to speed up some of the operations */
 	#define cache_size 200
@@ -283,9 +283,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	}
 	
 	/* first insertion sort everything the lowest level, which is 16-31 items at a time */
+	end = 0;
 	for (merge_index = 0; merge_index < power_of_two; merge_index += 16) {
-		long start = merge_index * scale;
-		long end = (merge_index + 16) * scale;
+		start = end;
+		end = (merge_index + 16) * scale;
 		InsertionSort(array, RangeBetween(start, end), compare);
 	}
 	
@@ -298,12 +299,13 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 		/* after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level */
 		Range level1 = ZeroRange(), level2, levelA, levelB;
 		
+		end = 0;
 		for (merge_index = 0; merge_index < power_of_two - merge_size; merge_index += merge_size + merge_size) {
 			/* the floating-point multiplication here is consistently about 10% faster than using min(merge_index + merge_size + merge_size, size), */
 			/* probably because the overhead of the multiplication is offset by guaranteeing evenly sized subarrays, which is optimal */
-			long start = merge_index * scale;
-			long mid = (merge_index + merge_size) * scale;
-			long end = (merge_index + merge_size + merge_size) * scale;
+			start = end;
+			mid = (merge_index + merge_size) * scale;
+			end = (merge_index + merge_size + merge_size) * scale;
 			
 			if (compare(array[end - 1], array[start])) {
 				/* the two ranges are in reverse order, so a simple rotation should fix it */
@@ -591,6 +593,8 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 			if (VerifyWhileSorting) Verify(array, RangeBetween(level_start, level_end), compare, "redistributed levelB back into the array");
 		}
 	}
+	
+	#undef cache_size
 }
 
 
