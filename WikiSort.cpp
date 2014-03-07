@@ -63,7 +63,7 @@ long FloorPowerOfTwo (const long value) throw() {
 }
 
 // find the index of the first value within the range that is equal to array[index]
-template <typename T, class Comparison>
+template <typename T, typename Comparison>
 long BinaryFirst(const T array[], const long index, const Range range, const Comparison compare) throw() {
 	long start = range.start, end = range.start + range.length - 1;
 	while (start < end) {
@@ -77,14 +77,14 @@ long BinaryFirst(const T array[], const long index, const Range range, const Com
 	return start;
 }
 
-//template <typename T, class Comparison>
+//template <typename T, typename Comparison>
 //long BinaryFirst(const vector<T> &array, const long index, const Range range, const Comparison compare) throw() {
 //	typename vector<T>::const_iterator first = lower_bound(array.begin() + range.start, array.begin() + range.start + range.length, array[index], compare);
 //	return (first - array.begin());
 //}
 
 // find the index of the last value within the range that is equal to array[index], plus 1
-template <typename T, class Comparison>
+template <typename T, typename Comparison>
 long BinaryLast(const T array[], const long index, const Range range, const Comparison compare) throw() {
 	long start = range.start, end = range.start + range.length - 1;
 	while (start < end) {
@@ -98,14 +98,14 @@ long BinaryLast(const T array[], const long index, const Range range, const Comp
 	return start;
 }
 
-//template <typename T, class Comparison>
+//template <typename T, typename Comparison>
 //long BinaryLast(const vector<T> &array, const long index, const Range range, const Comparison compare) throw() {
 //	typename vector<T>::const_iterator last = upper_bound(array.begin() + range.start, array.begin() + range.start + range.length, array[index], compare);
 //	return (last - array.begin());
 //}
 
 // n^2 sorting algorithm used to sort tiny chunks of the full array
-template <typename T, class Comparison>
+template <typename T, typename Comparison>
 void InsertionSort(T array[], const Range range, const Comparison compare) throw() {
 	for (long i = range.start + 1; i < range.start + range.length; i++) {
 		const T temp = array[i]; long j;
@@ -167,7 +167,7 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 }
 
 // make sure the items within the given range are in a stable order
-template <typename T, class Comparison>
+template <typename T, typename Comparison>
 void Verify(const T array[], const Range range, const Comparison compare, const string msg) throw() {
 	for (long index = range.start + 1; index < range.start + range.length; index++) {
 		if (!(compare(array[index - 1], array[index]) || (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
@@ -179,7 +179,7 @@ void Verify(const T array[], const Range range, const Comparison compare, const 
 }
 
 // standard merge operation using an internal or external buffer
-template <typename T, class Comparison>
+template <typename T, typename Comparison>
 void WikiMerge(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) throw() {
 	if (B.length <= 0 || A.length <= 0) return;
 	if (!compare(array[B.start], array[A.start + A.length - 1])) return;
@@ -227,7 +227,7 @@ void WikiMerge(T array[], const Range buffer, const Range A, const Range B, cons
 }
 
 // bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
-template <typename T, class Comparison>
+template <typename T, typename Comparison>
 void WikiSort(vector<T> &vec, const Comparison compare) throw() {
 	// switch over to a C-array, as it runs faster and we never resize the vector
 	T *array = &vec[0];
@@ -608,6 +608,8 @@ int main() {
 			// item.value = (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
 			// item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
 			
+			// purely random data is one of the few cases where it is slower than stable_sort(),
+			// although it does end up only running at about 60-65% as fast in that situation
 			item.value = rand();
 			
 			array1[index] = array2[index] = item;
@@ -619,7 +621,8 @@ int main() {
 		total_time1 += time1;
 		
 		double time2 = Seconds();
-		stable_sort(array2.begin(), array2.end(), compare);
+		__inplace_stable_sort(array2.begin(), array2.end(), compare);
+		//stable_sort(array2.begin(), array2.end(), compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
 		
