@@ -103,7 +103,7 @@ void BlockSwap(vector<T> &array, long start1, long start2, long block_size) {
 	swap_ranges(array.begin() + start1, array.begin() + start1 + block_size, array.begin() + start2);
 }
 
-// rotate the values in an array ([0 1 2 3] becomes [3 0 1 2] if we rotate by +1)
+// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 template <typename T>
 void Rotate(vector<T> &array, long amount, Range range, T cache[], const long cache_size) {
 	if (range.length == 0) return;
