@@ -3,7 +3,7 @@ WikiSort
 
 WikiSort is a sorting algorithm that's stable, has an O(n) best case and quasilinear worst case, and uses O(1) memory. <b>This is a live standard, and <i>will</i> change as superior techniques become known.</b> Feel free to add your own improvements!<br/><br/>
 
-This algorithm is based on the one described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>, although it uses a simplified and optimized design. It is currently about 65% as fast as std::stable_sort() when given random input, but in many common cases it's about 2-5x faster – and it's <i>3x faster</i> than C++'s equivalent inplace_stable_sort!
+This algorithm is based on the one described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>, although it uses a simplified and optimized design.
 
 <b>For more information, check out the documentation:</b><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">Chapter 1: Tools</a><br/>
@@ -14,6 +14,8 @@ This algorithm is based on the one described in <a href="http://www.researchgate
 &nbsp;&nbsp;• Does not use recursion or dynamic allocations.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
 &nbsp;&nbsp;• Is a stable sort, which means equal items retain their order in relation to each other.<br/>
+&nbsp;&nbsp;• 2-5x faster than stable_sort() in many common cases (65% as fast with random inputs).<br/>
+&nbsp;&nbsp;• 3x faster than C++'s equivalent __inplace_stable_sort()!
 
 <br/>
 <b>This code is public domain, so feel free to use it or contribute in any way you like.</b> Cleaner code, ports, optimizations, more-intelligent special cases, benchmarks on real-world data, it's all welcome.<br/><br/>
