@@ -570,7 +570,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 		if (level1.length > 0) {
 			/* redistribute bufferA back into the array */
 			long level_end, level_start = levelA.start;
-			for	(index = levelA.start + levelA.length; levelA.length > 0; index++) {
+			for (index = levelA.start + levelA.length; levelA.length > 0; index++) {
 				if (index == levelB.start || !compare(array[index], array[levelA.start])) {
 					long amount = index - (levelA.start + levelA.length);
 					Rotate(array, -amount, RangeBetween(levelA.start, index), cache, cache_size);
