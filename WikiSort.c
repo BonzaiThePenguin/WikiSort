@@ -210,6 +210,10 @@ void WikiMerge(Test array[], Range buffer, Range A, Range B, Comparison compare)
 void WikiSort(Test array[], const long size, Comparison compare) {
 	long index, merge_index, merge_size, count;
 	
+	/* right now this is only used to speed up some of the smaller merges */
+	#define cache_size 200
+	Test cache[cache_size];
+	
 	/* calculate how to scale the index value to the range within the array */
 	const long power_of_two = FloorPowerOfTwo(size);
 	double scale = size/(double)power_of_two; /* 1.0 <= scale < 2.0 */
@@ -266,7 +270,31 @@ void WikiSort(Test array[], const long size, Comparison compare) {
 				/* try to fill up two buffers with unique values in ascending order */
 				Range bufferA, bufferB, buffer1, buffer2, blockA, blockB, firstA, lastA, lastB;
 				
-				if (level1.length > 0) {
+				/* use the cache to speed up the many, many merges at the lower levels */
+				if (A.length <= cache_size) {
+					long A_count = 0, B_count = 0, insert = 0;
+					
+					/* find the part where B will first be inserted into A, as everything before that point is already sorted */
+					A = RangeBetween(BinaryLast(array, B.start, A, compare), A.start + A.length);
+					
+					/* copy the rest of A into the buffer */
+					memcpy(&cache[0], &array[A.start], A.length * sizeof(array[0]));
+					
+					while (A_count < A.length && B_count < B.length) {
+						if (!compare(array[B.start + B_count], cache[A_count])) {
+							array[A.start + insert] = cache[A_count];
+							A_count++;
+						} else {
+							array[A.start + insert] = array[B.start + B_count];
+							B_count++;
+						}
+						insert++;
+					}
+					
+					/* copy the remainder of A into the final array */
+					memcpy(&array[A.start + insert], &cache[A_count], (A.length - A_count) * sizeof(array[0]));
+					continue;
+				} else if (level1.length > 0) {
 					bufferA = MakeRange(A.start, 0);
 					bufferB = MakeRange(B.start + B.length, 0);
 					buffer1 = level1;
