@@ -92,9 +92,6 @@ Range ZeroRange() {
 	*b = c; \
 }
 
-/* if your language does not support bitwise operations for some reason, you can use (floor(value/2) * 2 == value) */
-bool IsEven(const long value) { return ((value & 0x1) == 0x0); }
-
 /* 63 -> 32, 64 -> 64, etc. */
 /* apparently this comes from Hacker's Delight? */
 long FloorPowerOfTwo (const long value) {
