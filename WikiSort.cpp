@@ -10,6 +10,8 @@
 #include <math.h>
 #include <assert.h>
 
+using namespace std;
+
 namespace Wiki {
 	// if true, Wiki::Verify() will be called after each merge step to make sure it worked correctly
 	#define VERIFY false
@@ -104,7 +106,7 @@ namespace Wiki {
 	template <typename T>
 	void Reverse(T array[], const Range range) throw() {
 		for (long index = range.length()/2 - 1; index >= 0; index--)
-			std::swap(array[range.start + index], array[range.end - index - 1]);
+			swap(array[range.start + index], array[range.end - index - 1]);
 	}
 	
 	// swap a series of values in the array
@@ -112,7 +114,7 @@ namespace Wiki {
 	template <typename T>
 	void BlockSwap(T array[], const long start1, const long start2, const long block_size) throw() {
 		for (long index = 0; index < block_size; index++)
-			std::swap(array[start1 + index], array[start2 + index]);
+			swap(array[start1 + index], array[start2 + index]);
 	}
 	
 	// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
@@ -152,12 +154,12 @@ namespace Wiki {
 	
 	// make sure the items within the given range are in a stable order
 	template <typename T, typename Comparison>
-	void Verify(const T array[], const Range range, const Comparison compare, const std::string msg) throw() {
+	void Verify(const T array[], const Range range, const Comparison compare, const string msg) throw() {
 		for (long index = range.start + 1; index < range.end; index++) {
 			if (!(compare(array[index - 1], array[index]) || (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 				for (long index2 = range.start; index2 < range.end; index2++)
-					std::cout << array[index2].value << " (" << array[index2].index << ") ";
-				std::cout << std::endl << "failed with message: " << msg << std::endl;
+					cout << array[index2].value << " (" << array[index2].index << ") ";
+				cout << endl << "failed with message: " << msg << endl;
 				assert(false);
 			}
 		}
@@ -197,10 +199,10 @@ namespace Wiki {
 			long A_count = 0, B_count = 0, insert = 0;
 			while (A_count < A.length() && B_count < B.length()) {
 				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
-					std::swap(array[A.start + insert], array[buffer.start + A_count]);
+					swap(array[A.start + insert], array[buffer.start + A_count]);
 					A_count++;
 				} else {
-					std::swap(array[A.start + insert], array[B.start + B_count]);
+					swap(array[A.start + insert], array[B.start + B_count]);
 					B_count++;
 				}
 				insert++;
@@ -213,7 +215,7 @@ namespace Wiki {
 	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	template <typename T, typename Comparison>
-	void Sort(std::vector<T> &vec, const Comparison compare) throw() {
+	void Sort(vector<T> &vec, const Comparison compare) throw() {
 		// switch over to a C-array, as it runs faster and we never resize the vector
 		T *array = &vec[0];
 		const long size = vec.size();
@@ -250,7 +252,7 @@ namespace Wiki {
 		
 		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
 		for (long merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
-			long block_size = std::max((long)sqrt(merge_size * scale), (long)3);
+			long block_size = max((long)sqrt(merge_size * scale), (long)3);
 			long buffer_size = (merge_size * scale)/block_size + 1;
 			
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
@@ -294,12 +296,9 @@ namespace Wiki {
 					} else {
 						// the first item is always going to be the first unique value, so let's start searching at the next index
 						long count = 1;
-						for (buffer1.start = A.start + 1; buffer1.start < A.end; buffer1.start++) {
-							if (compare(array[buffer1.start - 1], array[buffer1.start]) || compare(array[buffer1.start], array[buffer1.start - 1])) {
-								count++;
-								if (count == buffer_size) break;
-							}
-						}
+						for (buffer1.start = A.start + 1; buffer1.start < A.end; buffer1.start++)
+							if (compare(array[buffer1.start - 1], array[buffer1.start]) || compare(array[buffer1.start], array[buffer1.start - 1]))
+								if (++count == buffer_size) break;
 						buffer1.end = buffer1.start + count;
 						
 						// if the size of each block fits into the cache, we only need one buffer for tagging the A blocks
@@ -320,12 +319,9 @@ namespace Wiki {
 								
 								// the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
 								count = 1;
-								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--) {
-									if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start])) {
-										count++;
-										if (count == buffer_size) break;
-									}
-								}
+								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
+									if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start]))
+										if (++count == buffer_size) break;
 								buffer1.end = buffer1.start + count;
 								
 								if (buffer1.length() == buffer_size) {
@@ -336,12 +332,9 @@ namespace Wiki {
 						} else {
 							// the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too
 							count = 0;
-							for (buffer2.start = buffer1.start + 1; buffer2.start < A.end; buffer2.start++) {
-								if (compare(array[buffer2.start - 1], array[buffer2.start]) || compare(array[buffer2.start], array[buffer2.start - 1])) {
-									count++;
-									if (count == buffer_size) break;
-								}
-							}
+							for (buffer2.start = buffer1.start + 1; buffer2.start < A.end; buffer2.start++)
+								if (compare(array[buffer2.start - 1], array[buffer2.start]) || compare(array[buffer2.start], array[buffer2.start - 1]))
+									if (++count == buffer_size) break;
 							buffer2.end = buffer2.start + count;
 							
 							if (buffer2.length() == buffer_size) {
@@ -357,12 +350,9 @@ namespace Wiki {
 								
 								// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
 								count = 1;
-								for (buffer2.start = B.end - 2; buffer2.start >= B.start; buffer2.start--) {
-									if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start])) {
-										count++;
-										if (count == buffer_size) break;
-									}
-								}
+								for (buffer2.start = B.end - 2; buffer2.start >= B.start; buffer2.start--)
+									if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start]))
+										if (++count == buffer_size) break;
 								buffer2.end = buffer2.start + count;
 								
 								if (buffer2.length() == buffer_size) {
@@ -372,21 +362,15 @@ namespace Wiki {
 							} else {
 								// we were unable to find a single buffer in A, so we'll need to find two buffers in B
 								count = 1;
-								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--) {
-									if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start])) {
-										count++;
-										if (count == buffer_size) break;
-									}
-								}
+								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
+									if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start]))
+										if (++count == buffer_size) break;
 								buffer1.end = buffer1.start + count;
 								
 								count = 0;
-								for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--) {
-									if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start])) {
-										count++;
-										if (count == buffer_size) break;
-									}
-								}
+								for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--)
+									if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start]))
+										if (++count == buffer_size) break;
 								buffer2.end = buffer2.start + count;
 								
 								if (buffer2.length() == buffer_size) {
@@ -408,11 +392,11 @@ namespace Wiki {
 								long mid = BinaryFirst(array, A.start, B, compare);
 								
 								// rotate A into place
-								long amount = mid - (A.end);
+								long amount = mid - A.end;
 								Rotate(array, -amount, MakeRange(A.start, mid), cache, cache_size);
 								
 								// calculate the new A and B ranges
-								B = MakeRange(mid, B.end);
+								B.start = mid;
 								A = MakeRange(BinaryLast(array, A.start + amount, A, compare), B.start);
 							}
 							
@@ -428,8 +412,7 @@ namespace Wiki {
 								bufferA.start = index + count; count++;
 							}
 						}
-						bufferA.start = A.start;
-						bufferA.end = bufferA.start + length;
+						bufferA = MakeRange(A.start, bufferA.start + length);
 						
 						if (VERIFY) {
 							Verify(array, MakeRange(A.start, A.start + bufferA.length()), compare, "testing values pulled out from A");
@@ -444,8 +427,7 @@ namespace Wiki {
 								bufferB.start = index - count; count++;
 							}
 						}
-						bufferB.start = B.end - length;
-						bufferB.end = B.end;
+						bufferB = MakeRange(B.end - length, B.end);
 						
 						if (VERIFY) {
 							Verify(array, MakeRange(B.end - bufferB.length(), B.end), compare, "testing values pulled out from B");
@@ -465,13 +447,13 @@ namespace Wiki {
 					
 					// swap the second value of each A block with the value in buffer1
 					for (long index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size)
-						std::swap(array[buffer1.start + index], array[indexA]);
+						swap(array[buffer1.start + index], array[indexA]);
 					
 					// start rolling the A blocks through the B blocks!
 					// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
 					lastA = firstA;
 					lastB = MakeRange(0, 0);
-					blockB = MakeRange(B.start, B.start + std::min(block_size, B.length() - bufferB.length()));
+					blockB = MakeRange(B.start, B.start + min(block_size, B.length() - bufferB.length()));
 					blockA.start += firstA.length();
 					
 					long minA = blockA.start, indexA = 0;
@@ -488,7 +470,7 @@ namespace Wiki {
 							
 							// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
 							// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
-							std::swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
+							swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 							
 							// now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation
 							Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size), cache, cache_size);
@@ -586,7 +568,7 @@ double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 int main() {
 	const long max_size = 1500000;
 	__typeof__(&TestCompare) compare = &TestCompare;
-	std::vector<Test> array1, array2;
+	vector<Test> array1, array2;
 	
 	// initialize the random-number generator
 	srand(/*time(NULL)*/ 10141985);
@@ -628,24 +610,24 @@ int main() {
 		total_time1 += time1;
 		
 		double time2 = Seconds();
-		std::__inplace_stable_sort(array2.begin(), array2.end(), compare);
-		//std::stable_sort(array2.begin(), array2.end(), compare);
+		__inplace_stable_sort(array2.begin(), array2.end(), compare);
+		//stable_sort(array2.begin(), array2.end(), compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
 		
-		std::cout << "[" << total << "] wiki: " << time1 << ", merge: " << time2 << " (" << time2/time1 * 100.0 << "%)" << std::endl;
+		cout << "[" << total << "] wiki: " << time1 << ", merge: " << time2 << " (" << time2/time1 * 100.0 << "%)" << endl;
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
-		std::cout << "verifying... " << std::flush;
+		cout << "verifying... " << flush;
 		Wiki::Verify(&array1[0], Wiki::MakeRange(0, total), compare, "testing the final array");
 		if (total > 0) assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
 		for (long index = 1; index < total; index++) assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
-		std::cout << "correct!" << std::endl;
+		cout << "correct!" << endl;
 	}
 	
 	total_time = Seconds() - total_time;
-	std::cout << "tests completed in " << total_time << " seconds" << std::endl;
-	std::cout << "wiki: " << total_time1 << ", merge: " << total_time2 << " (" << total_time2/total_time1 * 100.0 << "%)" << std::endl;
+	cout << "tests completed in " << total_time << " seconds" << endl;
+	cout << "wiki: " << total_time1 << ", merge: " << total_time2 << " (" << total_time2/total_time1 * 100.0 << "%)" << endl;
 	
 	return 0;
 }
