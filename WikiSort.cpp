@@ -177,15 +177,18 @@ namespace Wiki {
 			memcpy(&cache[0], &array[A.start], A.length() * sizeof(array[0]));
 			
 			long A_count = 0, B_count = 0, insert = 0;
-			while (A_count < A.length() && B_count < B.length()) {
+			while (true) {
 				if (!compare(array[B.start + B_count], cache[A_count])) {
 					array[A.start + insert] = cache[A_count];
 					A_count++;
+					insert++;
+					if (A_count >= A.length()) break;
 				} else {
 					array[A.start + insert] = array[B.start + B_count];
 					B_count++;
+					insert++;
+					if (B_count >= B.length()) break;
 				}
-				insert++;
 			}
 			
 			// copy the remainder of A into the final array
@@ -197,15 +200,18 @@ namespace Wiki {
 			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
 			long A_count = 0, B_count = 0, insert = 0;
-			while (A_count < A.length() && B_count < B.length()) {
+			while (true) {
 				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
 					swap(array[A.start + insert], array[buffer.start + A_count]);
 					A_count++;
+					insert++;
+					if (A_count >= A.length()) break;
 				} else {
 					swap(array[A.start + insert], array[B.start + B_count]);
 					B_count++;
+					insert++;
+					if (B_count >= B.length()) break;
 				}
-				insert++;
 			}
 			
 			// swap the remainder of A into the final array
