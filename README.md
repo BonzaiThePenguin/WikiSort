@@ -14,7 +14,7 @@ This algorithm is based on the one described in <a href="http://www.researchgate
 &nbsp;&nbsp;• Does not use recursion or dynamic allocations.<br/>
 &nbsp;&nbsp;• Runs faster if the data is already partially sorted.<br/>
 &nbsp;&nbsp;• Is a stable sort, which means equal items retain their order in relation to each other.<br/>
-&nbsp;&nbsp;• 2-5x faster than stable_sort() in many common cases (65% as fast with random inputs).<br/>
+&nbsp;&nbsp;• 2-5x faster than stable_sort() in many common cases (70% as fast with random inputs).<br/>
 &nbsp;&nbsp;• 3-12x faster than GCC's equivalent __inplace_stable_sort()!
 
 <br/>
