@@ -7,6 +7,29 @@
 #include <assert.h>
 
 namespace wiki {
+	// if true, Verify() will be called after each merge step to make sure it worked correctly
+	#define VERIFY false
+	
+	/**
+	 *  @if maint
+	 *  This is a helper function for the merge routines.
+	 *  @endif
+	 */
+	template<typename _RandomAccessIterator, typename _Compare>
+	void
+	verify(_RandomAccessIterator __first, _RandomAccessIterator __last,
+		   _Compare __comp, std::string __msg)
+	{
+		for (_RandomAccessIterator __index = __first + 1; __index < __last; std::advance(__index, 1))
+		{
+			if (!(__comp(*(__index - 1), *__index) || (!__comp(*__index, *(__index - 1)) && (*__index).index > (*(__index - 1)).index)))
+			{
+				for (_RandomAccessIterator __index2 = __first; __index2 < __last; std::advance(__index2, 1)) std::cout << (*__index2).value << " (" << (*__index2).index << ") ";
+				std::cout << std::endl << "failed with message: " << __msg << std::endl;
+				assert(false);
+			}
+		}
+	}
 	
 	/**
 	 *  @if maint
@@ -16,7 +39,7 @@ namespace wiki {
 	template<typename _RandomAccessIterator, typename _Compare>
 	inline void
 	__merge_with_internal_buffer(_RandomAccessIterator __first, _RandomAccessIterator __middle,
-		  _RandomAccessIterator __last, _RandomAccessIterator __buffer, _Compare __comp)
+								 _RandomAccessIterator __last, _RandomAccessIterator __buffer, _Compare __comp)
 	{
 		if (__middle - __first <= 0 || __last - __middle <= 0)
 			return;
@@ -44,7 +67,7 @@ namespace wiki {
 	
 	/**
 	 *  @if maint
-	 *  This is a helper function for the stable sorting routines.
+	 *  This is a helper function for the merge routines.
 	 *  @endif
 	 */
 	template <typename _RandomAccessIterator, typename _Compare>
@@ -79,7 +102,7 @@ namespace wiki {
 		// first insertion sort everything the lowest level
 		for (_RandomAccessIterator __merge_index = __end = __first; __merge_index < __last; std::advance(__merge_index, 16))
 		{
-			_RandomAccessIterator __start = __end;
+			__start = __end;
 			__end = std::min(__merge_index + 16, __last);
 			std::__insertion_sort(__start, __end, __comp);
 		}
@@ -92,11 +115,11 @@ namespace wiki {
 			
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
-			_RandomAccessIterator __level1 = __first;
-			long __level1_length = 0;
-			_RandomAccessIterator __level2, __levelA, __levelB;
-			long __level2_length, __levelA_length, __levelB_length;
+			_RandomAccessIterator __level1_start, __level1_end, __level2_start, __level2_end;
+			_RandomAccessIterator __levelA_start, __levelA_end, __levelB_start, __levelB_end;
+			_RandomAccessIterator __index;
 			
+			__level1_start = __level1_end = __first;
 			__end = __first;
 			for (_RandomAccessIterator __merge_index = __first; __merge_index < __last - __merge_size; std::advance(__merge_index, __merge_size + __merge_size))
 			{
@@ -108,272 +131,325 @@ namespace wiki {
 				{
 					// the two ranges are in reverse order, so a simple rotation should fix it
 					std::rotate(__start, __middle, __end);
+					if (VERIFY) wiki::verify(__start, __end, __comp, "reversing order via Rotate()");
 				}
 				else if (__comp(*__middle, *(__middle - 1)))
 				{
 					// these two ranges weren't already in order, so we'll need to merge them!
-					_RandomAccessIterator __A = __start;
-					long __A_length = (__middle - __start);
+					_RandomAccessIterator __A_start = __start, __A_end = __middle;
+					_RandomAccessIterator __B_start = __middle, __B_end = __end;
 					
-					_RandomAccessIterator __B = __middle;
-					long __B_length = (__end - __middle);
+					if (VERIFY) wiki::verify(__A_start, __A_end, __comp, "making sure A is valid");
+					if (VERIFY) wiki::verify(__B_start, __B_end, __comp, "making sure B is valid");
 					
 					// try to fill up two buffers with unique values in ascending order
-					_RandomAccessIterator __bufferA, __bufferB, __buffer1, __buffer2, __blockA, __blockB, __firstA, __lastA, __lastB;
-					long __bufferA_length, __bufferB_length, __buffer1_length, __buffer2_length, __blockA_length, __blockB_length, __firstA_length, __lastA_length, __lastB_length;
+					_RandomAccessIterator __bufferA_start, __bufferA_end, __bufferB_start, __bufferB_end;
+					_RandomAccessIterator __buffer1_start, __buffer1_end, __buffer2_start, __buffer2_end;
+					_RandomAccessIterator __blockA_start, __blockA_end, __blockB_start, __blockB_end;
+					_RandomAccessIterator __lastA_start, __lastA_end, __lastB_start, __lastB_end;
+					_RandomAccessIterator __firstA_start, __firstA_end;
 					
-					if (__level1_length > 0)
-					{
+					if (__level1_end > __level1_start) {
 						// reuse the buffers we found in a previous iteration
-						__bufferA = __A; __bufferA_length = 0;
-						__bufferB = __B + __B_length; __bufferB_length = 0;
-						__buffer1 = __level1; __buffer1_length = __level1_length;
-						__buffer2 = __level2; __buffer2_length = __level2_length;
-					}
-					else
-					{
+						__bufferA_start = __bufferA_end = __A_start;
+						__bufferB_start = __bufferB_end = __B_end;
+						__buffer1_start = __level1_start; __buffer1_end = __level1_end;
+						__buffer2_start = __level2_start; __buffer2_end = __level2_end;
+					} else {
 						// the first item is always going to be the first unique value, so let's start searching at the next index
-						__buffer1_length = 1;
-						for (__buffer1 = __A + 1; __buffer1 < __A + __A_length; std::advance(__buffer1, 1))
-							if (__comp(*(__buffer1 - 1), *__buffer1) || __comp(*__buffer1, *(__buffer1 - 1)))
-								if (++__buffer1_length == __buffer_size)
+						long __count = 1;
+						for (__buffer1_start = __A_start + 1; __buffer1_start < __A_end; std::advance(__buffer1_start, 1))
+							if (__comp(*(__buffer1_start - 1), *__buffer1_start) || __comp(*__buffer1_start, *(__buffer1_start - 1)))
+								if (++__count == __buffer_size)
 									break;
+						__buffer1_end = __buffer1_start + __count;
 						
 						// the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too
-						__buffer2_length = 0;
-						for (__buffer2 = __buffer1 + 1; __buffer2 < __A + __A_length; std::advance(__buffer2, 1))
-							if (__comp(*(__buffer2 - 1), *__buffer2) || __comp(*__buffer2, *(__buffer2 - 1)))
-								if (++__buffer2_length == __buffer_size)
+						__count = 0;
+						for (__buffer2_start = __buffer1_start + 1; __buffer2_start < __A_end; std::advance(__buffer2_start, 1))
+							if (__comp(*(__buffer2_start - 1), *__buffer2_start) || __comp(*__buffer2_start, *(__buffer2_start - 1)))
+								if (++__count == __buffer_size)
 									break;
+						__buffer2_end = __buffer2_start + __count;
 						
-						if (__buffer2_length == __buffer_size)
-						{
+						if (__buffer2_end - __buffer2_start == __buffer_size) {
 							// we found enough values for both buffers in A
-							__bufferA = __buffer2; __bufferA_length = __buffer_size * 2;
-							__bufferB = __B + __B_length; __bufferB_length = 0;
-							__buffer1 = __A; __buffer1_length = __buffer_size;
-							__buffer2 = __A + __buffer_size; __buffer2_length = __buffer_size;
-						}
-						else if (__buffer1_length == __buffer_size)
-						{
+							__bufferA_start = __buffer2_start;
+							__bufferA_end = __buffer2_start + __buffer_size * 2;
+							
+							__bufferB_start = __bufferB_end = __B_end;
+							
+							__buffer1_start = __A_start;
+							__buffer1_end = __A_start + __buffer_size;
+							
+							__buffer2_start = __A_start + __buffer_size;
+							__buffer2_end = __A_start + __buffer_size * 2;
+							
+						} else if (__buffer1_end - __buffer1_start == __buffer_size) {
 							// we found enough values for one buffer in A, so we'll need to find one buffer in B
-							__bufferA = __buffer1; __bufferA_length = __buffer_size;
-							__buffer1 = __A; __buffer1_length = __buffer_size;
+							__bufferA_start = __buffer1_start;
+							__bufferA_end = __buffer1_start + __buffer_size;
+							
+							__buffer1_start = __A_start;
+							__buffer1_end = __A_start + __buffer_size;
 							
 							// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
-							__buffer2_length = 1;
-							for (__buffer2 = __B + __B_length - 2; __buffer2 >= __B; std::advance(__buffer2, -1))
-								if (__comp(*__buffer2, *(__buffer2 + 1)) || __comp(*(__buffer2 + 1), *__buffer2))
-									if (++__buffer2_length == __buffer_size)
+							__count = 1;
+							for (__buffer2_start = __B_end - 2; __buffer2_start >= __B_start; std::advance(__buffer2_start, -1))
+								if (__comp(*__buffer2_start, *(__buffer2_start + 1)) || __comp(*(__buffer2_start + 1), *__buffer2_start))
+									if (++__count == __buffer_size)
 										break;
+							__buffer2_end = __buffer2_start + __count;
 							
-							if (__buffer2_length == __buffer_size) {
-								__bufferB = __buffer2; __bufferB_length = __buffer_size;
-								__buffer2 = __B + __B_length - __buffer_size; __buffer2_length = __buffer_size;
+							if (__buffer2_end - __buffer2_start == __buffer_size)
+							{
+								__bufferB_start = __buffer2_start;
+								__bufferB_end = __buffer2_start + __buffer_size;
+								__buffer2_start = __B_end - __buffer_size;
+								__buffer2_end = __B_end;
 							}
 							else
-								__buffer1_length = 0; // failure
-						}
-						else
-						{
+								__buffer1_end = __buffer1_start; // failure
+							
+						} else {
 							// we were unable to find a single buffer in A, so we'll need to find two buffers in B
-							__buffer1_length = 1;
-							for (__buffer1 = __B + __B_length - 2; __buffer1 >= __B; std::advance(__buffer1, -1))
-								if (__comp(*__buffer1, *(__buffer1 + 1)) || __comp(*(__buffer1 + 1), *(__buffer1)))
-									if (++__buffer1_length == __buffer_size) break;
+							__count = 1;
+							for (__buffer1_start = __B_end - 2; __buffer1_start >= __B_start; std::advance(__buffer1_start, -1))
+								if (__comp(*__buffer1_start, *(__buffer1_start + 1)) || __comp(*(__buffer1_start + 1), *__buffer1_start))
+									if (++__count == __buffer_size)
+										break;
+							__buffer1_end = __buffer1_start + __count;
 							
-							__buffer2_length = 0;
-							for (__buffer2 = __buffer1 - 1; __buffer2 >= __B; std::advance(__buffer2, -1))
-								if (__comp(*(__buffer2), *(__buffer2 + 1)) || __comp(*(__buffer2 + 1), *(__buffer2)))
-									if (++__buffer2_length == __buffer_size) break;
+							__count = 0;
+							for (__buffer2_start = __buffer1_start - 1; __buffer2_start >= __B_start; std::advance(__buffer2_start, -1))
+								if (__comp(*__buffer2_start, *(__buffer2_start + 1)) || __comp(*(__buffer2_start + 1), *__buffer2_start))
+									if (++__count == __buffer_size)
+										break;
+							__buffer2_end = __buffer2_start + __count;
 							
-							if (__buffer2_length == __buffer_size) {
-								__bufferA = __A; __bufferA_length = 0;
-								__bufferB = __buffer2; __bufferB_length = __buffer_size * 2;
-								__buffer1 = __B + __B_length - __buffer_size; __buffer1_length = __buffer_size;
-								__buffer2 = __buffer1 - __buffer_size; __buffer2_length = __buffer_size;
+							if (__buffer2_end - __buffer2_start == __buffer_size)
+							{
+								__bufferA_start = __bufferA_end = __A_start;
+								__bufferB_start = __buffer2_start;
+								__bufferB_end = __buffer2_start + __buffer_size * 2;
+								__buffer1_start = __B_end - __buffer_size;
+								__buffer1_end = __B_end;
+								__buffer2_start = __buffer1_start - __buffer_size;
+								__buffer2_end = __buffer1_start;
 							}
 							else
-								__buffer1_length = 0; // failure
+								__buffer1_end = __buffer1_start; // failure
+							
 						}
 						
-						if (__buffer1_length < __buffer_size)
-						{
+						if (__buffer1_end - __buffer1_start < __buffer_size) {
 							// we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated
 							// we can use this knowledge to write a merge operation that is optimized for arrays of repeating values
-							while (__A_length > 0 && __B_length > 0)
+							_RandomAccessIterator __oldA_start = __A_start;
+							_RandomAccessIterator __oldB_end = __B_end;
+							
+							while (__A_end > __A_start && __B_end > __B_start)
 							{
 								// find the first place in B where the first item in A needs to be inserted
-								_RandomAccessIterator __mid = std::lower_bound(__B, __B + __B_length, *__A, __comp);
+								__middle = std::lower_bound(__B_start, __B_end, *__A_start, __comp);
 								
 								// rotate A into place
-								std::rotate(__A, __A + __A_length, __mid);
+								std::rotate(__A_start, __A_end, __middle);
 								
 								// calculate the new A and B ranges
-								__B_length = __B + __B_length - __mid; __B = __mid;
-								__A = std::upper_bound(__A, __A + __A_length, *(__mid - __A_length), __comp);
-								__A_length = __B - __A;
+								__B_start = __middle;
+								__A_start = std::upper_bound(__A_start, __A_end, *(__middle - (__A_end - __A_start)), __comp);
+								__A_end = __B_start;
 							}
 							
+							if (VERIFY) wiki::verify(__oldA_start, __oldB_end, __comp, "performing a brute-force in-place merge");
 							continue;
 						}
 						
 						// move the unique values to the start of A if needed
-						long __count = 0;
-						for (_RandomAccessIterator __index = __bufferA; __count < __bufferA_length; std::advance(__index, -1))
+						long __length = __bufferA_end - __bufferA_start; __count = 0;
+						for (__index = __bufferA_start; __count < __length; std::advance(__index, -1))
 						{
-							if (__index == __A || __comp(*(__index - 1), *__index) || __comp(*__index, *(__index - 1)))
+							if (__index == __A_start || __comp(*(__index - 1), *__index) || __comp(*__index, *(__index - 1)))
 							{
-								std::rotate(__index + 1, __bufferA + 1 - __count, __bufferA + 1);
-								__bufferA = __index + __count++;
+								std::rotate(__index + 1, __bufferA_start + 1 - __count, __bufferA_start + 1);
+								__bufferA_start = __index + __count; __count++;
 							}
 						}
-						__bufferA = __A;
+						__bufferA_start = __A_start;
+						__bufferA_end = __bufferA_start + __length;
+						
+						if (VERIFY) {
+							wiki::verify(__A_start, __A_start + (__bufferA_end - __bufferA_start), __comp, "testing values pulled out from A");
+							wiki::verify(__A_start + (__bufferA_end - __bufferA_start), __A_end, __comp, "testing remainder of A");
+						}
 						
 						// move the unique values to the end of B if needed
-						__count = 0;
-						for (_RandomAccessIterator __index = __bufferB; __count < __bufferB_length; std::advance(__index, 1))
+						__length = __bufferB_end - __bufferB_start; __count = 0;
+						for (__index = __bufferB_start; __count < __length; std::advance(__index, 1))
 						{
-							if (__index == __B + __B_length - 1 || __comp(*__index, *(__index + 1)) || __comp(*(__index + 1), *__index))
+							if (__index == __B_end - 1 || __comp(*__index, *(__index + 1)) || __comp(*(__index + 1), *__index))
 							{
-								std::rotate(__bufferB, __bufferB + __count, __index);
-								__bufferB = __index - __count++;
+								std::rotate(__bufferB_start, __bufferB_start + __count, __index);
+								__bufferB_start = __index - __count; __count++;
 							}
 						}
-						__bufferB = __B + __B_length - __bufferB_length;
+						__bufferB_start = __B_end - __length;
+						__bufferB_end = __B_end;
+						
+						if (VERIFY) {
+							wiki::verify(__B_end - (__bufferB_end - __bufferB_start), __B_end, __comp, "testing values pulled out from B");
+							wiki::verify(__B_start, __B_end - (__bufferB_end - __bufferB_start), __comp, "testing remainder of B");
+						}
 						
 						// reuse these buffers next time!
-						__level1 = __buffer1; __level1_length = __buffer1_length;
-						__level2 = __buffer2; __level2_length = __buffer2_length;
-						__levelA = __bufferA; __levelA_length = __bufferA_length;
-						__levelB = __bufferB; __levelB_length = __bufferB_length;
+						__level1_start = __buffer1_start; __level1_end = __buffer1_end;
+						__level2_start = __buffer2_start; __level2_end = __buffer2_end;
+						__levelA_start = __bufferA_start; __levelA_end = __bufferA_end;
+						__levelB_start = __bufferB_start; __levelB_end = __bufferB_end;
 					}
 					
 					// break the remainder of A into blocks. firstA is the uneven-sized first A block
-					__blockA = __bufferA + __bufferA_length; __blockA_length = __A + __A_length - __blockA;
-					__firstA = __bufferA + __bufferA_length; __firstA_length = __blockA_length % __block_size;
+					__blockA_start = __bufferA_end;
+					__blockA_end = __A_end;
+					__firstA_start = __bufferA_end;
+					__firstA_end = __bufferA_end + (__blockA_end - __blockA_start) % __block_size;
 					
-					// swap the second value of each A block with the value in buffer1
-					for (_RandomAccessIterator __index = __buffer1, __indexA = __firstA + __firstA_length + 1; __indexA < __blockA + __blockA_length; std::advance(__indexA, __block_size))
+					// swap the second value of each A block with the value in __buffer1
+					_RandomAccessIterator __indexA = __firstA_end + 1;
+					for (__index = __buffer1_start; __indexA < __blockA_end; std::advance(__indexA, __block_size))
 						std::swap(*__index++, *__indexA);
 					
 					// start rolling the A blocks through the B blocks!
 					// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
-					__lastA = __firstA; __lastA_length = __firstA_length;
-					__lastB = __lastA; __lastB_length = 0;
-					__blockB = __B; __blockB_length = std::min(__block_size, __B_length - __bufferB_length);
-					std::advance(__blockA, __firstA_length);
-					__blockA_length -= __firstA_length;
+					__lastA_start = __firstA_start;
+					__lastA_end = __firstA_end;
+					__lastB_start = __lastB_end = __B_start;
+					__blockB_start = __B_start;
+					__blockB_end = __B_start + std::min(__block_size, (__B_end - __B_start) - (__bufferB_end - __bufferB_start));
+					__blockA_start += __firstA_end - __firstA_start;
 					
-					_RandomAccessIterator __minA = __blockA, __indexA = __buffer1;
+					_RandomAccessIterator __minA = __blockA_start;
+					__indexA = __buffer1_start;
 					
 					while (true)
 					{
 						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
-						if ((__lastB_length > 0 && !__comp(*(__lastB + __lastB_length - 1), *__minA)) || __blockB_length == 0)
+						if ((__lastB_end > __lastB_start && !__comp(*(__lastB_end - 1), *__minA)) || __blockB_end - __blockB_start == 0)
 						{
 							// figure out where to split the previous B block, and rotate it at the split
-							_RandomAccessIterator __B_split = std::lower_bound(__lastB, __lastB + __lastB_length, *__minA, __comp);
-							long __B_remaining = __lastB + __lastB_length - __B_split;
+							_RandomAccessIterator __B_split = std::lower_bound(__lastB_start, __lastB_end, *__minA, __comp);
+							long __B_remaining = __lastB_end - __B_split;
 							
 							// swap the minimum A block to the beginning of the rolling A blocks
-							std::swap_ranges(__blockA, __blockA + __block_size, __minA);
+							std::swap_ranges(__blockA_start, __blockA_start + __block_size, __minA);
 							
 							// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
 							// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
-							std::swap(*(__blockA + 1), *__indexA++);
+							std::swap(*(__blockA_start + 1), *__indexA++);
 							
 							// now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation
-							std::rotate(__B_split, __B_split + __B_remaining, __blockA + __block_size);
+							std::rotate(__B_split, __B_split + __B_remaining, __blockA_start + __block_size);
 							
 							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
-							wiki::__merge_with_internal_buffer(__lastA, __lastA + __lastA_length, __B_split, __buffer2, __comp);
+							wiki::__merge_with_internal_buffer(__lastA_start, __lastA_end, __B_split, __buffer2_start, __comp);
 							
 							// now we need to update the ranges and stuff
-							__lastA = __blockA - __B_remaining; __lastA_length = __block_size;
-							__lastB = __lastA + __lastA_length; __lastB_length = __B_remaining;
-							std::advance(__blockA, __block_size);
-							__blockA_length -= __block_size;
-							if (__blockA_length == 0)
+							__lastA_start = __blockA_start - __B_remaining;
+							__lastA_end = __blockA_start - __B_remaining + __block_size;
+							
+							__lastB_start = __lastA_end;
+							__lastB_end = __lastA_end + __B_remaining;
+							
+							std::advance(__blockA_start, __block_size);
+							if (__blockA_end - __blockA_start == 0)
 								break;
 							
 							// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
-							__minA = __blockA + 1;
-							for (_RandomAccessIterator __findA = __minA + __block_size; __findA < __blockA + __blockA_length; std::advance(__findA, __block_size))
+							__minA = __blockA_start + 1;
+							for (_RandomAccessIterator __findA = __minA + __block_size; __findA < __blockA_end; std::advance(__findA, __block_size))
 								if (__comp(*__findA, *__minA))
 									__minA = __findA;
 							std::advance(__minA, -1); // decrement once to get back to the start of that A block
 						}
-						else if (__blockB_length < __block_size)
+						else if (__blockB_end - __blockB_start < __block_size)
 						{
 							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-							std::rotate(__blockA, __blockB, __blockB + __blockB_length);
-							
-							__lastB = __blockA;
-							__lastB_length = __blockB_length;
-							std::advance(__blockA, __blockB_length);
-							std::advance(__minA, __blockB_length);
-							__blockB_length = 0;
+							std::rotate(__blockA_start, __blockB_start, __blockB_end);
+							__lastB_start = __blockA_start;
+							__lastB_end = __blockA_start + (__blockB_end - __blockB_start);
+							std::advance(__blockA_start, (__blockB_end - __blockB_start));
+							std::advance(__blockA_end, (__blockB_end - __blockB_start));
+							std::advance(__minA, (__blockB_end - __blockB_start));
+							__blockB_end = __blockB_start;
 						}
 						else
 						{
 							// roll the leftmost A block to the end by swapping it with the next B block
-							std::swap_ranges(__blockA, __blockA + __block_size, __blockB);
+							std::swap_ranges(__blockA_start, __blockA_start + __block_size, __blockB_start);
 							
-							__lastB = __blockA; __lastB_length = __block_size;
-							if (__minA == __blockA)
-								__minA = __blockA + __blockA_length;
-							std::advance(__blockA, __block_size);
-							std::advance(__blockB, __block_size);
-							if (__blockB + __blockB_length > __bufferB)
-								__blockB_length = __bufferB - __blockB;
+							__lastB_start = __blockA_start;
+							__lastB_end = __blockA_start + __block_size;
+							if (__minA == __blockA_start)
+								__minA = __blockA_end;
+							std::advance(__blockA_start, __block_size);
+							std::advance(__blockA_end, __block_size);
+							std::advance(__blockB_start, __block_size);
+							std::advance(__blockB_end, __block_size);
+							if (__blockB_end > __bufferB_start)
+								__blockB_end = __bufferB_start;
 						}
 					}
 					
 					// merge the last A block with the remaining B blocks
-					wiki::__merge_with_internal_buffer(__lastA, __lastA + __lastA_length, __B + __B_length - __bufferB_length, __buffer2, __comp);
+					wiki::__merge_with_internal_buffer(__lastA_start, __lastA_end, __B_end - (__bufferB_end - __bufferB_start), __buffer2_start, __comp);
 					
 					// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
 					// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
-					__insertion_sort(__buffer2, __buffer2 + __buffer2_length, __comp);
+					__insertion_sort(__buffer2_start, __buffer2_end, __comp);
+					
+					if (VERIFY) wiki::verify(__A_start + (__bufferA_end - __bufferA_start), __B_end - (__bufferB_end - __bufferB_start), __comp, "making sure the local merges worked");
 				}
 			}
 			
-			if (__level1_length > 0)
+			if (__level1_end > __level1_start)
 			{
 				// redistribute bufferA back into the array
-				_RandomAccessIterator __level_start = __levelA;
-				for (_RandomAccessIterator __index = __levelA + __levelA_length; __levelA_length > 0; )
+				_RandomAccessIterator __level_start = __levelA_start;
+				for (__index = __levelA_end; __levelA_end > __levelA_start; )
 				{
-					if (__index == __levelB || !__comp(*__index, *__levelA))
+					if (__index == __levelB_start || !__comp(*__index, *__levelA_start))
 					{
-						std::rotate(__levelA, __levelA + __levelA_length, __index);
-						__levelA = __index - --__levelA_length;
+						long amount = __index - __levelA_end;
+						std::rotate(__levelA_start, __levelA_end, __index);
+						std::advance(__levelA_start, (amount + 1));
+						std::advance(__levelA_end, amount);
 					}
 					else
 						std::advance(__index, 1);
 				}
+				if (VERIFY) wiki::verify(__level_start, __levelB_start, __comp, "redistributed levelA back into the array");
 				
 				// redistribute bufferB back into the array
-				for (_RandomAccessIterator __index = __levelB; __levelB_length > 0; )
+				_RandomAccessIterator __level_end = __levelB_end;
+				for (__index = __levelB_start; __levelB_end > __levelB_start; )
 				{
-					if (__index == __level_start || !__comp(*(__levelB + __levelB_length - 1), *(__index - 1)))
-					{
-						std::rotate(__index, __levelB, __levelB + __levelB_length);
-						__levelB = __index;
-						__levelB_length--;
+					if (__index == __level_start || !__comp(*(__levelB_end - 1), *(__index - 1))) {
+						long amount = __levelB_start - __index;
+						std::rotate(__index, __levelB_start, __levelB_end);
+						std::advance(__levelB_start, -amount);
+						std::advance(__levelB_end, -(amount + 1));
 					}
 					else
 						std::advance(__index, -1);
 				}
+				if (VERIFY) wiki::verify(__level_start, __level_end, __comp, "redistributed levelB back into the array");
 			}
 		}
 	}
+	
+	#undef VERIFY
 }
-
-
-
-
 
 
 
@@ -383,14 +459,13 @@ typedef struct {
 	int index;
 } Test;
 
-bool Test__comp(Test item1, Test item2) { return (item1.value < item2.value); }
+bool TestCompare(Test item1, Test item2) { return (item1.value < item2.value); }
 
-#define Seconds()					(clock() * 1.0/CLOCKS_PER_SEC)
-#define Var(name, value)			__typeof__(value) name = value
+double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 int main() {
 	const long max_size = 1500000;
-	Var(__comp, &Test__comp);
+	__typeof__(&TestCompare) compare = &TestCompare;
 	std::vector<Test> array1, array2;
 	
 	// initialize the random-number generator
@@ -428,12 +503,12 @@ int main() {
 		}
 		
 		double time1 = Seconds();
-		wiki::__inplace_stable_sort(array1.begin(), array1.end(), __comp);
+		wiki::__inplace_stable_sort(array1.begin(), array1.end(), compare);
 		time1 = Seconds() - time1;
 		total_time1 += time1;
 		
 		double time2 = Seconds();
-		std::__inplace_stable_sort(array2.begin(), array2.end(), __comp);
+		std::__inplace_stable_sort(array2.begin(), array2.end(), compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
 		
@@ -441,10 +516,9 @@ int main() {
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		std::cout << "verifying... " << std::flush;
-		for (long index = 1; index < total; index++) assert(__comp(array1[index - 1], array1[index]) || (!__comp(array1[index], array1[index - 1]) && array1[index].index > array1[index - 1].index));
-		
-		if (total > 0) assert(!__comp(array1[0], array2[0]) && !__comp(array2[0], array1[0]));
-		for (long index = 1; index < total; index++) assert(!__comp(array1[index], array2[index]) && !__comp(array2[index], array1[index]));
+		wiki::verify(array1.begin(), array1.end(), compare, "testing the final array");
+		if (total > 0) assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
+		for (long index = 1; index < total; index++) assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 		std::cout << "correct!" << std::endl;
 	}
 	
