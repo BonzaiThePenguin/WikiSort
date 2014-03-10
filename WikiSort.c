@@ -673,6 +673,46 @@ void MergeSort(Test array[], const long array_count, const Comparison compare) {
 }
 
 
+long TestingPathological(long index, long total) {
+	if (index == 0) return 10;
+	else if (index < total/2) return 11;
+	else if (index == total - 1) return 10;
+	return 9;
+}
+
+long TestingRandom(long index, long total) {
+	return rand();
+}
+
+long TestingMostlyDescending(long index, long total) {
+	return total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
+}
+
+long TestingMostlyAscending(long index, long total) {
+	return index + rand() * 1.0/RAND_MAX * 5 - 2.5;
+}
+
+long TestingAscending(long index, long total) {
+	return index;
+}
+
+long TestingDescending(long index, long total) {
+	return total - index;
+}
+
+long TestingEqual(long index, long total) {
+	return 1000;
+}
+
+long TestingJittered(long index, long total) {
+	return (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
+}
+
+long TestingMostlyEqual(long index, long total) {
+	return 1000 + rand() * 1.0/RAND_MAX * 4;
+}
+
+
 int main() {
 	long total, index;
 	double total_time, total_time1, total_time2;
@@ -683,6 +723,40 @@ int main() {
 	
 	/* initialize the random-number generator */
 	srand(/*time(NULL)*/ 10141985);
+	
+	__typeof__(&TestingPathological) test_cases[] = {
+		TestingPathological,
+		TestingRandom,
+		TestingMostlyDescending,
+		TestingMostlyAscending,
+		TestingAscending,
+		TestingDescending,
+		TestingEqual,
+		TestingJittered,
+		TestingMostlyEqual
+	};
+	
+	printf("running test cases... ");
+	fflush(stdout);
+	total = 567;
+	for (int test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
+		for (long index = 0; index < total; index++) {
+			Test item;
+			
+			item.value = test_cases[test_case](index, total);
+			item.index = index;
+			
+			array1[index] = array2[index] = item;
+		}
+		
+		WikiSort(array1, total, compare);
+		MergeSort(array2, total, compare);
+		
+		WikiVerify(array1, MakeRange(0, total), compare, "test case failed");
+		if (total > 0) assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
+		for (index = 1; index < total; index++) assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
+	}
+	printf("passed!\n");
 	
 	total_time = Seconds();
 	total_time1 = total_time2 = 0;
