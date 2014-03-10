@@ -642,17 +642,17 @@ namespace Wiki {
 					
 					if (PROFILE) merge_time += Seconds() - time;
 					
-					if (PROFILE) time = Seconds();
-					// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
-					// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
-					InsertionSort(array, buffer2, compare);
-					if (PROFILE) insertion_time2 += Seconds() - time;
-					
 					if (VERIFY) Verify(array, MakeRange(A.start + bufferA.length(), B.end - bufferB.length()), compare, "making sure the local merges worked");
 				}
 			}
 			
 			if (level1.length() > 0) {
+				if (PROFILE) time = Seconds();
+				// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
+				// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
+				InsertionSort(array, buffer2, compare);
+				if (PROFILE) insertion_time2 += Seconds() - time;
+				
 				if (PROFILE) time = Seconds();
 				// redistribute bufferA back into the array
 				long level_start = levelA.start;
