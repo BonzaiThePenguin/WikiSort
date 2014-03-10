@@ -6,10 +6,10 @@
 #include <math.h>
 #include <assert.h>
 
+// if true, Verify() will be called after each merge step to make sure it worked correctly
+#define VERIFY false
+
 namespace wiki {
-	// if true, Verify() will be called after each merge step to make sure it worked correctly
-	#define VERIFY false
-	
 	/**
 	 *  @if maint
 	 *  This is a helper function for the merge routines.
@@ -99,19 +99,45 @@ namespace wiki {
 			return;
 		}
 		
-		// first insertion sort everything the lowest level
-		for (_RandomAccessIterator __merge_index = __end = __first; __merge_index < __last; std::advance(__merge_index, 16))
+		// floor to the next power of two
+		long __x = __size;
+		__x = __x | (__x >> 1);
+		__x = __x | (__x >> 2);
+		__x = __x | (__x >> 4);
+		__x = __x | (__x >> 8);
+		__x = __x | (__x >> 16);
+	#if __LP64__
+		__x = __x | (__x >> 32);
+	#endif
+		const long __power_of_two = __x - (__x >> 1);
+		const long __fractional_base = __power_of_two/16;
+		long __fractional_step = __size % __fractional_base;
+		long __decimal_step = __size/__fractional_base;
+		
+		// first insertion sort everything the lowest level, which is 16-31 items at a time
+		long __decimal = 0, __fractional = 0;
+		__end = __first;
+		for (_RandomAccessIterator __merge_index = __first; __merge_index < __last; std::advance(__merge_index, 16))
 		{
 			__start = __end;
-			__end = std::min(__merge_index + 16, __last);
+			
+			__decimal += __decimal_step;
+			__fractional += __fractional_step;
+			if (__fractional >= __fractional_base)
+			{
+				__fractional -= __fractional_base;
+				__decimal++;
+			}
+			
+			__end = __first + __decimal;
+			
 			std::__insertion_sort(__start, __end, __comp);
 		}
 		
-		// then merge sort the higher levels, which are of sizes 32, 64, 128, etc.
-		for (long __merge_size = 16; __merge_size < __size; __merge_size += __merge_size)
-		{
-			long __block_size = std::max((long)sqrt(__merge_size), (long)3);
-			long __buffer_size = __merge_size/__block_size;
+		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
+		for (long __merge_size = 16; __merge_size < __power_of_two; __merge_size += __merge_size) {
+			long __block_size = sqrt(__decimal_step);
+			long __buffer_size = __decimal_step/__block_size + 1;
 			
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
@@ -120,12 +146,30 @@ namespace wiki {
 			_RandomAccessIterator __index;
 			
 			__level1_start = __level1_end = __first;
+			__decimal = __fractional = 0;
 			__end = __first;
-			for (_RandomAccessIterator __merge_index = __first; __merge_index < __last - __merge_size; std::advance(__merge_index, __merge_size + __merge_size))
-			{
+			for (long __merge_index = 0; __merge_index < __power_of_two - __merge_size; __merge_index += __merge_size + __merge_size) {
 				__start = __end;
-				__middle = (__merge_index + __merge_size);
-				__end = std::min(__merge_index + __merge_size + __merge_size, __last);
+				
+				__decimal += __decimal_step;
+				__fractional += __fractional_step;
+				if (__fractional >= __fractional_base)
+				{
+					__fractional -= __fractional_base;
+					__decimal++;
+				}
+				
+				__middle = __first + __decimal;
+				
+				__decimal += __decimal_step;
+				__fractional += __fractional_step;
+				if (__fractional >= __fractional_base)
+				{
+					__fractional -= __fractional_base;
+					__decimal++;
+				}
+				
+				__end = __first + __decimal;
 				
 				if (__comp(*(__end - 1), *__start))
 				{
@@ -445,11 +489,22 @@ namespace wiki {
 				}
 				if (VERIFY) wiki::verify(__level_start, __level_end, __comp, "redistributed levelB back into the array");
 			}
+			
+			__decimal_step += __decimal_step;
+			__fractional_step += __fractional_step;
+			if (__fractional_step >= __fractional_base)
+			{
+				__fractional_step -= __fractional_base;
+				__decimal_step++;
+			}
 		}
 	}
-	
-	#undef VERIFY
 }
+
+
+
+
+
 
 
 
