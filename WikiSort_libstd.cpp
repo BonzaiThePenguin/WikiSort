@@ -54,12 +54,24 @@ namespace wiki {
 		
 		std::swap_ranges(__buf, __buf_end, __A);
 		
-		while (__buf < __buf_end && __B < __last)
+		while (true)
 		{
 			if (!__comp(*__B, *__buf))
-				std::swap(*__A++, *__buf++);
+			{
+				std::swap(*__A, *__buf);
+				__A++;
+				__buf++;
+				if (__buf >= __buf_end)
+					break;
+			}
 			else
-				std::swap(*__A++, *__B++);
+			{
+				std::swap(*__A, *__B);
+				__A++;
+				__B++;
+				if (__B >= __last)
+					break;
+			}
 		}
 		
 		std::swap_ranges(__buf, __buf_end, __A);
