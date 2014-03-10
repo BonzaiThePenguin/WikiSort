@@ -470,7 +470,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 							bufferA.start = index + count; count++;
 						}
 					}
-					bufferA = MakeRange(A.start, bufferA.start + length);
+					bufferA = MakeRange(A.start, A.start + length);
 					
 					if (VERIFY) {
 						WikiVerify(array, MakeRange(A.start, A.start + Range_length(bufferA)), compare, "testing values pulled out from A");
