@@ -258,7 +258,7 @@ namespace Wiki {
 		}
 		
 		// use a small cache to speed up some of the operations
-		const long cache_size = 200;
+		const long cache_size = 1;
 		T cache[cache_size];
 		
 		// calculate how to scale the index value to the range within the array
@@ -294,8 +294,6 @@ namespace Wiki {
 			
 			decimal = fractional = 0;
 			for (long merge_index = 0; merge_index < power_of_two - merge_size; merge_index += merge_size + merge_size) {
-				// the floating-point multiplication here is consistently about 10% faster than using min(merge_index + merge_size + merge_size, size),
-				// probably because the overhead of the multiplication is offset by guaranteeing evenly sized subarrays, which is optimal
 				if (PROFILE) time = Seconds();
 				
 				start = decimal;
@@ -639,41 +637,104 @@ typedef struct {
 
 bool TestCompare(Test item1, Test item2) { return (item1.value < item2.value); }
 
+namespace Testing {
+	long Pathological(long index, long total) {
+		if (index == 0) return 10;
+		else if (index < total/2) return 11;
+		else if (index == total - 1) return 10;
+		return 9;
+	}
+	
+	// purely random data is one of the few cases where it is slower than stable_sort(),
+	// although it does end up only running at about 70% as fast in that situation
+	long Random(long index, long total) {
+		return rand();
+	}
+	
+	long MostlyDescending(long index, long total) {
+		return total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
+	}
+	
+	long MostlyAscending(long index, long total) {
+		return index + rand() * 1.0/RAND_MAX * 5 - 2.5;
+	}
+	
+	long Ascending(long index, long total) {
+		return index;
+	}
+	
+	long Descending(long index, long total) {
+		return total - index;
+	}
+	
+	long Equal(long index, long total) {
+		return 1000;
+	}
+	
+	long Jittered(long index, long total) {
+		return (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
+	}
+	
+	long MostlyEqual(long index, long total) {
+		return 1000 + rand() * 1.0/RAND_MAX * 4;
+	}
+}
+
 int main() {
 	const long max_size = 1500000;
 	__typeof__(&TestCompare) compare = &TestCompare;
 	vector<Test> array1, array2;
 	
+	__typeof__(&Testing::Pathological) test_cases[] = {
+		Testing::Pathological,
+		Testing::Random,
+		Testing::MostlyDescending,
+		Testing::MostlyAscending,
+		Testing::Ascending,
+		Testing::Descending,
+		Testing::Equal,
+		Testing::Jittered,
+		Testing::MostlyEqual
+	};
+	
 	// initialize the random-number generator
 	srand(/*time(NULL)*/ 10141985);
+	
+	cout << "running test cases... " << flush;
+	long total = 567;
+	array1.resize(total);
+	array2.resize(total);
+	for (int test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
+		for (long index = 0; index < total; index++) {
+			Test item;
+			
+			item.value = test_cases[test_case](index, total);
+			item.index = index;
+			
+			array1[index] = array2[index] = item;
+		}
+		
+		Wiki::Sort(array1, compare);
+		stable_sort(array2.begin(), array2.end(), compare);
+		
+		Wiki::Verify(&array1[0], Wiki::MakeRange(0, total), compare, "test case failed");
+		if (total > 0) assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
+		for (long index = 1; index < total; index++) assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
+	}
+	cout << "passed!" << endl;
 	
 	double total_time = Seconds();
 	double total_time1 = 0, total_time2 = 0;
 	
-	for (long total = 0; total < max_size; total += 2048 * 16) {
+	for (total = 0; total < max_size; total += 2048 * 16) {
 		array1.resize(total);
 		array2.resize(total);
 		
 		for (long index = 0; index < total; index++) {
-			Test item; item.index = index;
+			Test item;
 			
-			// here are some possible tests to perform on this sorter:
-			// if (index == 0) item.value = 10;
-			// else if (index < total/2) item.value = 11;
-			// else if (index == total - 1) item.value = 10;
-			// else item.value = 9;
-			// item.value = rand();
-			// item.value = total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
-			// item.value = index + rand() * 1.0/RAND_MAX * 5 - 2.5;
-			// item.value = index;
-			// item.value = total - index;
-			// item.value = 1000;
-			// item.value = (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
-			// item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
-			
-			// purely random data is one of the few cases where it is slower than stable_sort(),
-			// although it does end up only running at about 70% as fast in that situation
-			item.value = rand();
+			item.value = Testing::Random(index, total);
+			item.index = index;
 			
 			array1[index] = array2[index] = item;
 		}
