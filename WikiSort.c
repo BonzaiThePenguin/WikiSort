@@ -16,6 +16,10 @@
 
 /* if true, Verify() will be called after each merge step to make sure it worked correctly */
 #define VERIFY false
+#define PROFILE false
+
+double reverse_time, insertion_time, scale_time, rotate_time, merge_time2, merge_time3, min_time, pull_out_time, merge_time, insertion_time2, redistribute_time;
+double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 
 /* various #defines for the C code */
@@ -27,7 +31,6 @@
 
 #define Var(name, value)				__typeof__(value) name = value
 #define Allocate(type, count)				(type *)malloc((count) * sizeof(type))
-#define Seconds()					(clock() * 1.0/CLOCKS_PER_SEC)
 
 long Min(const long a, const long b) {
 	if (a < b) return a;
@@ -220,15 +223,18 @@ void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, c
 		/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
 		/* when this algorithm is finished, 'buffer' will contain its original contents, but in a different order */
 		long A_count = 0, B_count = 0, insert = 0;
-		while (A_count < Range_length(A) && B_count < Range_length(B)) {
+		while (true) {
 			if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
 				Swap(array[A.start + insert], array[buffer.start + A_count]);
+				insert++;
 				A_count++;
+				if (A_count >= Range_length(A)) break;
 			} else {
 				Swap(array[A.start + insert], array[B.start + B_count]);
+				insert++;
 				B_count++;
+				if (B_count >= Range_length(B)) break;
 			}
-			insert++;
 		}
 		
 		/* swap the remainder of A into the final array */
@@ -239,12 +245,18 @@ void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, c
 /* bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use */
 void WikiSort(Test array[], const long size, const Comparison compare) {
 	/* reverse any descending ranges in the array, as that will allow them to sort faster */
+	double time;
+	
+	if (PROFILE) reverse_time = insertion_time = scale_time = rotate_time = merge_time2 = merge_time3 = min_time = pull_out_time = merge_time = insertion_time2 = redistribute_time = 0;
+	
+	if (PROFILE) time = Seconds();
 	Range reverse = MakeRange(0, 0);
 	for (long index = 1; index < size; index++) {
 		if (compare(array[index], array[index - 1])) reverse.end++;
 		else { Reverse(array, reverse); reverse = MakeRange(index, index); }
 	}
 	Reverse(array, reverse);
+	if (PROFILE) reverse_time += Seconds() - time;
 	
 	if (size <= 32) {
 		/* insertion sort the array, as there are 32 or fewer items */
@@ -259,37 +271,61 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	
 	/* calculate how to scale the index value to the range within the array */
 	const long power_of_two = FloorPowerOfTwo(size);
-	double scale = size/(double)power_of_two; /* 1.0 <= scale < 2.0 */
+	const long fractional_base = power_of_two/16;
+	long fractional_step = size % fractional_base;
+	long decimal_step = size/fractional_base;
 	
+	if (PROFILE) time = Seconds();
 	/* first insertion sort everything the lowest level, which is 16-31 items at a time */
-	long start, mid, end = 0;
+	long start, mid, end, decimal = 0, fractional = 0;
 	for (long merge_index = 0; merge_index < power_of_two; merge_index += 16) {
-		start = end;
-		end = (merge_index + 16) * scale;
+		start = decimal;
+		
+		decimal += decimal_step;
+		fractional += fractional_step;
+		if (fractional >= fractional_base) { fractional -= fractional_base; decimal += 1; }
+		
+		end = decimal;
+		
 		InsertionSort(array, MakeRange(start, end), compare);
 	}
+	if (PROFILE) insertion_time += Seconds() - time;
 	
 	/* then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc. */
 	for (long merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
-		long block_size = Max((long)sqrt(merge_size * scale), (long)3);
-		long buffer_size = (merge_size * scale)/block_size + 1;
+		long block_size = sqrt(decimal_step);
+		long buffer_size = decimal_step/block_size + 1;
 		
 		/* as an optimization, we really only need to pull out an internal buffer once for each level of merges */
 		/* after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level */
 		Range level1 = MakeRange(0, 0), level2, levelA, levelB;
 		
-		end = 0;
+		decimal = fractional = 0;
 		for (long merge_index = 0; merge_index < power_of_two - merge_size; merge_index += merge_size + merge_size) {
-			/* the floating-point multiplication here is consistently about 10% faster than using min(merge_index + merge_size + merge_size, size), */
-			/* probably because the overhead of the multiplication is offset by guaranteeing evenly sized subarrays, which is optimal */
-			start = end;
-			mid = (merge_index + merge_size) * scale;
-			end = (merge_index + merge_size + merge_size) * scale;
+			if (PROFILE) time = Seconds();
+			
+			start = decimal;
+			
+			decimal += decimal_step;
+			fractional += fractional_step;
+			if (fractional >= fractional_base) { fractional -= fractional_base; decimal += 1; }
+			
+			mid = decimal;
+			
+			decimal += decimal_step;
+			fractional += fractional_step;
+			if (fractional >= fractional_base) { fractional -= fractional_base; decimal += 1; }
+			
+			end = decimal;
+			
+			if (PROFILE) scale_time += Seconds() - time;
 			
 			if (compare(array[end - 1], array[start])) {
 				/* the two ranges are in reverse order, so a simple rotation should fix it */
+				if (PROFILE) time = Seconds();
 				Rotate(array, mid - start, MakeRange(start, end), cache, cache_size);
 				if (VERIFY) WikiVerify(array, MakeRange(start, end), compare, "reversing order via Rotate()");
+				if (PROFILE) rotate_time += Seconds() - time;
 			} else if (compare(array[mid], array[mid - 1])) {
 				/* these two ranges weren't already in order, so we'll need to merge them! */
 				Range A = MakeRange(start, mid), B = MakeRange(mid, end);
@@ -301,8 +337,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				Range bufferA, bufferB, buffer1, buffer2, blockA, blockB, firstA, lastA, lastB;
 				
 				if (Range_length(A) <= cache_size) {
+					if (PROFILE) time = Seconds();
 					WikiMerge(array, MakeRange(0, 0), A, B, compare, cache, cache_size);
 					if (VERIFY) WikiVerify(array, MakeRange(A.start, B.end), compare, "using the cache to merge A and B");
+					if (PROFILE) merge_time2 += Seconds() - time;
 					continue;
 				}
 				
@@ -313,6 +351,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 					buffer1 = level1;
 					buffer2 = level2;
 				} else {
+					if (PROFILE) time = Seconds();
 					/* the first item is always going to be the first unique value, so let's start searching at the next index */
 					long count = 1;
 					for (buffer1.start = A.start + 1; buffer1.start < A.end; buffer1.start++)
@@ -458,7 +497,11 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 					level2 = buffer2;
 					levelA = bufferA;
 					levelB = bufferB;
+					
+					if (PROFILE) pull_out_time += Seconds() - time;
 				}
+				
+				if (PROFILE) time = Seconds();
 				
 				/* break the remainder of A into blocks. firstA is the uneven-sized first A block */
 				blockA = MakeRange(bufferA.end, A.end);
@@ -491,11 +534,16 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						/* since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized */
 						Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 						
+						double time2;
+						if (PROFILE) time2 = Seconds();
+						
 						/* now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation */
 						Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size), cache, cache_size);
 						
 						/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
 						WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+						
+						if (PROFILE) merge_time3 += Seconds() - time2;
 						
 						/* now we need to update the ranges and stuff */
 						lastA = MakeRange(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
@@ -504,10 +552,12 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						if (Range_length(blockA) == 0) break;
 						
 						/* search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!) */
+						if (PROFILE) time2 = Seconds();
 						minA = blockA.start + 1;
 						for (long findA = minA + block_size; findA < blockA.end; findA += block_size)
 							if (compare(array[findA], array[minA])) minA = findA;
 						minA = minA - 1; /* decrement once to get back to the start of that A block */
+						if (PROFILE) min_time += Seconds() - time2;
 					} else if (Range_length(blockB) < block_size) {
 						/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
 						Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, cache_size);
@@ -532,15 +582,20 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				/* merge the last A block with the remaining B blocks */
 				WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B.end - Range_length(bufferB)), compare, cache, cache_size);
 				
+				if (PROFILE) merge_time += Seconds() - time;
+				if (PROFILE) time = Seconds();
+				
 				/* when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up */
 				/* insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer */
 				InsertionSort(array, buffer2, compare);
 				
+				if (PROFILE) insertion_time2 += Seconds() - time;
 				if (VERIFY) WikiVerify(array, MakeRange(A.start + Range_length(bufferA), B.end - Range_length(bufferB)), compare, "making sure the local merges worked");
 			}
 		}
 		
 		if (Range_length(level1) > 0) {
+			if (PROFILE) time = Seconds();
 			/* redistribute bufferA back into the array */
 			long level_start = levelA.start;
 			for (long index = levelA.end; Range_length(levelA) > 0; index++) {
@@ -566,13 +621,19 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				}
 			}
 			if (VERIFY) WikiVerify(array, MakeRange(level_start, level_end), compare, "redistributed levelB back into the array");
+			if (PROFILE) redistribute_time += Seconds() - time;
+		}
+		
+		decimal_step += decimal_step;
+		fractional_step += fractional_step;
+		if (fractional_step >= fractional_base) {
+			fractional_step -= fractional_base;
+			decimal_step += 1;
 		}
 	}
 	
 	#undef CACHE_SIZE
 }
-
-#undef VERIFY
 
 
 /* standard merge sort, so we have a baseline for how well the in-place merge works */
@@ -664,6 +725,19 @@ int main() {
 		total_time2 += time2;
 		
 		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
+		if (PROFILE) {
+			printf("reverse: %f (%f%%)\n", reverse_time, reverse_time/time1 * 100);
+			printf("insert: %f (%f%%)\n", insertion_time, insertion_time/time1 * 100);
+			printf("scale: %f (%f%%)\n", scale_time, scale_time/time1 * 100);
+			printf("rotate: %f (%f%%)\n", rotate_time, rotate_time/time1 * 100);
+			printf("merge2: %f (%f%%)\n", merge_time2, merge_time2/time1 * 100);
+			printf("merge3: %f (%f%%)\n", merge_time3, merge_time3/time1 * 100);
+			printf("min: %f (%f%%)\n", min_time, min_time/time1 * 100);
+			printf("pull out: %f (%f%%)\n", pull_out_time, pull_out_time/time1 * 100);
+			printf("merge: %f (%f%%)\n", merge_time, merge_time/time1 * 100);
+			printf("insert2: %f (%f%%)\n", insertion_time2, insertion_time2/time1 * 100);
+			printf("redistribute: %f (%f%%)\n", redistribute_time, redistribute_time/time1 * 100);
+		}
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
