@@ -513,6 +513,22 @@ namespace Wiki {
 					if (lastA.length() <= cache_size) memcpy(&cache[0], &array[lastA.start], lastA.length() * sizeof(array[0]));
 					else BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 					
+					// ooh, another optimization that should work:
+					// instead of tagging the A blocks, turn buffer1 into a circular buffer
+					// then to move an A block to the end, we just update the start of the circular buffer
+					// then uh, hm.
+					
+					// well, the 65536 uint16 array would only take up as much space as a 16-bit 256x256 texture, which is practically nothing
+					// and it might give a major speedup here
+					// we wouldn't even need to use a circular buffer, and could use the 65536 to represent the A and B blocks together
+					// so yeah, i definitely want to add that as an option
+					
+					// use gotos to roll the A blocks through the B blocks
+					// pull out the two buffers before running this loop at all, then ditch levelA, levelB, etc. and always just use the same values for bufferA, etc.
+					// maybe even allow the code to find buffers from different blocks entirely?
+					
+					// when block_size is too large to fit into the cache, maybe cache what we can and swap the remainder?
+					
 					while (true) {
 						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
 						if ((lastB.length() > 0 && !compare(array[lastB.end - 1], min_value)) || blockB.length() == 0) {
@@ -530,15 +546,24 @@ namespace Wiki {
 							double time2;
 							if (PROFILE) time2 = Seconds();
 							
-							// merge lastA and [lastA.end, B_split), but skip the first blockswap or copy command
+							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
 							Merge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
 							
-							// BlockSwap blockA into buffer2, or copy blockA into the cache
+							// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
 							if (block_size <= cache_size) memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
 							else BlockSwap(array, blockA.start, buffer2.start, block_size);
 							
-							// BlockSwap [B_split, blockA.start) with [blockA.end - B_remaining, blockA.end)
+							// this is equivalent to rotating, but faster
+							// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
+							// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
 							BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+							
+							// now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation
+							//Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size), cache, cache_size);
+							
+							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
+							//Merge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size, false);
+							
 							
 							if (PROFILE) merge_time3 += Seconds() - time2;
 							
@@ -559,6 +584,7 @@ namespace Wiki {
 							if (PROFILE) min_time += Seconds() - time2;
 						} else if (blockB.length() < block_size) {
 							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
+							// (using the cache is disabled since we have the contents of the previous A block in it!)
 							Rotate(array, -blockB.length(), MakeRange(blockA.start, blockB.end), cache, 0);
 							lastB = MakeRange(blockA.start, blockA.start + blockB.length());
 							blockA.start += blockB.length();
