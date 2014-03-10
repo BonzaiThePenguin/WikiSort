@@ -194,46 +194,44 @@ void WikiVerify(const Test array[], const Range range, const Comparison compare,
 
 /* standard merge operation using an internal or external buffer */
 void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, const Comparison compare, Test cache[], const long cache_size) {
-	if (Range_length(B) <= 0 || Range_length(A) <= 0) return;
-	if (!compare(array[B.start], array[A.end - 1])) return;
+	long A_count = 0, B_count = 0, insert = 0;
 	
 	/* if A fits into the cache, use that instead of the internal buffer */
 	if (Range_length(A) <= cache_size) {
-		/* copy the rest of A into the buffer */
-		memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
-		
-		long A_count = 0, B_count = 0, insert = 0;
-		while (A_count < Range_length(A) && B_count < Range_length(B)) {
-			if (!compare(array[B.start + B_count], cache[A_count])) {
-				array[A.start + insert] = cache[A_count];
-				A_count++;
-			} else {
-				array[A.start + insert] = array[B.start + B_count];
-				B_count++;
+		if (Range_length(B) > 0 && Range_length(A) > 0) {
+			while (true) {
+				if (!compare(array[B.start + B_count], cache[A_count])) {
+					array[A.start + insert] = cache[A_count];
+					A_count++;
+					insert++;
+					if (A_count >= Range_length(A)) break;
+				} else {
+					array[A.start + insert] = array[B.start + B_count];
+					B_count++;
+					insert++;
+					if (B_count >= Range_length(B)) break;
+				}
 			}
-			insert++;
 		}
 		
 		/* copy the remainder of A into the final array */
 		memcpy(&array[A.start + insert], &cache[A_count], (Range_length(A) - A_count) * sizeof(array[0]));
 	} else {
-		/* swap the rest of A into the buffer */
-		BlockSwap(array, buffer.start, A.start, Range_length(A));
-		
 		/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
 		/* when this algorithm is finished, 'buffer' will contain its original contents, but in a different order */
-		long A_count = 0, B_count = 0, insert = 0;
-		while (true) {
-			if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
-				Swap(array[A.start + insert], array[buffer.start + A_count]);
-				insert++;
-				A_count++;
-				if (A_count >= Range_length(A)) break;
-			} else {
-				Swap(array[A.start + insert], array[B.start + B_count]);
-				insert++;
-				B_count++;
-				if (B_count >= Range_length(B)) break;
+		if (Range_length(B) > 0 && Range_length(A) > 0) {
+			while (true) {
+				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
+					Swap(array[A.start + insert], array[buffer.start + A_count]);
+					A_count++;
+					insert++;
+					if (A_count >= Range_length(A)) break;
+				} else {
+					Swap(array[A.start + insert], array[B.start + B_count]);
+					B_count++;
+					insert++;
+					if (B_count >= Range_length(B)) break;
+				}
 			}
 		}
 		
@@ -338,6 +336,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				
 				if (Range_length(A) <= cache_size) {
 					if (PROFILE) time = Seconds();
+					memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
 					WikiMerge(array, MakeRange(0, 0), A, B, compare, cache, cache_size);
 					if (VERIFY) WikiVerify(array, MakeRange(A.start, B.end), compare, "using the cache to merge A and B");
 					if (PROFILE) merge_time2 += Seconds() - time;
@@ -519,10 +518,14 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				blockA.start += Range_length(firstA);
 				
 				long minA = blockA.start, indexA = 0;
+				Test min_value = array[minA];
+				
+				if (Range_length(lastA) <= cache_size) memcpy(&cache[0], &array[lastA.start], Range_length(lastA) * sizeof(array[0]));
+				else BlockSwap(array, lastA.start, buffer2.start, Range_length(lastA));
 				
 				while (true) {
 					/* if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block */
-					if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], array[minA])) || Range_length(blockB) == 0) {
+					if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], min_value)) || Range_length(blockB) == 0) {
 						/* figure out where to split the previous B block, and rotate it at the split */
 						long B_split = BinaryFirst(array, minA, lastB, compare);
 						long B_remaining = lastB.end - B_split;
@@ -537,11 +540,16 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						double time2;
 						if (PROFILE) time2 = Seconds();
 						
-						/* now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation */
-						Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size), cache, cache_size);
-						
 						/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
 						WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+						
+						if (block_size <= cache_size) memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
+						else BlockSwap(array, blockA.start, buffer2.start, block_size);
+						
+						/* this is equivalent to rotating, but faster */
+						/* the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it */
+						/* either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs */
+						BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
 						
 						if (PROFILE) merge_time3 += Seconds() - time2;
 						
@@ -557,10 +565,11 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						for (long findA = minA + block_size; findA < blockA.end; findA += block_size)
 							if (compare(array[findA], array[minA])) minA = findA;
 						minA = minA - 1; /* decrement once to get back to the start of that A block */
+						min_value = array[minA];
 						if (PROFILE) min_time += Seconds() - time2;
 					} else if (Range_length(blockB) < block_size) {
 						/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
-						Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, cache_size);
+						Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, 0);
 						lastB = MakeRange(blockA.start, blockA.start + Range_length(blockB));
 						blockA.start += Range_length(blockB);
 						blockA.end += Range_length(blockB);
@@ -583,18 +592,19 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B.end - Range_length(bufferB)), compare, cache, cache_size);
 				
 				if (PROFILE) merge_time += Seconds() - time;
-				if (PROFILE) time = Seconds();
-				
-				/* when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up */
-				/* insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer */
-				InsertionSort(array, buffer2, compare);
-				
-				if (PROFILE) insertion_time2 += Seconds() - time;
 				if (VERIFY) WikiVerify(array, MakeRange(A.start + Range_length(bufferA), B.end - Range_length(bufferB)), compare, "making sure the local merges worked");
 			}
 		}
 		
 		if (Range_length(level1) > 0) {
+			if (PROFILE) time = Seconds();
+			
+			/* when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up */
+			/* insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer */
+			InsertionSort(array, level2, compare);
+			
+			if (PROFILE) insertion_time2 += Seconds() - time;
+			
 			if (PROFILE) time = Seconds();
 			/* redistribute bufferA back into the array */
 			long level_start = levelA.start;
