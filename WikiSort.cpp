@@ -173,101 +173,44 @@ namespace Wiki {
 	// standard merge operation using an internal or external buffer
 	template <typename T, typename Comparison>
 	void Merge(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) throw() {
-		if (B.length() <= 0 || A.length() <= 0) return;
-		if (!compare(array[B.start], array[A.end - 1])) return;
+		long A_count = 0, B_count = 0, insert = 0;
 		
 		// if A fits into the cache, use that instead of the internal buffer
 		if (A.length() <= cache_size) {
-			// copy the rest of A into the buffer
-			memcpy(&cache[0], &array[A.start], A.length() * sizeof(array[0]));
-			
-			long A_count = 0, B_count = 0, insert = 0;
-			while (true) {
-				if (!compare(array[B.start + B_count], cache[A_count])) {
-					array[A.start + insert] = cache[A_count];
-					A_count++;
-					insert++;
-					if (A_count >= A.length()) break;
-				} else {
-					array[A.start + insert] = array[B.start + B_count];
-					B_count++;
-					insert++;
-					if (B_count >= B.length()) break;
+			if (B.length() > 0 && A.length() > 0) {
+				while (true) {
+					if (!compare(array[B.start + B_count], cache[A_count])) {
+						array[A.start + insert] = cache[A_count];
+						A_count++;
+						insert++;
+						if (A_count >= A.length()) break;
+					} else {
+						array[A.start + insert] = array[B.start + B_count];
+						B_count++;
+						insert++;
+						if (B_count >= B.length()) break;
+					}
 				}
 			}
 			
 			// copy the remainder of A into the final array
 			memcpy(&array[A.start + insert], &cache[A_count], (A.length() - A_count) * sizeof(array[0]));
 		} else {
-			// swap the rest of A into the buffer
-			BlockSwap(array, buffer.start, A.start, A.length());
-			
 			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-			long A_count = 0, B_count = 0, insert = 0;
-			while (true) {
-				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
-					swap(array[A.start + insert], array[buffer.start + A_count]);
-					A_count++;
-					insert++;
-					if (A_count >= A.length()) break;
-				} else {
-					swap(array[A.start + insert], array[B.start + B_count]);
-					B_count++;
-					insert++;
-					if (B_count >= B.length()) break;
-				}
-			}
-			
-			// swap the remainder of A into the final array
-			BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
-		}
-	}
-	
-	template <typename T, typename Comparison>
-	void Merge2(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) throw() {
-		if (B.length() <= 0 || A.length() <= 0) {
-			if (A.length() <= cache_size) memcpy(&array[A.start], &cache[0], A.length() * sizeof(array[0]));
-			else BlockSwap(array, buffer.start, A.start, A.length());
-			return;
-		}
-		
-		// if A fits into the cache, use that instead of the internal buffer
-		if (A.length() <= cache_size) {
-			long A_count = 0, B_count = 0, insert = 0;
-			while (true) {
-				if (!compare(array[B.start + B_count], cache[A_count])) {
-					array[A.start + insert] = cache[A_count];
-					A_count++;
-					insert++;
-					if (A_count >= A.length()) break;
-				} else {
-					array[A.start + insert] = array[B.start + B_count];
-					B_count++;
-					insert++;
-					if (B_count >= B.length()) break;
-				}
-			}
-			
-			// copy the remainder of A into the final array
-			memcpy(&array[A.start + insert], &cache[A_count], (A.length() - A_count) * sizeof(array[0]));
-		} else {
-			// swap the rest of A into the buffer
-			
-			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
-			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-			long A_count = 0, B_count = 0, insert = 0;
-			while (true) {
-				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
-					swap(array[A.start + insert], array[buffer.start + A_count]);
-					A_count++;
-					insert++;
-					if (A_count >= A.length()) break;
-				} else {
-					swap(array[A.start + insert], array[B.start + B_count]);
-					B_count++;
-					insert++;
-					if (B_count >= B.length()) break;
+			if (B.length() > 0 && A.length() > 0) {
+				while (true) {
+					if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
+						swap(array[A.start + insert], array[buffer.start + A_count]);
+						A_count++;
+						insert++;
+						if (A_count >= A.length()) break;
+					} else {
+						swap(array[A.start + insert], array[B.start + B_count]);
+						B_count++;
+						insert++;
+						if (B_count >= B.length()) break;
+					}
 				}
 			}
 			
@@ -383,6 +326,7 @@ namespace Wiki {
 					
 					if (A.length() <= cache_size) {
 						if (PROFILE) time = Seconds();
+						memcpy(&cache[0], &array[A.start], A.length() * sizeof(array[0]));
 						Merge(array, MakeRange(0, 0), A, B, compare, cache, cache_size);
 						if (VERIFY) Verify(array, MakeRange(A.start, B.end), compare, "using the cache to merge A and B");
 						if (PROFILE) merge_time2 += Seconds() - time;
@@ -566,11 +510,8 @@ namespace Wiki {
 					long minA = blockA.start, indexA = 0;
 					T min_value = array[minA];
 					
-					if (lastA.length() <= cache_size) {
-						memcpy(&cache[0], &array[lastA.start], lastA.length() * sizeof(array[0]));
-					} else {
-						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
-					}
+					if (lastA.length() <= cache_size) memcpy(&cache[0], &array[lastA.start], lastA.length() * sizeof(array[0]));
+					else BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 					
 					while (true) {
 						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
@@ -590,7 +531,7 @@ namespace Wiki {
 							if (PROFILE) time2 = Seconds();
 							
 							// merge lastA and [lastA.end, B_split), but skip the first blockswap or copy command
-							Merge2(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+							Merge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
 							
 							// BlockSwap blockA into buffer2, or copy blockA into the cache
 							if (block_size <= cache_size) memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
@@ -638,7 +579,7 @@ namespace Wiki {
 					}
 					
 					// merge the last A block with the remaining B blocks
-					Merge2(array, buffer2, lastA, MakeRange(lastA.end, B.end - bufferB.length()), compare, cache, cache_size);
+					Merge(array, buffer2, lastA, MakeRange(lastA.end, B.end - bufferB.length()), compare, cache, cache_size);
 					
 					if (PROFILE) merge_time += Seconds() - time;
 					
@@ -650,7 +591,7 @@ namespace Wiki {
 				if (PROFILE) time = Seconds();
 				// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
 				// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
-				InsertionSort(array, buffer2, compare);
+				InsertionSort(array, level2, compare);
 				if (PROFILE) insertion_time2 += Seconds() - time;
 				
 				if (PROFILE) time = Seconds();
