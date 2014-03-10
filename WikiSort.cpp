@@ -464,7 +464,7 @@ namespace Wiki {
 								bufferA.start = index + count; count++;
 							}
 						}
-						bufferA = MakeRange(A.start, bufferA.start + length);
+						bufferA = MakeRange(A.start, A.start + length);
 						
 						if (VERIFY) {
 							Verify(array, MakeRange(A.start, A.start + bufferA.length()), compare, "testing values pulled out from A");
