@@ -117,6 +117,7 @@ namespace Wiki {
 	// swap_ranges(&array[start1], &array[start1 + block_size], &array[start2]);
 	template <typename T>
 	void BlockSwap(T array[], const long start1, const long start2, const long block_size) throw() {
+		if (start1 == start2) return;
 		for (long index = 0; index < block_size; index++)
 			swap(array[start1 + index], array[start2 + index]);
 	}
@@ -223,6 +224,58 @@ namespace Wiki {
 		}
 	}
 	
+	template <typename T, typename Comparison>
+	void Merge2(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) throw() {
+		if (B.length() <= 0 || A.length() <= 0) {
+			if (A.length() <= cache_size) memcpy(&array[A.start], &cache[0], A.length() * sizeof(array[0]));
+			else BlockSwap(array, buffer.start, A.start, A.length());
+			return;
+		}
+		
+		// if A fits into the cache, use that instead of the internal buffer
+		if (A.length() <= cache_size) {
+			long A_count = 0, B_count = 0, insert = 0;
+			while (true) {
+				if (!compare(array[B.start + B_count], cache[A_count])) {
+					array[A.start + insert] = cache[A_count];
+					A_count++;
+					insert++;
+					if (A_count >= A.length()) break;
+				} else {
+					array[A.start + insert] = array[B.start + B_count];
+					B_count++;
+					insert++;
+					if (B_count >= B.length()) break;
+				}
+			}
+			
+			// copy the remainder of A into the final array
+			memcpy(&array[A.start + insert], &cache[A_count], (A.length() - A_count) * sizeof(array[0]));
+		} else {
+			// swap the rest of A into the buffer
+			
+			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
+			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
+			long A_count = 0, B_count = 0, insert = 0;
+			while (true) {
+				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
+					swap(array[A.start + insert], array[buffer.start + A_count]);
+					A_count++;
+					insert++;
+					if (A_count >= A.length()) break;
+				} else {
+					swap(array[A.start + insert], array[B.start + B_count]);
+					B_count++;
+					insert++;
+					if (B_count >= B.length()) break;
+				}
+			}
+			
+			// swap the remainder of A into the final array
+			BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
+		}
+	}
+	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	template <typename T, typename Comparison>
 	void Sort(vector<T> &vec, const Comparison compare) throw() {
@@ -258,7 +311,7 @@ namespace Wiki {
 		}
 		
 		// use a small cache to speed up some of the operations
-		const long cache_size = 200;
+		const long cache_size = 512;
 		T cache[cache_size];
 		
 		// calculate how to scale the index value to the range within the array
@@ -500,7 +553,7 @@ namespace Wiki {
 					firstA = MakeRange(bufferA.end, bufferA.end + blockA.length() % block_size);
 					
 					// swap the second value of each A block with the value in buffer1
-					for (long index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size)
+					for (long index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
 						swap(array[buffer1.start + index], array[indexA]);
 					
 					// start rolling the A blocks through the B blocks!
@@ -512,6 +565,12 @@ namespace Wiki {
 					
 					long minA = blockA.start, indexA = 0;
 					T min_value = array[minA];
+					
+					if (lastA.length() <= cache_size) {
+						memcpy(&cache[0], &array[lastA.start], lastA.length() * sizeof(array[0]));
+					} else {
+						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
+					}
 					
 					while (true) {
 						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
@@ -530,17 +589,22 @@ namespace Wiki {
 							double time2;
 							if (PROFILE) time2 = Seconds();
 							
-							// now we need to split the previous B block at B_split and insert the minimum A block in-between the two parts, using a rotation
-							Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size), cache, cache_size);
+							// merge lastA and [lastA.end, B_split), but skip the first blockswap or copy command
+							Merge2(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
 							
-							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
-							Merge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+							// BlockSwap blockA into buffer2, or copy blockA into the cache
+							if (block_size <= cache_size) memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
+							else BlockSwap(array, blockA.start, buffer2.start, block_size);
+							
+							// BlockSwap [B_split, blockA.start) with [blockA.end - B_remaining, blockA.end)
+							BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
 							
 							if (PROFILE) merge_time3 += Seconds() - time2;
 							
 							// now we need to update the ranges and stuff
 							lastA = MakeRange(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
 							lastB = MakeRange(lastA.end, lastA.end + B_remaining);
+							
 							blockA.start += block_size;
 							if (blockA.length() == 0) break;
 							
@@ -554,7 +618,7 @@ namespace Wiki {
 							if (PROFILE) min_time += Seconds() - time2;
 						} else if (blockB.length() < block_size) {
 							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-							Rotate(array, -blockB.length(), MakeRange(blockA.start, blockB.end), cache, cache_size);
+							Rotate(array, -blockB.length(), MakeRange(blockA.start, blockB.end), cache, 0);
 							lastB = MakeRange(blockA.start, blockA.start + blockB.length());
 							blockA.start += blockB.length();
 							blockA.end += blockB.length();
@@ -574,7 +638,7 @@ namespace Wiki {
 					}
 					
 					// merge the last A block with the remaining B blocks
-					Merge(array, buffer2, lastA, MakeRange(lastA.end, B.end - bufferB.length()), compare, cache, cache_size);
+					Merge2(array, buffer2, lastA, MakeRange(lastA.end, B.end - bufferB.length()), compare, cache, cache_size);
 					
 					if (PROFILE) merge_time += Seconds() - time;
 					
@@ -646,7 +710,7 @@ namespace Testing {
 	}
 	
 	// purely random data is one of the few cases where it is slower than stable_sort(),
-	// although it does end up only running at about 70% as fast in that situation
+	// although it does end up only running at about 75% as fast in that situation
 	long Random(long index, long total) {
 		return rand();
 	}
