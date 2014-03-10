@@ -563,7 +563,7 @@ int main() {
 			// item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
 			
 			// purely random data is one of the few cases where it is slower than stable_sort(),
-			// although it does end up only running at about 60-65% as fast in that situation
+			// although it does end up only running at about 70% as fast in that situation
 			item.value = rand();
 			
 			array1[index] = array2[index] = item;
