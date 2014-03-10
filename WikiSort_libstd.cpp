@@ -333,7 +333,7 @@ namespace wiki {
 							}
 						}
 						__bufferA_start = __A_start;
-						__bufferA_end = __bufferA_start + __length;
+						__bufferA_end = __A_start + __length;
 						
 						if (VERIFY) {
 							wiki::verify(__A_start, __A_start + (__bufferA_end - __bufferA_start), __comp, "testing values pulled out from A");
