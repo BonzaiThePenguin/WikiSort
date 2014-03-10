@@ -263,7 +263,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	}
 	
 	/* use a small cache to speed up some of the operations */
-	#define CACHE_SIZE 200
+	#define CACHE_SIZE 512
 	const long cache_size = CACHE_SIZE;
 	Test cache[CACHE_SIZE];
 	
@@ -543,6 +543,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
 						WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
 						
+						/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
 						if (block_size <= cache_size) memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
 						else BlockSwap(array, blockA.start, buffer2.start, block_size);
 						
@@ -569,6 +570,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						if (PROFILE) min_time += Seconds() - time2;
 					} else if (Range_length(blockB) < block_size) {
 						/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
+						/* (using the cache is disabled since we have the contents of the previous A block in it!) */
 						Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, 0);
 						lastB = MakeRange(blockA.start, blockA.start + Range_length(blockB));
 						blockA.start += Range_length(blockB);
