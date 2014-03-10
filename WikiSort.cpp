@@ -258,7 +258,7 @@ namespace Wiki {
 		}
 		
 		// use a small cache to speed up some of the operations
-		const long cache_size = 1;
+		const long cache_size = 200;
 		T cache[cache_size];
 		
 		// calculate how to scale the index value to the range within the array
