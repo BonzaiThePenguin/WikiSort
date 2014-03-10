@@ -765,25 +765,10 @@ int main() {
 		double time1, time2;
 		
 		for (index = 0; index < total; index++) {
-			Test item; item.index = index;
+			Test item;
 			
-			/* here are some possible tests to perform on this sorter:
-			 if (index == 0) item.value = 10;
-			 else if (index < total/2) item.value = 11;
-			 else if (index == total - 1) item.value = 10;
-			 else item.value = 9;
-			 
-			 item.value = rand();
-			 item.value = total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
-			 item.value = index + rand() * 1.0/RAND_MAX * 5 - 2.5;
-			 item.value = index;
-			 item.value = total - index;
-			 item.value = 1000;
-			 item.value = (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
-			 item.value = 1000 + rand() * 1.0/RAND_MAX * 4;
-			 */
-			
-			item.value = rand();
+			item.index = index;
+			item.value = TestingRandom(index, total);
 			
 			array1[index] = array2[index] = item;
 		}
