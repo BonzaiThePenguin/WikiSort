@@ -60,32 +60,32 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
             |__ really, it SHOULD be here
     
     5. use a rotation to move the A block into its final position!
-    [ B ][ ][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
+    [ B ][B][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
           ^      ^
           |______|__ B was split into two parts
 
 As soon as we find the exact spot where an A block should be, and rotate it into place in the array, we should immediately merge the previous A block with any B values that follow it. So, to continue the above example:
 
     6. find the next A block to move into position
-    [ B ][][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
+    [ B ][B][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
                     ^                             ^
                     |__ [ 3 ] was here            |__ but it was swapped over to here
     
     (notice that we left [ 0 ] behind, while the rest of the A blocks keep rolling along)
     
     7. let's say for example that we want to drop the next smallest A block here
-    [ B ][][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
+    [ B ][B][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
                          ^                   ^
                                              |__ swap this with [ 4 ]
     
     8. once again, find the EXACT spot where [ 1 ] should be rotated into the previous B block
-    [ B ][][ 0 ][][ B ][ 1 ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
+    [ B ][B][ 0 ][][ B ][ 1 ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
                     ^
                     |__ in this example, it's going in the exact middle
     
     9. there!
-    [ B ][][ 0 ][B][ 1 ][B ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
-                 ^
+    [ B ][B][ 0 ][B][ 1 ][B ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
+                  ^
 
 At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] \(marked with a ^ above). This process repeats until there are no A blocks left, at which point we merge it with the remainder of the B array.
 
