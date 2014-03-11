@@ -14,7 +14,7 @@ There's a common saying regarding sorting algorithms: Fast, stable, and low-memo
 Other common sorting algorithms include <b><a href="http://en.wikipedia.org/wiki/Heapsort">Heapsort</a></b>, <b><a href="http://en.wikipedia.org/wiki/Smoothsort">Smoothsort</a></b>, and <b><a href="http://en.wikipedia.org/wiki/Timsort">Timsort</a></b>, but they too must sacrifice speed, stability, or memory, all the same.<br/>
 
 ===========================
-That's where <b>WikiSort</b> comes in. WikiSort is stable, it uses O(1) memory, and at its very <i>worst</i> it still matches <b>85%</b> of the speed of a standard merge sort! And when the data is already partially sorted – a common situation – it easily pulls ahead of that too.<br/><br/>
+That's where <b>WikiSort</b> comes in. WikiSort is stable, it uses O(1) memory, and at its <i>worst</i> it still matches <b>80-85%</b> of the speed of a standard merge sort! And when the data is already partially sorted – a common situation – it easily pulls ahead of that too.<br/><br/>
 
 <b>How does it work?</b><br/>
 WikiSort is a bottom-up in-place merge sort at heart, but it bears little resemblance to existing algorithms. Its in-place merge is based on the work described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>, although it uses a highly simplified and optimized design.
