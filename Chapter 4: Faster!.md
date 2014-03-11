@@ -37,9 +37,9 @@ And since there's a good chance the data is already somewhat in order, let's ski
     for each size 16, 32, 64, 128, ..., count
         for each chunk of the array of that size
             get the ranges for A and B
-            if (A[last] <= B[first])
-                the data was already in order, so we're done!
-            else
+    >       if (A[last] <= B[first])
+    >           the data was already in order, so we're done!
+    >       else
                 merge A and B
 
 <br/><br/>
@@ -56,8 +56,9 @@ Now that the obvious optimizations are out of the way, let's take a closer look 
                 calculate block_size, block_count, etc.
                 split A and B up into blocks
                 pull out unique values to fill two of the blocks (buffers)
-                roll the A blocks through the B blocks and merge them
-                insertion sort one of the buffers
+                tag each of the A blocks using the first buffer
+                roll the A blocks through the B blocks and merge them using the second buffer
+                insertion sort the second buffer
                 redistribute both buffers back through A and B
 
 <br/><br/>
@@ -66,8 +67,8 @@ The first thing that should jump out is that we're calculating block_size and bl
 But since our goal is to make a super-fast sort, let's break down the barriers and start <i>merging</i> them together (hahaha). Here are the components you can safely pull out from the inner loop:
 
     for each size 16, 32, 64, 128, ... count
-        calculate block_size, block_count, etc.
-        pull out unique values to fill two of the blocks (buffers)
+    >   calculate block_size, block_count, etc.
+    >   pull out unique values to fill two of the blocks (buffers)
         
         for each chunk of the array of that size
             get the ranges for A and B
@@ -77,10 +78,11 @@ But since our goal is to make a super-fast sort, let's break down the barriers a
                 merge A and B (shown below):
                 
                 split A and B up into blocks
-                roll the A blocks through the B blocks and merge them
+                tag each of the A blocks using the first buffer
+                roll the A blocks through the B blocks and merge them using the second buffer
         
-        insertion sort one of the buffers
-        redistribute both buffers back through A and B
+    >   insertion sort the second buffer
+    >   redistribute both buffers back through A and B
 
 <br/><br/>
 Next up, we are <i>technically</i> allowed to use extra memory storage and still have O(1) memory, as long as that storage is fixed in size. Giving the algorithm a fixed-size cache can speed up many of the common operations, and more importantly it'd allow us to perform a standard merge in situations where A fits within the cache:
@@ -90,11 +92,10 @@ Next up, we are <i>technically</i> allowed to use extra memory storage and still
         if (A[last] <= B[first])
             the data was already in order, so we're done!
         else
-            if A fits into the cache
-                copy A into the cache and merge normally
-            else
-                split A and B up into blocks
-                roll the A blocks through the B blocks and merge them
+    >       if A fits into the cache
+    >           copy A into the cache and merge normally
+    >       else
+                merge A and B using the second buffer
 
 <br/><br/>
 This should get the performance up to about 75% of a standard merge sort. This is already pretty good, but let's take it farther!<br/><br/>
@@ -135,7 +136,7 @@ Hm, there's really no reason to check A_count and B_count at the start of each r
 
 <br/><br/>
 <b>Micro-optimize</b><br/>
-Also, if we're writing this in C or C++, would it be faster to use pointer math rather than integer math and array lookups? Switch over to pointers, profile it, and confirm that yes, it's a percentage faster!<br/><br/>
+If we're writing this in C or C++, would it be faster to use pointer math rather than integer math and array lookups? Switch over to pointers, profile it, and confirm that yes, it's a percentage faster!<br/><br/>
 
 <b>Consider the constraints</b><br/>
 Since the contents of one of the buffers are allowed to be rearranged (they will be insertion sorted after the merge step is completed), we could speed up some of the operations by using this <i>internal</i> buffer when the cache was too small to be of use. For example, let's look at the part of the merge step where we just finished "dropping" the smallest A block behind, and need to rotate it into the previous B block:
