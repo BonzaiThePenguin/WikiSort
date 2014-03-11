@@ -14,7 +14,7 @@ We think of it like this:
     1. break A into evenly sized blocks
     [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
     
-    2. insert them into B where they belong (so A[first] <= B[last])
+    2. insert them into B where they belong (so A[first] <= B[last], using a binary search)
     [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
     
     3. merge each [A][B] combination
