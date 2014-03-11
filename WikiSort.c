@@ -194,31 +194,34 @@ void WikiVerify(const Test array[], const Range range, const Comparison compare,
 
 /* standard merge operation using an internal or external buffer */
 void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, const Comparison compare, Test cache[], const long cache_size) {
-	long A_count = 0, B_count = 0, insert = 0;
-	
 	/* if A fits into the cache, use that instead of the internal buffer */
 	if (Range_length(A) <= cache_size) {
+		Test *A_index = &cache[0], *B_index = &array[B.start], *insert_index = &array[A.start];
+		const Test *A_last = &cache[Range_length(A)], *B_last = &array[B.end];
+		
 		if (Range_length(B) > 0 && Range_length(A) > 0) {
 			while (true) {
-				if (!compare(array[B.start + B_count], cache[A_count])) {
-					array[A.start + insert] = cache[A_count];
-					A_count++;
-					insert++;
-					if (A_count >= Range_length(A)) break;
+				if (!compare(*B_index, *A_index)) {
+					*insert_index = *A_index;
+					A_index++;
+					insert_index++;
+					if (A_index == A_last) break;
 				} else {
-					array[A.start + insert] = array[B.start + B_count];
-					B_count++;
-					insert++;
-					if (B_count >= Range_length(B)) break;
+					*insert_index = *B_index;
+					B_index++;
+					insert_index++;
+					if (B_index == B_last) break;
 				}
 			}
 		}
 		
 		/* copy the remainder of A into the final array */
-		memcpy(&array[A.start + insert], &cache[A_count], (Range_length(A) - A_count) * sizeof(array[0]));
+		memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
 	} else {
 		/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
 		/* when this algorithm is finished, 'buffer' will contain its original contents, but in a different order */
+		long A_count = 0, B_count = 0, insert = 0;
+		
 		if (Range_length(B) > 0 && Range_length(A) > 0) {
 			while (true) {
 				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
@@ -276,7 +279,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	if (PROFILE) time = Seconds();
 	/* first insertion sort everything the lowest level, which is 16-31 items at a time */
 	long start, mid, end, decimal = 0, fractional = 0;
-	for (long merge_index = 0; merge_index < power_of_two; merge_index += 16) {
+	while (decimal < size) {
 		start = decimal;
 		
 		decimal += decimal_step;
@@ -299,7 +302,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 		Range level1 = MakeRange(0, 0), level2, levelA, levelB;
 		
 		decimal = fractional = 0;
-		for (long merge_index = 0; merge_index < power_of_two - merge_size; merge_index += merge_size + merge_size) {
+		while (decimal < size) {
 			if (PROFILE) time = Seconds();
 			
 			start = decimal;
