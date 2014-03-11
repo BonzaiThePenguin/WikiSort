@@ -136,7 +136,7 @@ The next trick is to use <i>another</i> A block to store <i>another</i> set of u
 
 The reason we tag the second value of each A block, rather than the first or last, is because we use (A[first] <= B[last]) to decide where to leave the smallest A block. We currently don't use the last value for anything, but it could be useful for detecting contiguous A blocks (the last value of one A block equals the first value of the next, meaning B won't break them apart).
 
-Anyway, when we go to merge an A block with the B values that follow it, just swap the second value in the A block back with its actual value in the buffer, so the original data is restored. Unlike the first buffer, the values in this one will stil be in order by the time we're finished, so we never need to sort this section. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
+Anyway, when we go to merge an A block with the B values that follow it, just swap the second value in the A block back with its actual value in the buffer, so the original data is restored. Unlike the first buffer, the values in this one will still be in order by the time we're finished, so we never need to sort this section. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
 
 
 ============================
