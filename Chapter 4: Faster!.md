@@ -106,43 +106,43 @@ This should get the performance up to about 75% of a standard merge sort. This i
 <b>Profile</b><br/>
 Profiling the code allows you to see how long each component of the algorithm takes to perform, so you can have some idea of which areas would benefit the most from optimization. It probably shouldn't be much of a surprise that most of the time is spent on the Merge() operation, so let's look at that:
 
-    Copy A and B into a buffer
+    Block swap the values in A with those in the buffer
     A_count = 0, B_count = 0, insert = 0
     while (A_count < A.length && B_count < B.length)
-        if (buffer[A_count] <= buffer[B.start + B_count])
-            array[A.start + insert] = buffer[A_count]
+        if (buffer[A_count] <= array[B.start + B_count])
+            Swap(array[A.start + insert], buffer[A_count])
             A_count = A_count + 1
         else
-            array[A.start + insert] = buffer[B.start + B_count]
+            Swap(array[A.start + insert], array[B.start + B_count])
             B_count = B_count + 1
         insert = insert + 1
-    Copy the remaining part of the buffer back into the array
+    Block swap the remaining part of the buffer with the remaining part of the array
 
 <br/>
 Hm, there's really no reason to check A_count and B_count at the start of each run of the while loop, seeing as how we only update one of them each time:
 
-    Copy A and B into a buffer
+    Block swap the values in A with those in the buffer
     A_count = 0, B_count = 0, insert = 0
     if (A.length > 0 and B.length > 0)
         while (true)
-            if (buffer[A_count] <= buffer[B.start + B_count])
-                array[A.start + insert] = buffer[A_count]
+            if (buffer[A_count] <= array[B.start + B_count])
+                Swap(array[A.start + insert], buffer[A_count])
                 A_count = A_count + 1
     >           insert = insert + 1
     >           if (A_count >= A.length) break
             else
-                array[A.start + insert] = buffer[B.start + B_count]
+                Swap(array[A.start + insert], array[B.start + B_count])
                 B_count = B_count + 1
     >           insert = insert + 1
     >           if (B_count >= B.length) break
-    Copy the remaining part of the buffer back into the array
+    Block swap the remaining part of the buffer with the remaining part of the array
 
 <br/><br/>
 <b>Micro-optimize</b><br/>
 If we're writing this in C or C++, would it be faster to use pointer math rather than integer math and array lookups? Switch over to pointers, profile it, and confirm that yes, it's a bit faster!<br/><br/>
 
 <b>Consider the constraints</b><br/>
-Since the contents of one of the buffers are allowed to be rearranged (they will be insertion sorted after the merge step is completed), we could speed up some of the operations by using this <i>internal</i> buffer when the cache was too small to be of use. For example, let's look at the part of the merge step where we just finished "dropping" the smallest A block behind, and need to rotate it into the previous B block:
+Since the contents of one of the buffers are allowed to be rearranged (they will be insertion sorted after the merge step is completed), we could speed up some of the operations by using this buffer when the cache was too small to be of use. For example, let's look at the part of the merge step where we just finished "dropping" the smallest A block behind, and need to rotate it into the previous B block:
 
     Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size))
     Merge(array, lastA, MakeRange(lastA.end, B_split), using buffer2 as the internal buffer)
