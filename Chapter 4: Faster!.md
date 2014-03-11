@@ -25,7 +25,7 @@ Another common problem with merge sort is that sorting data that is currently in
         else
             Reverse(array, range)
             range = MakeRange(index, index)
-    Reverse(array, range);
+    Reverse(array, range)
 
     for each 16 items in the array
         insertion sort them
@@ -98,6 +98,19 @@ Next up, we are <i>technically</i> allowed to use extra memory storage and still
     >           copy A into the cache and merge normally
     >       else
                 merge A and B using the second buffer
+
+<br/>
+And of course we can go through and write cached versions of the tool functions from <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">Chapter 1</a>:
+
+    Rotate(array, range, amount)
+    >   if the smaller of the two ranges that wil be reversed below fits into the cache
+    >       copy that range into the cache
+    >       shift the values in the other range over to its destination
+    >       copy the first range from the cache to where it belongs
+        else
+            Reverse(array, MakeRange(range.start, amount))
+            Reverse(array, MakeRange(range.start + amount, range.end))
+            Reverse(array, range)
 
 <br/><br/>
 This should get the performance up to about 75% of a standard merge sort. This is already pretty good, but let's take it farther!<br/><br/>
