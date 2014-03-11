@@ -1,7 +1,7 @@
 Chapter 3: In-place
 ==============
 
-To reiterate, much of the work presented here is based on a paper called <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. However, it uses a simpler design.<br/><br/>
+To reiterate, much of the work presented here is based on a paper called <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. However, if you were to compare the two you'd notice that large parts of the original algorithm are conspicuously absent here. That's because some of it wasn't needed!<br/><br/>
 
 <b>The basic idea</b>
 
@@ -23,16 +23,19 @@ We think of it like this:
     4. all finished!
     [ A  +  B  ]  [ A + B]  [ A ]  [  A  +   B  ]  [ A  +  B ]  [ A + B]  [ A   +   B  ]
       = [ A  +  B  ][ A + B][ A ][  A  +   B  ][ A  +  B ][ A + B][ A   +   B  ]
-      = [                               A+B                                    ]
+      = [                        A       +       B                             ]
 
 
 That's the general idea, but it raises some questions:
 
 &nbsp;&nbsp;• What size should each A block be?<br/>
+&nbsp;&nbsp;• What does it mean to "break A into blocks"?<br/>
 &nbsp;&nbsp;• How exactly do we "insert" each A block into B without it being an n^2 operation?<br/>
 &nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b><br/><br/>
 
 First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length), which incidentally means there will be √(A.length) <i>number</i> of A blocks as well. You'll see why we use that size in a second.<br/><br/>
+
+Next up, you don't <i>actually</i> break the array into anything. What you instead do is keep track of the size of each block (sqrt(A.length)), how many A blocks there are (A.length/block_size), and the start and end of A within the array. Each block is then defined <i>implicitly</i> as A.start + block_size * index, where index is from 0 to (block_count - 1).<br/><br/>
 
 As for how to insert the A blocks into B, the obvious solution (<a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">rotating</a> the blocks to where they belong) is an n^2 operation. So that's no good. What we'll have to do instead is break B into blocks too, then <i>block swap</i> an A block with a B block to roll the A blocks through the array.
 
