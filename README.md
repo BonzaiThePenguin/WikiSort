@@ -22,7 +22,8 @@ WikiSort is an in-place merge sort at heart, but it bears little resemblance to 
 <b>If you want to learn more, check out the documentation!</b><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">Chapter 1: Tools</a><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Chapter 2: Merging</a><br/>
-&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204:%20Faster!.md">Chapter 4: Faster!</a><br/><br/>
 
 Fast, stable, and low-memory. And best of all, it's <b>public domain</b>! Feel free to use it or contribute in any way you like – that's the <i>Wiki</i> in WikiSort.<br/><br/>
 
