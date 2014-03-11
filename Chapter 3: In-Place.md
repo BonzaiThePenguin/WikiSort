@@ -149,17 +149,17 @@ Anyway, when we go to merge an A block with the B values that follow it, just sw
 
 If neither A nor B contain enough unique values to fill up the two required blocks, then obviously we can't do any of the above. Fortunately, merging arrays with similar values is the <i>easy</i> part! We can just binary search into B and rotate A into place, like so:
 
-    while (A.length > 0 && B.length > 0)
-        // find the first place in B where the first item in A needs to be inserted
+    while (A.length > 0 and B.length > 0)
+        find the first place in B where the first item in A needs to be inserted:
         mid = BinaryFirst(array, A.start, B)
         
-        // rotate A into place
+        rotate A into place:
         amount = mid - (A.start + A.length)
-        Rotate(array, amount, RangeBetween(A.start, mid))
+        Rotate(array, amount, MakeRange(A.start, mid))
         
-        // calculate the new A and B ranges
-        B = RangeBetween(mid, B.start + B.length)
-        A = RangeBetween(BinaryLast(array, A.start + amount, A), B.start)
+        calculate the new A and B ranges:
+        B = MakeRange(mid, B.start + B.length)
+        A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
 
 ============================
 <b>Aren't there still n^2 operations being used?</b>
