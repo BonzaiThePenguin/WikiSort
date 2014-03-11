@@ -182,7 +182,7 @@ If we find enough values, we would then stop there and start rotating at that in
         ^
         |___ here's our buffer!
 
-And if we didn't find enough values, well...
+Redistributing the buffers back into [A+B] after merging is the same process, but in reverse.
 
 ============================
 <b>What if we couldn't find enough unique values in A <i>or</i> B?</b>
