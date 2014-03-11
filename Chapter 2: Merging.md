@@ -100,11 +100,25 @@ For an array of size 16, it does this (the operation is shown to the right):
     merge 12-13 and 14-15              [ 2   7   13  15  0   3   4   11  6   10  12  14 [1   9 ][5   8 ]]
     merge 0-3 and 4-7                  [[2   7   13  15][0   3   4   11] 6   10  12  14  1   5   8   9  ]
     merge 8-11 and 12-15               [ 0   2   3   4   7   11  13  15 [6   10  12  14][1   5   8   9 ]]
-    merge 0-7 and 8-15                 [[0   2   3   4   7   11  13  15][1   5   6   8   9   10  12  14 ]
+    merge 0-7 and 8-15                 [[0   2   3   4   7   11  13  15][1   5   6   8   9   10  12  14]]
                                        [ 0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15 ]
 Which is of course exactly what we wanted. Note that it starts off by merging chunks of size 1, then size 2, then size 4, and finally size 8.<br/><br/>
 
 <b>To extend this logic to non-power-of-two sizes</b>, we floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge.
+
+    MergeSort(array, count)
+    >   power_of_two = FloorPowerOfTwo(count)
+    >   scale = count/power_of_two // 1.0 <= scale < 2.0
+        
+        for (length = 16; length < power_of_two; length = length * 2)
+            for (merge = 0; merge < power_of_two; merge = merge + length * 2)
+                start = merge * scale
+                mid = (merge + length) * scale
+                end = (merge + length * 2) * scale
+                
+                Merge(array, MakeRange(start, mid), MakeRange(mid, end))
+
+The floating-point multiplication was verified as correct for over 17 billion items (as in there was no unexpected roundoff error), but if that seems a bit flaky to you it's also possible to handle the scaling with integer operations:
 
     MergeSort(array, count)
         power_of_two = FloorPowerOfTwo(count)
@@ -135,7 +149,7 @@ Which is of course exactly what we wanted. Note that it starts off by merging ch
                 
                 Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
-This is considerably more involved, <b>but it guarantees that the two ranges being merged will always have the same size to within one item</b>, which ends up being about 10% faster than the standard bottom-up merge sort.<br/>
+This is considerably more involved than the standard bottom-up design, but <b>it guarantees that the two ranges being merged will always have the same size to within one item, which ends up being about 10% faster</b>.
 
 ==========================
 
