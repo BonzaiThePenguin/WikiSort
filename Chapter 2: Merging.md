@@ -75,72 +75,67 @@ Can we do better? <b>Of course!</b><br/><br/>
 To remove the recursion, we can use what's called a <a href="http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort">bottom-up merge sort</a>. Here's what it looks like for an array of a size that happens to be a power of two:<br/>
 
     MergeSort(array, count)
-       index = 0
-       while (index < count)
-          merge = index
-          index += 2
-          length = 1
-          
-          iteration = index
-          while (iteration is even)
-             start = merge
-             mid = merge + length
-             end = merge + length + length
-             
-             Merge(array, MakeRange(start, mid), MakeRange(mid, end))
-             
-             iteration = iteration / 2
-             length = length * 2
-             merge = merge - length
+        for (length = 1; length < count; length = length * 2)
+            for (merge = 0; merge < count; merge = merge + length * 2)
+                start = merge
+                mid = merge + length
+                end = merge + length * 2
+                
+                Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
 For an array of size 16, it does this (the operation is shown to the right):
 
                                        [ 15  2   13  7   3   0   11  4   12  6   10  14  1   9   8   5  ]
     merge 0-0 and 1-1                  [[15][2 ] 13  7   3   0   11  4   12  6   10  14  1   9   8   5  ]
     merge 2-2 and 3-3                  [ 2   15 [13][7 ] 3   0   11  4   12  6   10  14  1   9   8   5  ]
-    merge 0-1 and 2-3                  [[2   15][7   13] 3   0   11  4   12  6   10  14  1   9   8   5  ]
-    merge 4-4 and 5-5                  [ 2   7   13  15 [3 ][0 ] 11  4   12  6   10  14  1   9   8   5  ]
-    merge 6-6 and 7-7                  [ 2   7   13  15  0   3  [11][4 ] 12  6   10  14  1   9   8   5  ]
-    merge 4-5 and 6-7                  [ 2   7   13  15 [0   3 ][4   11] 12  6   10  14  1   9   8   5  ]
-    merge 0-3 and 4-7                  [[2   7   13  15][0   3   4   11] 12  6   10  14  1   9   8   5  ]
-    merge 8-8 and 9-9                  [ 0   2   3   4   7   11  13  15 [12][6 ] 10  14  1   9   8   5  ]
-    merge 10-10 and 11-11              [ 0   2   3   4   7   11  13  15  6   12 [10][14] 1   9   8   5  ]
-    merge 8-9 and 10-11                [ 0   2   3   4   7   11  13  15 [6   12][10  14] 1   9   8   5  ]
-    merge 12-12 and 13-13              [ 0   2   3   4   7   11  13  15  6   10  12  14 [1 ][9 ] 8   5  ]
-    merge 14-14 and 15-15              [ 0   2   3   4   7   11  13  15  6   10  12  14  1   9  [8 ][5 ]]
-    merge 12-13 and 14-15              [ 0   2   3   4   7   11  13  15  6   10  12  14 [1   9 ][5   8 ]]
+    merge 4-4 and 5-5                  [ 2   15  7   13 [3 ][0 ] 11  4   12  6   10  14  1   9   8   5  ]
+    merge 6-6 and 7-7                  [ 2   15  7   13  0   3  [11][4 ] 12  6   10  14  1   9   8   5  ]
+    merge 8-8 and 9-9                  [ 2   15  7   13  0   3   4   11 [12][6 ] 10  14  1   9   8   5  ]
+    merge 10-10 and 11-11              [ 2   15  7   13  0   3   4   11  6   12 [10][14] 1   9   8   5  ]
+    merge 12-12 and 13-13              [ 2   15  7   13  0   3   4   11  6   12  10  14 [1 ][9 ] 8   5  ]
+    merge 14-14 and 15-15              [ 2   15  7   13  0   3   4   11  6   12  10  14  1   9  [8 ][5 ]]
+    merge 0-1 and 2-3                  [[2   15][7   13] 0   3   4   11  6   12  10  14  1   9   5   8  ]
+    merge 4-5 and 6-7                  [ 2   7   13  15 [0   3 ][4   11] 6   12  10  14  1   9   5   8  ]
+    merge 8-9 and 10-11                [ 2   7   13  15  0   3   4   11 [6   12][10  14] 1   9   5   8  ]
+    merge 12-13 and 14-15              [ 2   7   13  15  0   3   4   11  6   10  12  14 [1   9 ][5   8 ]]
+    merge 0-3 and 4-7                  [[2   7   13  15][0   3   4   11] 6   10  12  14  1   5   8   9  ]
     merge 8-11 and 12-15               [ 0   2   3   4   7   11  13  15 [6   10  12  14][1   5   8   9 ]]
     merge 0-7 and 8-15                 [[0   2   3   4   7   11  13  15][1   5   6   8   9   10  12  14 ]
                                        [ 0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15 ]
-Which is of course exactly what we wanted.<br/><br/>
+Which is of course exactly what we wanted. Note that it starts off by merging chunks of size 1, then size 2, then size 4, and finally size 8.<br/><br/>
 
-<b>To extend this logic to non-power-of-two sizes</b>, we simply floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge. Floating-point multiplications are blazing-fast these days so it hardly matters.
+<b>To extend this logic to non-power-of-two sizes</b>, we floor the size down to the nearest power of two for these calculations, then scale back again to get the ranges to merge.
 
     MergeSort(array, count)
-    >  power_of_two = FloorPowerOfTwo(count)
-    >  scale = count/power_of_two // 1.0 <= scale < 2.0
-       
-       index = 0
-       while (index < power_of_two)
-          merge = index
-          index += 2
-          length = 1
-          
-          iteration = index
-          while (iteration is even)
-    >        start = merge * scale
-    >        mid = (merge + length) * scale
-    >        end = (merge + length + length) * scale
-             
-             Merge(array, MakeRange(start, mid), MakeRange(mid, end))
-             
-             iteration = iteration / 2
-             length = length * 2
-             merge = merge - length
+        power_of_two = FloorPowerOfTwo(count)
+        fractional_base = power_of_two/16
+        fractional_step = size % fractional_base (modulus, which gets the remainder from size/fractional_base)
+        decimal_step = floor(size/fractional_base)
+        
+        for (length = 16; length < power_of_two; length = length * 2)
+            decimal = fractional = 0
+            while (decimal < size)
+                start = decimal
+                
+                decimal = decimal + decimal_step
+                fractional = fractional + fractional_step
+                if (fractional >= fractional_base)
+                    fractional = fractional - fractional_base
+                    decimal = decimal + 1
+                
+                mid = decimal
+                
+                decimal = decimal + decimal_step
+                fractional = fractional + fractional_step
+                if (fractional >= fractional_base)
+                    fractional = fractional - fractional_base
+                    decimal = decimal + 1
+                
+                end = decimal
+                
+                Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
-The multiplication has been proven to be correct for more than 17,179,869,184 elements, which should be adequate. <b>This guarantees that the two ranges being merged will always have the same size to within one item, which makes it more efficient and allows for additional optimizations.</b><br/>
-
-(note: the standard in-place merge sort uses min(end, count) rather than a floating-point multiplication, but this way was found to be faster in practice)<br/><br/>
+This is considerably more involved, <b>but it guarantees that the two ranges being merged will always have the same size to within one item</b>, which ends up being about 10% faster than the standard bottom-up merge sort.<br/>
 
 ==========================
 
