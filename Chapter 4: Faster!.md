@@ -152,7 +152,9 @@ Hm, there's really no reason to check A_count and B_count at the start of each r
 
 <br/><br/>
 <b>Micro-optimize</b><br/>
-If we're writing this in C or C++, would it be faster to use pointer math rather than integer math and array lookups? Switch over to pointers, profile it, and confirm that yes, it's a bit faster!<br/><br/>
+If we're writing this in C or C++, would it be faster to use pointer math rather than integer math and array lookups? Switch over to pointers, profile it, and confirm that yes, it's a bit faster! It really seems like something that would have been optimized automatically, but that's why profiling and benchmarking is important.
+
+Other things that help include using arrays rather than std::vectors (the arrays are never resized so it doesn't matter), manually declaring that our functions do not raise exceptions (with the throw() keyword), and writing our own binary search and reverse functions. Things that did <i>not</i> help include marking functions as inline, adding a cached version of BlockSwap, or writing our own Swap function – std::swap was exactly as fast.<br/><br/>
 
 <b>Consider the constraints</b><br/>
 Since the contents of one of the buffers are allowed to be rearranged (they will be insertion sorted after the merge step is completed), we could speed up some of the operations by using this buffer when the cache was too small to be of use. For example, let's look at the part of the merge step where we just finished "dropping" the smallest A block behind, and need to rotate it into the previous B block:
