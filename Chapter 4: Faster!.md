@@ -7,10 +7,10 @@ Now what?<br/><br/>
 
 Well, the first optimization pretty much all sorting algorithms do is apply an insertion sort to the smaller levels of the merge. So instead of merging with sizes of 1, 2, 4, 8, etc., we instead do this:
 
-    for each 16 items in the array
+    for each 16 items in the array, up to power_of_two
         insertion sort them
     
-    for each size 16, 32, 64, 128, ..., count
+    for each size 16, 32, 64, 128, ..., power_of_two
        and so forth
 
 Keep in mind that those groups of "16" items will need to be <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">scaled in exactly the same way that we scale the ranges as part of the merge sort</a>. It should actually end up sorting anywhere from 16 to <i>31</i> items at a time.
@@ -27,17 +27,17 @@ Another common problem with merge sort is that sorting data that is currently in
             range = MakeRange(index, index)
     Reverse(array, range)
 
-    for each 16 items in the array
+    for each 16 items in the array, up to power_of_two
         insertion sort them
     
-    for each size 16, 32, 64, 128, ..., count
+    for each size 16, 32, 64, 128, ..., power_of_two
        and so forth
 
 <br/><br/>
 And since there's a good chance the data is already somewhat in order, let's skip merging any sections that are already sorted:
 
-    for each size 16, 32, 64, 128, ..., count
-        for each chunk of the array of that size
+    for each size 16, 32, 64, 128, ..., power_of_two
+        for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
     >       if (A[last] <= B[first])
     >           the data was already in order, so we're done!
@@ -47,8 +47,8 @@ And since there's a good chance the data is already somewhat in order, let's ski
 <br/><br/>
 Now that the obvious optimizations are out of the way, let's take a closer look at what the rest of the algorithm is doing:
 
-    for each size 16, 32, 64, 128, ..., count
-        for each chunk of the array of that size
+    for each size 16, 32, 64, 128, ..., power_of_two
+        for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
             if (A[last] <= B[first])
                 the data was already in order, so we're done!
@@ -68,11 +68,11 @@ The first thing that should jump out is that we're calculating block_size and bl
 
 But since our goal is to make a super-fast sort, let's break down the barriers and start <i>merging</i> them together (hahaha). Here are the components you can safely pull out from the inner loop:
 
-    for each size 16, 32, 64, 128, ... count
+    for each size 16, 32, 64, 128, ... power_of_two
     >   calculate block_size, block_count, etc.
     >   pull out unique values to fill two of the blocks (buffers)
         
-        for each chunk of the array of that size
+        for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
             if (A[last] <= B[first])
                 the data was already in order, so we're done!
@@ -89,7 +89,7 @@ But since our goal is to make a super-fast sort, let's break down the barriers a
 <br/><br/>
 Next up, we are <i>technically</i> allowed to use extra memory storage and still have O(1) memory, as long as that storage is fixed in size. Giving the algorithm a fixed-size cache can speed up many of the common operations, and more importantly it'd allow us to perform a standard merge in situations where A fits within the cache:
 
-    for each chunk of the array of that size
+    for each chunk of the array of that size, up to power_of_two
         get the ranges for A and B
         if (A[last] <= B[first])
             the data was already in order, so we're done!
