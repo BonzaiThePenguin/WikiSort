@@ -43,15 +43,15 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
     [ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ B ][ B ][ B ][ B ][ B ][ B ][ B ][] <- extra bit of B left over
       ^
       |__ first A block
-      
+    
     2. allow the A blocks to be moved out of order, then simply swap it with the next B block
     [ B ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ B ][ B ][ B ][ B ][ B ][ B ][]
-      ^
-      |__ first B block (swapped with A)
+      ^                                  ^
+      |__ first B block (swapped with [ 0 ])
     
     3. keep going until we find where we want to "drop" the smallest A block behind
     [ B ][ B ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
-                ^
+                ^                        ^
                 |__ the first A block needs to be block swapped here
     
     4. find the EXACT spot within B where the A block should go
@@ -60,7 +60,7 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
             |__ really, it SHOULD be here
     
     5. use a rotation to move the A block into its final position!
-    [ B ][][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
+    [ B ][ ][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
           ^      ^
           |______|__ B was split into two parts
 
@@ -71,9 +71,11 @@ As soon as we find the exact spot where an A block should be, and rotate it into
                     ^                             ^
                     |__ [ 3 ] was here            |__ but it was swapped over to here
     
-    7. drop the smallest A block behind again, which is [ 1 ] this time
+    (notice that we left [ 0 ] behind, while the rest of the A blocks keep rolling along)
+    
+    7. let's say for example that we want to drop the next smallest A block here
     [ B ][][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
-                                             ^
+                         ^                   ^
                                              |__ swap this with [ 4 ]
     
     8. once again, find the EXACT spot where [ 1 ] should be rotated into the previous B block
