@@ -3,7 +3,7 @@ WikiSort
 
 There's a common saying regarding sorting algorithms: Fast, stable, and low-memory. <b>Pick two</b>.
 
-<b><a href="http://en.wikipedia.org/wiki/Quicksort">Quicksort</a></b> is fast and has low-memory requirements, but it is not <a href="http://en.wikipedia.org/wiki/Sorting_algorithm#Stability">stable</a>. This means that if a user has items their inventory sorted by name and they go to sort by cost, items with the samae cost might not be in alphabetical order anymore.<br/>
+<b><a href="http://en.wikipedia.org/wiki/Quicksort">Quicksort</a></b> is fast and has low-memory requirements, but it is not <a href="http://en.wikipedia.org/wiki/Sorting_algorithm#Stability">stable</a>. This means that if a user has items their inventory sorted by name and they go to sort by cost, items with the same cost might not be in alphabetical order anymore.<br/>
 
 <b><a href="http://en.wikipedia.org/wiki/Merge_sort">Merge sort</a></b> is fast and stable, but it requires a second array at least half the size of the original array. This memory usage becomes quite expensive for large data sets, and it isn't always even possible to allocate that extra array.<br/>
 
