@@ -13,6 +13,8 @@ Well, the first optimization pretty much all sorting algorithms do is apply an i
     for each size 16, 32, 64, 128, ..., count
        and so forth
 
+Keep in mind that those groups of "16" items will need to be <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">scaled in exactly the same way that we scale the ranges as part of the merge sort</a>. It should actually end up sorting anywhere from 16 to <i>31</i> items at a time.
+
 <br/><br/>
 Another common problem with merge sort is that sorting data that is currently in <i>reverse order</i> can be noticeably slower than other arrangements. A quick fix for this is to simply reverse any descending ranges within the array:
 
@@ -170,8 +172,15 @@ What if we instead swapped lastA into buffer2 beforehand, since that's where it 
 <br/>
 Both operations end with the two sides of B in the correct spots, but block swapping causes the contents of buffer2 to be in the wrong order, and the contents of the A block are where buffer2 used to be!
 
-But as was already stated, the A block had to be swapped over to the buffer for the Merge() call anyway, and the contents of the buffer are allowed to be rearranged. By considering those constraints we were able to replace the costly rotation with a simple block swap, and since the operation is performed so often it results in a nice speed boost!
+But as was already stated, the A block had to be swapped over to the buffer for the Merge() call anyway, and the contents of the buffer are allowed to be rearranged. By considering those constraints we were able to replace the costly rotation with a simple block swap, and since the operation is performed so often it results in a nice speed boost!<br/><br/>
+
+<b>Is there more room for improvement?</b><br/>
+Absolutely. One notable issue is that even if we set the cache to be as large as the original array, which means it ends up performing a standard merge sort, it only runs 95% as fast as it should. Where is that extra 5% of performance going? Beats me.<br/>
+
+There are also a few areas in the algorithm where the cache goes completely unused, simply because nothing could fit <i>entirely</i> within it. Is caching <i>some</i> of the data better than getting all of the data from one source?<br/>
+
+The original paper suggests counting the number of B blocks that need to be swapped with the rolling A blocks <i>before</i> swapping them, but it didn't seem like it would help much so that optimization was skipped.
 
 ===========================
 
-<b>That's it!</b> The <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp">provided implementation</a> is literally just a direct implementation of these concepts. Hopefully this information has proven valuable, and you can use your newfound knowledge to add your own optimizations and improvements. That way, everyone gets a better sort!
+<b>That's all for now!</b> The <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp">provided implementation</a> is literally just a direct implementation of these concepts. Hopefully this information has proven valuable, and you can use your newfound knowledge to add your own optimizations and improvements. That way, everyone gets a better sort!
