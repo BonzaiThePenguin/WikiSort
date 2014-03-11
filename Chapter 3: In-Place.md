@@ -149,6 +149,42 @@ Anyway, when we go to merge an A block with the B values that follow it, just sw
 
 
 ============================
+<b>Wait, another question: how do we "pull out" these unique values, without it being an n^2 operation?</b>
+
+With rotations, of course! The first step is to count out the unique values we've found:
+
+    [0 0 0 1 1 2 3 3 3 4 4 5 6 6 6 6 6 7 7 8 9 ... ]
+     1     2   3 4     5
+
+If we find enough values, we would then stop there and start rotating at that index:
+
+    [0 0 0 1 1 2 3 [3 3 4] 4 5 6 6 6 6 6 7 7 8 9 ... ]
+                        ^
+                        |___ we need to rotate this 4 to be next to the 3
+    
+    [0 0 0 1 1 2 3 [4 3 3] 4 5 6 6 6 6 6 7 7 8 9 ... ]
+                    ^
+                    |___ like so
+    
+    [0 0 0 1 1 2 [3 4] 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
+                   ^
+                   |___ now rotate [3 4] to be next to the 2 (wait, it's already there!)
+    
+    [0 0 0 1 [1 2 3 4] 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
+                  ^
+                  |___ now rotate [2 3 4] to be next to the 1
+    
+    [0 [0 0 1 2 3 4] 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
+               ^
+               |___ lastly, rotate [1 2 3 4] to be next to the 0
+    
+    [0 1 2 3 4][0 0 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
+        ^
+        |___ here's our buffer!
+
+And if we didn't find enough values, well...
+
+============================
 <b>What if we couldn't find enough unique values in A <i>or</i> B?</b>
 
 If neither A nor B contain enough unique values to fill up the two required blocks, then obviously we can't do any of the above. Fortunately, merging arrays with similar values is the <i>easy</i> part! We can just binary search into B and rotate A into place, like so:
