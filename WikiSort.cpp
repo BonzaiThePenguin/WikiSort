@@ -231,14 +231,6 @@ namespace Wiki {
 		
 		if (PROFILE) reverse_time = insertion_time = scale_time = rotate_time = merge_time2 = merge_time3 = min_time = pull_out_time = merge_time = insertion_time2 = redistribute_time = 0;
 		
-		// from profiling, these were the most expensive operations:
-		// reversing (2%)
-		// insertion sorting the lowest level (9%)
-		// scaling the ranges (6%)
-		// merging with the cache (15%)
-		// in-place local merges (45%)
-		//  - finding the next minimum A block (10%)
-		
 		// reverse any descending ranges in the array, as that will allow them to sort faster
 		double time;
 		if (PROFILE) time = Seconds();
@@ -257,6 +249,10 @@ namespace Wiki {
 		}
 		
 		// use a small cache to speed up some of the operations
+		// since the cache size is fixed, it's still O(1) memory!
+		// just keep in mind that making it too small ruins the point (nothing will fit into it),
+		// and making it too large ruins the point (so much for "low memory"!)
+		// removing the cache entirely still gives 70-75% of the performance of a standard merge
 		const long cache_size = 512;
 		T cache[cache_size];
 		
@@ -712,7 +708,7 @@ int main() {
 	srand(/*time(NULL)*/ 10141985);
 	
 	cout << "running test cases... " << flush;
-	long total = 567;
+	long total = max_size;
 	array1.resize(total);
 	array2.resize(total);
 	for (int test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
