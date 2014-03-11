@@ -266,6 +266,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	}
 	
 	/* use a small cache to speed up some of the operations */
+	/* since the cache size is fixed, it's still O(1) memory! */
+	/* just keep in mind that making it too small ruins the point (nothing will fit into it), */
+	/* and making it too large ruins the point (so much for "low memory"!) */
+	/* removing the cache entirely still gives 70-75% of the performance of a standard merge */
 	#define CACHE_SIZE 512
 	const long cache_size = CACHE_SIZE;
 	Test cache[CACHE_SIZE];
@@ -753,7 +757,7 @@ int main() {
 	
 	printf("running test cases... ");
 	fflush(stdout);
-	total = 567;
+	total = max_size;
 	for (int test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
 		for (long index = 0; index < total; index++) {
 			Test item;
