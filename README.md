@@ -11,7 +11,7 @@ There's a common saying regarding sorting algorithms: Fast, stable, and low-memo
 
 <b><a href="http://en.wikipedia.org/wiki/Merge_sort">Insertion sort</a></b> is stable and has low-memory requirements, and it's even very fast for small arrays, but for larger arrays it becomes unbearably slow. This is because it's actually an O(n^2) algorithm, which means for every n items, it has to perform some multiple of n^2 operations. So for 1000 items it's already performing 1 million operations, and for 1 million items it has to perform <b>one trillion</b> operations.<br/>
 
-Other common sorting algorithms include <b><a href="http://en.wikipedia.org/wiki/Heapsort">Heapsort</a></b>, <b><a href="http://en.wikipedia.org/wiki/Smoothsort">Smoothsort</a></b>, and <b><a href="http://en.wikipedia.org/wiki/Timsort">Timsort</a></b>, but they too must sacrifice speed, stability, or memory.<br/>
+Other common sorting algorithms include <b><a href="http://en.wikipedia.org/wiki/Heapsort">Heapsort</a></b>, <b><a href="http://en.wikipedia.org/wiki/Smoothsort">Smoothsort</a></b>, and <b><a href="http://en.wikipedia.org/wiki/Timsort">Timsort</a></b>, but they too must sacrifice speed, stability, or memory, all the same.<br/>
 
 ===========================
 That's where <b>WikiSort</b> comes in. WikiSort is stable, it uses O(1) memory, and at its very <i>worst</i> it still matches 85% of the speed of a standard merge sort! And when the data is already partially sorted – a common situation – it easily pulls ahead of that too.<br/><br/>
