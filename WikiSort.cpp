@@ -173,49 +173,52 @@ namespace Wiki {
 	// standard merge operation using an internal or external buffer
 	template <typename T, typename Comparison>
 	void Merge(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) throw() {
-		long A_count = 0, B_count = 0, insert = 0;
-		
 		// if A fits into the cache, use that instead of the internal buffer
 		if (A.length() <= cache_size) {
+			T *A_index = &cache[0], *B_index = &array[B.start], *insert_index = &array[A.start];
+			const T *A_last = &cache[A.length()], *B_last = &array[B.end];
+			
 			if (B.length() > 0 && A.length() > 0) {
 				while (true) {
-					if (!compare(array[B.start + B_count], cache[A_count])) {
-						array[A.start + insert] = cache[A_count];
-						A_count++;
-						insert++;
-						if (A_count >= A.length()) break;
+					if (!compare(*B_index, *A_index)) {
+						*insert_index = *A_index;
+						A_index++;
+						insert_index++;
+						if (A_index == A_last) break;
 					} else {
-						array[A.start + insert] = array[B.start + B_count];
-						B_count++;
-						insert++;
-						if (B_count >= B.length()) break;
+						*insert_index = *B_index;
+						B_index++;
+						insert_index++;
+						if (B_index == B_last) break;
 					}
 				}
 			}
 			
 			// copy the remainder of A into the final array
-			memcpy(&array[A.start + insert], &cache[A_count], (A.length() - A_count) * sizeof(array[0]));
+			memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
 		} else {
 			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
+			T *A_index = &array[buffer.start], *B_index = &array[B.start], *insert_index = &array[A.start];
+			T *A_last = &array[buffer.start + A.length()], *B_last = &array[B.end];
+			
 			if (B.length() > 0 && A.length() > 0) {
 				while (true) {
-					if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
-						swap(array[A.start + insert], array[buffer.start + A_count]);
-						A_count++;
-						insert++;
-						if (A_count >= A.length()) break;
+					if (!compare(*B_index, *A_index)) {
+						swap(*insert_index, *A_index);
+						A_index++;
+						insert_index++;
+						if (A_index == A_last) break;
 					} else {
-						swap(array[A.start + insert], array[B.start + B_count]);
-						B_count++;
-						insert++;
-						if (B_count >= B.length()) break;
+						swap(*insert_index, *B_index);
+						B_index++;
+						insert_index++;
+						if (B_index == B_last) break;
 					}
 				}
 			}
 			
-			// swap the remainder of A into the final array
-			BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
+			swap_ranges(A_index, A_last, insert_index);
 		}
 	}
 	
@@ -266,7 +269,7 @@ namespace Wiki {
 		if (PROFILE) time = Seconds();
 		// first insertion sort everything the lowest level, which is 16-31 items at a time
 		long start, mid, end, decimal = 0, fractional = 0;
-		for (long merge_index = 0; merge_index < power_of_two; merge_index += 16) {
+		while (decimal < size) {
 			start = decimal;
 			
 			decimal += decimal_step;
@@ -289,7 +292,7 @@ namespace Wiki {
 			Range level1 = MakeRange(0, 0), level2, levelA, levelB;
 			
 			decimal = fractional = 0;
-			for (long merge_index = 0; merge_index < power_of_two - merge_size; merge_index += merge_size + merge_size) {
+			while (decimal < size) {
 				if (PROFILE) time = Seconds();
 				
 				start = decimal;
@@ -321,9 +324,6 @@ namespace Wiki {
 					if (VERIFY) Verify(array, A, compare, "making sure A is valid");
 					if (VERIFY) Verify(array, B, compare, "making sure B is valid");
 					
-					// try to fill up two buffers with unique values in ascending order
-					Range bufferA, bufferB, buffer1, buffer2, blockA, blockB, firstA, lastA, lastB;
-					
 					if (A.length() <= cache_size) {
 						if (PROFILE) time = Seconds();
 						memcpy(&cache[0], &array[A.start], A.length() * sizeof(array[0]));
@@ -332,6 +332,9 @@ namespace Wiki {
 						if (PROFILE) merge_time2 += Seconds() - time;
 						continue;
 					}
+					
+					// try to fill up two buffers with unique values in ascending order
+					Range bufferA, bufferB, buffer1, buffer2, blockA, blockB, firstA, lastA, lastB;
 					
 					if (level1.length() > 0) {
 						// reuse the buffers we found in a previous iteration
@@ -653,8 +656,8 @@ namespace Testing {
 		return 9;
 	}
 	
-	// purely random data is one of the few cases where it is slower than stable_sort(),
-	// although it does end up only running at about 75% as fast in that situation
+	// purely random data is one of the few cases where it is slower than stable_sort();
+	// it ends up running at about 85% as fast in that situation
 	long Random(long index, long total) {
 		return rand();
 	}
