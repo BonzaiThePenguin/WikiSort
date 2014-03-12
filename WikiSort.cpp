@@ -15,11 +15,6 @@
 
 using namespace std;
 
-// if true, Verify() will be called after each merge step to make sure it worked correctly
-#define VERIFY false
-#define PROFILE false
-
-double reverse_time, insertion_time, rotate_time, merge_time2, merge_time3, min_time, pull_out_time, merge_time, insertion_time2, redistribute_time;
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 // structure to represent ranges within the array
@@ -144,25 +139,6 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 	Reverse(array, range);
 }
 
-// make sure the items within the given range are in a stable order
-// (not sure why this is a template since it assumes it's of type Test)
-template <typename T, typename Comparison>
-void Verify(const T array[], const Range range, const Comparison compare, const string msg) {
-	for (long index = range.start + 1; index < range.end; index++) {
-		// if it's in ascending order then we're good
-		// if both values are equal, we need to make sure the index values are ascending
-		if (!(compare(array[index - 1], array[index]) ||
-			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
-			
-			for (long index2 = range.start; index2 < range.end; index2++)
-				cout << array[index2].value << " (" << array[index2].index << ") ";
-			
-			cout << endl << "failed with message: " << msg << endl;
-			assert(false);
-		}
-	}
-}
-
 namespace Wiki {
 	// standard merge operation using an internal or external buffer
 	template <typename T, typename Comparison>
@@ -229,14 +205,7 @@ namespace Wiki {
 		T *array = &vec[0];
 		const long size = vec.size();
 		
-		if (PROFILE)
-			reverse_time = insertion_time = rotate_time = merge_time2 = merge_time3 = min_time = pull_out_time = merge_time = insertion_time2 = redistribute_time = 0;
-		
 		// reverse any descending ranges in the array, as that will allow them to sort faster
-		double time;
-		if (PROFILE)
-			time = Seconds();
-		
 		Range reverse = Range(0, 1);
 		for (long index = 1; index < size; index++) {
 			if (compare(array[index], array[index - 1]))
@@ -247,9 +216,6 @@ namespace Wiki {
 			}
 		}
 		Reverse(array, reverse);
-		
-		if (PROFILE)
-			reverse_time += Seconds() - time;
 		
 		// if there are 32 or fewer items, just insertion sort the entire array
 		if (size <= 32) {
@@ -273,9 +239,6 @@ namespace Wiki {
 		long decimal_step = size/fractional_base;
 		
 		// first insertion sort everything the lowest level, which is 16-31 items at a time
-		if (PROFILE)
-			time = Seconds();
-		
 		long start, mid, end, decimal = 0, fractional = 0;
 		while (decimal < size) {
 			start = decimal;
@@ -291,9 +254,6 @@ namespace Wiki {
 			
 			InsertionSort(array, Range(start, end), compare);
 		}
-		
-		if (PROFILE)
-			insertion_time += Seconds() - time;
 		
 		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
 		for (long merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
@@ -328,39 +288,15 @@ namespace Wiki {
 				
 				if (compare(array[end - 1], array[start])) {
 					// the two ranges are in reverse order, so a simple rotation should fix it
-					if (PROFILE)
-						time = Seconds();
-					
 					Rotate(array, mid - start, Range(start, end), cache, cache_size);
-					
-					if (VERIFY)
-						Verify(array, Range(start, end), compare, "reversing order via Rotate()");
-					
-					if (PROFILE)
-						rotate_time += Seconds() - time;
 					
 				} else if (compare(array[mid], array[mid - 1])) {
 					// these two ranges weren't already in order, so we'll need to merge them!
 					Range A = Range(start, mid), B = Range(mid, end);
 					
-					if (VERIFY) {
-						Verify(array, A, compare, "making sure A is valid");
-						Verify(array, B, compare, "making sure B is valid");
-					}
-					
 					if (A.length() <= cache_size) {
-						if (PROFILE)
-							time = Seconds();
-						
 						memcpy(&cache[0], &array[A.start], A.length() * sizeof(array[0]));
 						Merge(array, Range(0, 0), A, B, compare, cache, cache_size);
-						
-						if (VERIFY)
-							Verify(array, Range(A.start, B.end), compare, "using the cache to merge A and B");
-						
-						if (PROFILE)
-							merge_time2 += Seconds() - time;
-						
 						continue;
 					}
 					
@@ -375,9 +311,6 @@ namespace Wiki {
 						buffer2 = level2;
 						
 					} else {
-						if (PROFILE)
-							time = Seconds();
-						
 						// the first item is always going to be the first unique value, so let's start searching at the next index
 						long count = 1;
 						for (buffer1.start = A.start + 1; buffer1.start < A.end; buffer1.start++)
@@ -479,8 +412,6 @@ namespace Wiki {
 						if (buffer1.length() < buffer_size) {
 							// we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated
 							// we can use this knowledge to write a merge operation that is optimized for arrays of repeating values
-							Range oldA = A, oldB = B;
-							
 							while (A.length() > 0 && B.length() > 0) {
 								// find the first place in B where the first item in A needs to be inserted
 								long mid = BinaryFirst(array, array[A.start], B, compare);
@@ -493,9 +424,6 @@ namespace Wiki {
 								B.start = mid;
 								A = Range(BinaryLast(array, array[A.start + amount], A, compare), B.start);
 							}
-							
-							if (VERIFY)
-								Verify(array, Range(oldA.start, oldB.end), compare, "performing a brute-force in-place merge");
 							
 							continue;
 						}
@@ -510,11 +438,6 @@ namespace Wiki {
 						}
 						bufferA = Range(A.start, A.start + length);
 						
-						if (VERIFY) {
-							Verify(array, Range(A.start, A.start + bufferA.length()), compare, "testing values pulled out from A");
-							Verify(array, Range(A.start + bufferA.length(), A.end), compare, "testing remainder of A");
-						}
-						
 						// move the unique values to the end of B if needed
 						length = bufferB.length(); count = 0;
 						for (long index = bufferB.start; count < length; index++) {
@@ -525,23 +448,12 @@ namespace Wiki {
 						}
 						bufferB = Range(B.end - length, B.end);
 						
-						if (VERIFY) {
-							Verify(array, Range(B.end - bufferB.length(), B.end), compare, "testing values pulled out from B");
-							Verify(array, Range(B.start, B.end - bufferB.length()), compare, "testing remainder of B");
-						}
-						
 						// reuse these buffers next time!
 						level1 = buffer1;
 						level2 = buffer2;
 						levelA = bufferA;
 						levelB = bufferB;
-						
-						if (PROFILE)
-							pull_out_time += Seconds() - time;
 					}
-					
-					if (PROFILE)
-						time = Seconds();
 					
 					// break the remainder of A into blocks. firstA is the uneven-sized first A block
 					blockA = Range(bufferA.end, A.end);
@@ -580,10 +492,6 @@ namespace Wiki {
 							// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
 							swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 							
-							double time2;
-							if (PROFILE)
-								time2 = Seconds();
-							
 							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
 							Merge(array, buffer2, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
 							
@@ -598,8 +506,6 @@ namespace Wiki {
 							// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
 							BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
 							
-							if (PROFILE) merge_time3 += Seconds() - time2;
-							
 							// now we need to update the ranges and stuff
 							lastA = Range(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
 							lastB = Range(lastA.end, lastA.end + B_remaining);
@@ -609,17 +515,11 @@ namespace Wiki {
 								break;
 							
 							// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
-							if (PROFILE)
-								time2 = Seconds();
-							
 							minA = blockA.start + 1;
 							for (long findA = minA + block_size; findA < blockA.end; findA += block_size)
 								if (compare(array[findA], array[minA])) minA = findA;
 							minA = minA - 1; // decrement once to get back to the start of that A block
 							min_value = array[minA];
-							
-							if (PROFILE)
-								min_time += Seconds() - time2;
 							
 						} else if (blockB.length() < block_size) {
 							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
@@ -649,28 +549,13 @@ namespace Wiki {
 					
 					// merge the last A block with the remaining B blocks
 					Merge(array, buffer2, lastA, Range(lastA.end, B.end - bufferB.length()), compare, cache, cache_size);
-					
-					if (PROFILE)
-						merge_time += Seconds() - time;
-					
-					if (VERIFY)
-						Verify(array, Range(A.start + bufferA.length(), B.end - bufferB.length()), compare, "making sure the local merges worked");
 				}
 			}
 			
 			if (level1.length() > 0) {
-				if (PROFILE)
-					time = Seconds();
-				
 				// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
 				// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
 				InsertionSort(array, level2, compare);
-				
-				if (PROFILE)
-					insertion_time2 += Seconds() - time;
-				
-				if (PROFILE)
-					time = Seconds();
 				
 				// redistribute bufferA back into the array
 				long level_start = levelA.start;
@@ -684,11 +569,7 @@ namespace Wiki {
 					}
 				}
 				
-				if (VERIFY)
-					Verify(array, Range(level_start, levelB.start), compare, "redistributed levelA back into the array");
-				
 				// redistribute bufferB back into the array
-				long level_end = levelB.end;
 				for (long index = levelB.start; levelB.length() > 0; index--) {
 					if (index == level_start || !compare(array[levelB.end - 1], array[index - 1])) {
 						long amount = levelB.start - index;
@@ -698,12 +579,6 @@ namespace Wiki {
 						index++;
 					}
 				}
-				
-				if (VERIFY)
-					Verify(array, Range(level_start, level_end), compare, "redistributed levelB back into the array");
-				
-				if (PROFILE)
-					redistribute_time += Seconds() - time;
 			}
 			
 			decimal_step += decimal_step;
@@ -765,6 +640,24 @@ namespace Testing {
 	
 	long MostlyEqual(long index, long total) {
 		return 1000 + rand() * 1.0/RAND_MAX * 4;
+	}
+}
+
+// make sure the items within the given range are in a stable order
+template <typename Comparison>
+void Verify(const Test array[], const Range range, const Comparison compare, const string msg) {
+	for (long index = range.start + 1; index < range.end; index++) {
+		// if it's in ascending order then we're good
+		// if both values are equal, we need to make sure the index values are ascending
+		if (!(compare(array[index - 1], array[index]) ||
+			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
+			
+			for (long index2 = range.start; index2 < range.end; index2++)
+				cout << array[index2].value << " (" << array[index2].index << ") ";
+			
+			cout << endl << "failed with message: " << msg << endl;
+			assert(false);
+		}
 	}
 }
 
@@ -843,18 +736,6 @@ int main() {
 		total_time2 += time2;
 		
 		cout << "[" << total << "] wiki: " << time1 << ", merge: " << time2 << " (" << time2/time1 * 100.0 << "%)" << endl;
-		if (PROFILE) {
-			cout << "reverse: " << reverse_time << " (" << reverse_time/time1 * 100 << "%)" << endl;
-			cout << "insert: " << insertion_time << " (" << insertion_time/time1 * 100 << "%)" << endl;
-			cout << "rotate: " << rotate_time << " (" << rotate_time/time1 * 100 << "%)" << endl;
-			cout << "merge2: " << merge_time2 << " (" << merge_time2/time1 * 100 << "%)" << endl;
-			cout << "merge3: " << merge_time3 << " (" << merge_time3/time1 * 100 << "%)" << endl;
-			cout << "min: " << min_time << " (" << min_time/time1 * 100 << "%)" << endl;
-			cout << "pull out: " << pull_out_time << " (" << pull_out_time/time1 * 100 << "%)" << endl;
-			cout << "merge: " << merge_time << " (" << merge_time/time1 * 100 << "%)" << endl;
-			cout << "insert2: " << insertion_time2 << " (" << insertion_time2/time1 * 100 << "%)" << endl;
-			cout << "redistribute: " << redistribute_time << " (" << redistribute_time/time1 * 100 << "%)" << endl;
-		}
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		cout << "verifying... " << flush;
