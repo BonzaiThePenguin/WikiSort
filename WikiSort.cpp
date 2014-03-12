@@ -1,9 +1,11 @@
-// WikiSort: by Arne Kutzner, Pok-Son Kim, and Mike McFadden
-// https://github.com/BonzaiThePenguin/WikiSort
-
-// to compile:
-// clang++ -o WikiSort.x WikiSort.cpp -O3
-// (or replace 'clang++' with 'g++')
+/***********************************************************
+ WikiSort: by Arne Kutzner, Pok-Son Kim, and Mike McFadden
+ https://github.com/BonzaiThePenguin/WikiSort
+ 
+ to compile:
+ clang++ -o WikiSort.x WikiSort.cpp -O3
+ (or replace 'clang++' with 'g++')
+***********************************************************/
 
 #include <iostream>
 #include <algorithm>
@@ -235,13 +237,13 @@ namespace Wiki {
 		if (PROFILE)
 			time = Seconds();
 		
-		Range reverse = Range(0, 0);
+		Range reverse = Range(0, 1);
 		for (long index = 1; index < size; index++) {
 			if (compare(array[index], array[index - 1]))
 				reverse.end++;
 			else {
 				Reverse(array, reverse);
-				reverse = Range(index, index);
+				reverse = Range(index, index + 1);
 			}
 		}
 		Reverse(array, reverse);
