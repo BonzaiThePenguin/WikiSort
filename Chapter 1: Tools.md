@@ -25,7 +25,7 @@ To reverse the items in an array, simply swap the <i>n</i>th item with the <i>(c
 
     Reverse(array, range)
         for (index = range.length/2 - 1; index >= 0; index--)
-            Swap(array[range.start + index], array[range.end - index])
+            Swap(array[range.start + index], array[range.end - index - 1])
 
 <br/><br/>
 <b>Rotating</b><br/>
