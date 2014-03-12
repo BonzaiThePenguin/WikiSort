@@ -20,8 +20,8 @@ class Test {
 class TestComparator implements Comparator<Test> {
     public int compare(Test a, Test b) {
     	if (a.value < b.value) return -1;
-		if (a.value > b.value) return 1;
-		return 0;
+	if (a.value > b.value) return 1;
+	return 0;
     }
 }
 
@@ -73,8 +73,8 @@ class Wiki {
 		if (start == range.end - 1 && comp.compare(array[start], value) < 0) start++;
 		return start;
 	}
-    
-    // find the index of the last value within the range that is equal to array[index], plus 1
+	
+	// find the index of the last value within the range that is equal to array[index], plus 1
 	static int BinaryLast(Test array[], Test value, Range range, TestComparator comp) {
 		int start = range.start, end = range.end - 1;
 		while (start < end) {
@@ -180,6 +180,7 @@ class Wiki {
 			}
 		}
 	}
+	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	static void Sort(Test array[], TestComparator comp) {
 		int size = array.length;
@@ -233,7 +234,8 @@ class Wiki {
 			
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
-			Range level1 = new Range(0, 0), level2 = new Range(0, 0), levelA = new Range(0, 0), levelB = new Range(0, 0);
+			Range level1 = new Range(0, 0), level2 = new Range(0, 0);
+			Range levelA = new Range(0, 0), levelB = new Range(0, 0);
 			
 			decimal = fractional = 0;
 			while (decimal < size) {
@@ -267,7 +269,11 @@ class Wiki {
 				} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
 					// these two ranges weren't already in order, so we'll need to merge them!
 					Range A = new Range(start, mid), B = new Range(mid, end);
-					Range bufferA = new Range(0, 0), bufferB = new Range(0, 0), buffer1 = new Range(0, 0), buffer2 = new Range(0, 0), blockA = new Range(0, 0), blockB = new Range(0, 0), firstA = new Range(0, 0), lastA = new Range(0, 0), lastB = new Range(0, 0);
+					Range bufferA = new Range(0, 0), bufferB = new Range(0, 0);
+					Range buffer1 = new Range(0, 0), buffer2 = new Range(0, 0);
+					Rage blockA = new Range(0, 0), blockB = new Range(0, 0);
+					Range lastA = new Range(0, 0), lastB = new Range(0, 0);
+					Range firstA = new Range(0, 0);
 					
 					if (Globals.VERIFY) {
 						Verify(array, A, comp, "making sure A is valid");
