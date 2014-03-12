@@ -18,13 +18,13 @@ Keep in mind that those groups of "16" items will need to be <a href="https://gi
 <br/><br/>
 Another common problem with merge sort is that sorting data that is currently in <i>reverse order</i> can be noticeably slower than other arrangements. A quick fix for this is to simply reverse any descending ranges within the array:
 
-    range = MakeRange(0, 0)
+    range = MakeRange(0, 1)
     for (long index = 1; index < count; index++)
         if (array[index] < array[index - 1])
             range.end = range.end + 1
         else
             Reverse(array, range)
-            range = MakeRange(index, index)
+            range = MakeRange(index, index + 1)
     Reverse(array, range)
 
     for each 16 items in the array, up to power_of_two
