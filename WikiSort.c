@@ -3,7 +3,7 @@
  https://github.com/BonzaiThePenguin/WikiSort
  
  to compile:
- clang -o WikiSort.x WikiSort.cpp -O3
+ clang -o WikiSort.x WikiSort.c -O3
  (or replace 'clang' with 'gcc')
 ***********************************************************/
 
@@ -285,13 +285,13 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	if (PROFILE)
 		time = Seconds();
 	
-	reverse = MakeRange(0, 0);
+	reverse = MakeRange(0, 1);
 	for (index = 1; index < size; index++) {
 		if (compare(array[index], array[index - 1]))
 			reverse.end++;
 		else {
 			Reverse(array, reverse);
-			reverse = MakeRange(index, index);
+			reverse = MakeRange(index, index + 1);
 		}
 	}
 	Reverse(array, reverse);
