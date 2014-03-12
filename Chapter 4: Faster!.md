@@ -5,7 +5,7 @@ Alright, so you've read the documentation, you've pored through the <a href="htt
 
 Now what?<br/><br/>
 
-Well, the first optimization pretty much all sorting algorithms do is apply an insertion sort to the smaller levels of the merge. So instead of merging with sizes of 1, 2, 4, 8, etc., we instead do this:
+Well, the first optimization pretty much all sorting algorithms do is apply an insertion sort to the smaller levels of the merge. So instead of merging with sizes of 1, 2, 4, 8, etc., we do this:
 
     for each 16 items in the array, up to power_of_two
         insertion sort them
