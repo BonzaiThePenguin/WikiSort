@@ -7,11 +7,6 @@ import java.util.*;
 import java.lang.*;
 import java.io.*;
 
-class Globals {
-	static boolean VERIFY = false;
-	static boolean PROFILE = false;
-}
-
 class Test {
 	public int value;
 	public int index;
@@ -38,6 +33,11 @@ class Range {
 	public Range() {
 		start = 0;
 		end = 0;
+	}
+	
+	void set(int start1, int end1) {
+		start = start1;
+		end = end1;
 	}
 	
 	int length() {
@@ -118,17 +118,16 @@ class Wiki {
 	
 	// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 	static void Rotate(Test array[], int amount, Range range) {
-		int split; Range range1, range2;
-		
 		if (range.length() == 0) return;
 		
+		int split;
 		if (amount >= 0)
 			split = range.start + amount;
 		else
 			split = range.end + amount;
 		
-		range1 = new Range(range.start, split);
-		range2 = new Range(split, range.end);
+		Range range1 = new Range(range.start, split);
+		Range range2 = new Range(split, range.end);
 		
 		Reverse(array, range1);
 		Reverse(array, range2);
@@ -165,22 +164,6 @@ class Wiki {
 		BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
 	}
 	
-	static void Verify(Test array[], Range range, TestComparator comp, String msg) {
-		for (int index = range.start + 1; index < range.end; index++) {
-			// if it's in ascending order then we're good
-			// if both values are equal, we need to make sure the index values are ascending
-			if (!(comp.compare(array[index - 1], array[index]) < 0 ||
-				  (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
-				
-				for (int index2 = range.start; index2 < range.end; index2++)
-					System.out.println(array[index2].value + " (" + array[index2].index + ")");
-				
-				System.out.println("failed with message: " + msg);
-				throw new RuntimeException();
-			}
-		}
-	}
-	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	static void Sort(Test array[], TestComparator comp) {
 		int size = array.length;
@@ -192,7 +175,7 @@ class Wiki {
 				reverse.end++;
 			else {
 				Reverse(array, reverse);
-				reverse = new Range(index, index + 1);
+				reverse.set(index, index + 1);
 			}
 		}
 		Reverse(array, reverse);
@@ -234,8 +217,8 @@ class Wiki {
 			
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
-			Range level1 = new Range(0, 0), level2 = new Range(0, 0);
-			Range levelA = new Range(0, 0), levelB = new Range(0, 0);
+			Range level1 = new Range(), level2 = new Range();
+			Range levelA = new Range(), levelB = new Range();
 			
 			decimal = fractional = 0;
 			while (decimal < size) {
@@ -263,30 +246,23 @@ class Wiki {
 					// the two ranges are in reverse order, so a simple rotation should fix it
 					Rotate(array, mid - start, new Range(start, end));
 					
-					if (Globals.VERIFY)
-						Verify(array, new Range(start, end), comp, "reversing order via Rotate()");
-					
 				} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
 					// these two ranges weren't already in order, so we'll need to merge them!
 					Range A = new Range(start, mid), B = new Range(mid, end);
-					Range bufferA = new Range(0, 0), bufferB = new Range(0, 0);
-					Range buffer1 = new Range(0, 0), buffer2 = new Range(0, 0);
-					Rage blockA = new Range(0, 0), blockB = new Range(0, 0);
-					Range lastA = new Range(0, 0), lastB = new Range(0, 0);
-					Range firstA = new Range(0, 0);
 					
-					if (Globals.VERIFY) {
-						Verify(array, A, comp, "making sure A is valid");
-						Verify(array, B, comp, "making sure B is valid");
-					}
+					Range bufferA = new Range(), bufferB = new Range();
+					Range buffer1 = new Range(), buffer2 = new Range();
+					Range blockA = new Range(), blockB = new Range();
+					Range lastA = new Range(), lastB = new Range();
+					Range firstA = new Range();
 					
 					// try to fill up two buffers with unique values in ascending order
 					if (level1.length() > 0) {
 						// reuse the buffers we found in a previous iteration
-						bufferA = new Range(A.start, A.start);
-						bufferB = new Range(B.end, B.end);
-						buffer1 = new Range(level1.start, level1.end);
-						buffer2 = new Range(level2.start, level2.end);
+						bufferA.set(A.start, A.start);
+						bufferB.set(B.end, B.end);
+						buffer1.set(level1.start, level1.end);
+						buffer2.set(level2.start, level2.end);
 						
 					} else {
 						// the first item is always going to be the first unique value, so let's start searching at the next index
@@ -307,15 +283,15 @@ class Wiki {
 						
 						if (buffer2.length() == buffer_size) {
 							// we found enough values for both buffers in A
-							bufferA = new Range(buffer2.start, buffer2.start + buffer_size * 2);
-							bufferB = new Range(B.end, B.end);
-							buffer1 = new Range(A.start, A.start + buffer_size);
-							buffer2 = new Range(A.start + buffer_size, A.start + buffer_size * 2);
+							bufferA.set(buffer2.start, buffer2.start + buffer_size * 2);
+							bufferB.set(B.end, B.end);
+							buffer1.set(A.start, A.start + buffer_size);
+							buffer2.set(A.start + buffer_size, A.start + buffer_size * 2);
 							
 						} else if (buffer1.length() == buffer_size) {
 							// we found enough values for one buffer in A, so we'll need to find one buffer in B
-							bufferA = new Range(buffer1.start, buffer1.start + buffer_size);
-							buffer1 = new Range(A.start, A.start + buffer_size);
+							bufferA.set(buffer1.start, buffer1.start + buffer_size);
+							buffer1.set(A.start, A.start + buffer_size);
 							
 							// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
 							count = 1;
@@ -326,8 +302,8 @@ class Wiki {
 							buffer2.end = buffer2.start + count;
 							
 							if (buffer2.length() == buffer_size) {
-								bufferB = new Range(buffer2.start, buffer2.start + buffer_size);
-								buffer2 = new Range(B.end - buffer_size, B.end);
+								bufferB.set(buffer2.start, buffer2.start + buffer_size);
+								buffer2.set(B.end - buffer_size, B.end);
 								
 							} else buffer1.end = buffer1.start; // failure
 						} else {
@@ -347,10 +323,10 @@ class Wiki {
 							buffer2.end = buffer2.start + count;
 							
 							if (buffer2.length() == buffer_size) {
-								bufferA = new Range(A.start, A.start);
-								bufferB = new Range(buffer2.start, buffer2.start + buffer_size * 2);
-								buffer1 = new Range(B.end - buffer_size, B.end);
-								buffer2 = new Range(buffer1.start - buffer_size, buffer1.start);
+								bufferA.set(A.start, A.start);
+								bufferB.set(buffer2.start, buffer2.start + buffer_size * 2);
+								buffer1.set(B.end - buffer_size, B.end);
+								buffer2.set(buffer1.start - buffer_size, buffer1.start);
 								
 							} else buffer1.end = buffer1.start; // failure
 						}
@@ -358,9 +334,6 @@ class Wiki {
 						if (buffer1.length() < buffer_size) {
 							// we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated
 							// we can use this knowledge to write a merge operation that is optimized for arrays of repeating values
-							Range oldA = new Range(A.start, A.end);
-							Range oldB = new Range(B.start, B.end);
-							
 							while (A.length() > 0 && B.length() > 0) {
 								// find the first place in B where the first item in A needs to be inserted
 								int split = BinaryFirst(array, array[A.start], B, comp);
@@ -371,11 +344,8 @@ class Wiki {
 								
 								// calculate the new A and B ranges
 								B.start = split;
-								A = new Range(BinaryLast(array, array[A.start + amount], A, comp), B.start);
+								A.set(BinaryLast(array, array[A.start + amount], A, comp), B.start);
 							}
-							
-							if (Globals.VERIFY)
-								Verify(array, new Range(oldA.start, oldB.end), comp, "performing a brute-force in-place merge");
 							
 							continue;
 						}
@@ -389,12 +359,7 @@ class Wiki {
 								bufferA.start = index + count; count++;
 							}
 						}
-						bufferA = new Range(A.start, A.start + length);
-						
-						if (Globals.VERIFY) {
-							Verify(array, new Range(A.start, A.start + bufferA.length()), comp, "testing values pulled out from A");
-							Verify(array, new Range(A.start + bufferA.length(), A.end), comp, "testing remainder of A");
-						}
+						bufferA.set(A.start, A.start + length);
 						
 						// move the unique values to the end of B if needed
 						length = bufferB.length();
@@ -405,23 +370,18 @@ class Wiki {
 								bufferB.start = index - count; count++;
 							}
 						}
-						bufferB = new Range(B.end - length, B.end);
-						
-						if (Globals.VERIFY) {
-							Verify(array, new Range(B.end - bufferB.length(), B.end), comp, "testing values pulled out from B");
-							Verify(array, new Range(B.start, B.end - bufferB.length()), comp, "testing remainder of B");
-						}
+						bufferB.set(B.end - length, B.end);
 						
 						// reuse these buffers next time!
-						level1 = new Range(buffer1.start, buffer1.end);
-						level2 = new Range(buffer2.start, buffer2.end);
-						levelA = new Range(bufferA.start, bufferA.end);
-						levelB = new Range(bufferB.start, bufferB.end);
+						level1.set(buffer1.start, buffer1.end);
+						level2.set(buffer2.start, buffer2.end);
+						levelA.set(bufferA.start, bufferA.end);
+						levelB.set(bufferB.start, bufferB.end);
 					}
 					
 					// break the remainder of A into blocks. firstA is the uneven-sized first A block
-					blockA = new Range(bufferA.end, A.end);
-					firstA = new Range(bufferA.end, bufferA.end + blockA.length() % block_size);
+					blockA.set(bufferA.end, A.end);
+					firstA.set(bufferA.end, bufferA.end + blockA.length() % block_size);
 					
 					// swap the second value of each A block with the value in buffer1
 					int index = 0;
@@ -434,9 +394,9 @@ class Wiki {
 					
 					// start rolling the A blocks through the B blocks!
 					// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
-					lastA = new Range(firstA.start, firstA.end);
-					lastB = new Range(0, 0);
-					blockB = new Range(B.start, B.start + Math.min(block_size, B.length() - bufferB.length()));
+					lastA.set(firstA.start, firstA.end);
+					lastB.set(0, 0);
+					blockB.set(B.start, B.start + Math.min(block_size, B.length() - bufferB.length()));
 					blockA.start += firstA.length();
 					
 					int minA = blockA.start;
@@ -474,8 +434,8 @@ class Wiki {
 							BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
 							
 							// now we need to update the ranges and stuff
-							lastA = new Range(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
-							lastB = new Range(lastA.end, lastA.end + B_remaining);
+							lastA.set(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
+							lastB.set(lastA.end, lastA.end + B_remaining);
 							
 							blockA.start += block_size;
 							if (blockA.length() == 0)
@@ -491,7 +451,7 @@ class Wiki {
 						} else if (blockB.length() < block_size) {
 							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
 							Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end));
-							lastB = new Range(blockA.start, blockA.start + blockB.length());
+							lastB.set(blockA.start, blockA.start + blockB.length());
 							blockA.start += blockB.length();
 							blockA.end += blockB.length();
 							minA += blockB.length();
@@ -499,7 +459,7 @@ class Wiki {
 						} else {
 							// roll the leftmost A block to the end by swapping it with the next B block
 							BlockSwap(array, blockA.start, blockB.start, block_size);
-							lastB = new Range(blockA.start, blockA.start + block_size);
+							lastB.set(blockA.start, blockA.start + block_size);
 							if (minA == blockA.start)
 								minA = blockA.end;
 							
@@ -515,9 +475,6 @@ class Wiki {
 					
 					// merge the last A block with the remaining B blocks
 					Merge(array, buffer2, lastA, new Range(lastA.end, B.end - bufferB.length()), comp);
-					
-					if (Globals.VERIFY)
-						Verify(array, new Range(A.start + bufferA.length(), B.end - bufferB.length()), comp, "making sure the local merges worked");
 				}
 			}
 			
@@ -538,11 +495,7 @@ class Wiki {
 					}
 				}
 				
-				if (Globals.VERIFY)
-					Verify(array, new Range(level_start, levelB.start), comp, "redistributed levelA back into the array");
-				
 				// redistribute bufferB back into the array
-				int level_end = levelB.end;
 				for (int index = levelB.start; levelB.length() > 0; index--) {
 					if (index == level_start || comp.compare(array[levelB.end - 1], array[index - 1]) >= 0) {
 						int amount = levelB.start - index;
@@ -552,9 +505,6 @@ class Wiki {
 						index++;
 					}
 				}
-				
-				if (Globals.VERIFY)
-					Verify(array, new Range(level_start, level_end), comp, "redistributed levelB back into the array");
 			}
 			
 			decimal_step += decimal_step;
@@ -587,7 +537,7 @@ class Main {
 		MergeSortR(array, B, comp, buffer);
 		
 		// standard merge operation here (only A is copied to the buffer, and only the parts that weren't already where they should be)
-		A = new Range(Wiki.BinaryLast(array, array[B.start], A, comp), A.end);
+		A.set(Wiki.BinaryLast(array, array[B.start], A, comp), A.end);
 		java.lang.System.arraycopy(array, A.start, buffer, 0, A.length());
 		int A_count = 0, B_count = 0, insert = 0;
 		while (A_count < A.length() && B_count < B.length()) {
@@ -606,6 +556,22 @@ class Main {
 	
 	static void MergeSort(Test array[], TestComparator comp) {
 		MergeSortR(array, new Range(0, array.length), comp, new Test[array.length]);
+	}
+	
+	static void Verify(Test array[], Range range, TestComparator comp, String msg) {
+		for (int index = range.start + 1; index < range.end; index++) {
+			// if it's in ascending order then we're good
+			// if both values are equal, we need to make sure the index values are ascending
+			if (!(comp.compare(array[index - 1], array[index]) < 0 ||
+				  (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
+				
+				for (int index2 = range.start; index2 < range.end; index2++)
+					System.out.println(array[index2].value + " (" + array[index2].index + ")");
+				
+				System.out.println("failed with message: " + msg);
+				throw new RuntimeException();
+			}
+		}
 	}
 	
 	public static void main (String[] args) throws java.lang.Exception {
@@ -651,7 +617,7 @@ class Main {
 			// make sure the arrays are sorted correctly, and that the results were stable
 			System.out.println("verifying...");
 			
-			Wiki.Verify(array1, new Range(0, total), comp, "testing the final array");
+			Verify(array1, new Range(0, total), comp, "testing the final array");
 			if (total > 0)
 				if (comp.compare(array1[0], array2[0]) != 0) throw new Exception();
 			for (int index = 1; index < total; index++) {
