@@ -151,6 +151,7 @@ The reason we tag the second value of each A block, rather than the first or las
 
 Anyway, when we go to merge an A block with the B values that follow it, just swap the second value in the A block back with its actual value in the buffer, so the original data is restored. Unlike the first buffer, the values in this one will still be in order by the time we're finished, so we never need to sort this section. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
 
+And of course once the smallest A block is dropped behind, you can find the new smallest A block by looping over the second values in the remaining A blocks and find the smallest one.
 
 ============================
 <b>Wait, another question: how do we "pull out" these unique values, without it being an n^2 operation?</b>
