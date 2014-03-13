@@ -254,21 +254,8 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	const long cache_size = CACHE_SIZE;
 	Test cache[CACHE_SIZE];
 	
-	Range reverse;
 	long index, merge_size, start, mid, end, fractional, decimal;
 	long power_of_two, fractional_base, fractional_step, decimal_step;
-	
-	/* reverse any descending ranges in the array, as that will allow them to sort faster */
-	reverse = MakeRange(0, 1);
-	for (index = 1; index < size; index++) {
-		if (compare(array[index], array[index - 1]))
-			reverse.end++;
-		else {
-			Reverse(array, reverse);
-			reverse = MakeRange(index, index + 1);
-		}
-	}
-	Reverse(array, reverse);
 	
 	/* if there are 32 or fewer items, just insertion sort the entire array */
 	if (size <= 32) {
