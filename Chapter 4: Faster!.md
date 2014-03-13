@@ -104,7 +104,7 @@ Next up, we are <i>technically</i> allowed to use extra memory storage and still
 And of course we can go through and write cached versions of the tool functions from <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">Chapter 1</a>:
 
     Rotate(array, range, amount)
-    >   if the smaller of the two ranges that wil be reversed below fits into the cache
+    >   if the smaller of the two ranges that will be reversed below fits into the cache
     >       copy that range into the cache
     >       shift the values in the other range over to its destination
     >       copy the first range from the cache to where it belongs
