@@ -131,8 +131,8 @@ That's essentially all there is to efficient in-place merging, but if you were t
 The next trick is to use <i>another</i> A block to store <i>another</i> set of unique values. While the first block is used as a buffer for the merging, <i>these</i> unique values will be used to "tag" each A block so we have some way of comparing them to determine their order. Once we pull out the unique values, loop over the remaining A blocks and swap the <i>second</i> value in each block with one of the unique values from this second buffer.
 
     1. we already pulled out unique values for the first block, but now we need another one
-    [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
-                              ^              ^
+    [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
+                                ^              ^
     
     2. oops, we don't have enough unique values! Fortunately we can use B just as well:
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
