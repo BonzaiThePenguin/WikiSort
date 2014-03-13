@@ -14,7 +14,9 @@ We think of it like this:
     1. break A into evenly sized blocks
     [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
     
-    2. insert them into B where they belong (so A[first] <= B[last], using a binary search)
+    2. insert them into B where they belong
+       the rule for inserting is that the first value of each A block must be
+       less than or equal to the LAST value of the PREVIOUS B block
     [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
     
     3. merge each [A][B] combination
@@ -209,7 +211,7 @@ All of these examples used perfect squares for the size of A (√16 = 4), but wh
 ============================
 <b>And what about that last unevenly sized B block?</b>
 
-If you get to that point and there are still A blocks left, you'll have to <i>rotate</i> the last A block with that uneven-sized B block, rather than <i>block swap</i>. You'll still need to check whether the A block should be rotated into that B block, exactly the same as before.
+If you get to that point and there are still A blocks left, you'll have to <i>rotate</i> the remaining A blocks with that uneven-sized B block, rather than <i>block swap</i>. You'll still need to check every remaining A block to see if it needs to be rotated back into that B block, exactly the same as before.
 
 ============================
 <b>Aren't there still n^2 operations being used?</b>
