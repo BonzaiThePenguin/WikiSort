@@ -161,7 +161,7 @@ Other things that help include using arrays rather than std::vectors (the arrays
 <b>Consider the constraints</b><br/>
 Since the contents of one of the buffers are allowed to be rearranged (they will be insertion sorted after the merge step is completed), we could speed up some of the operations by using this buffer when the cache was too small to be of use. For example, let's look at the part of the merge step where we just finished "dropping" the smallest A block behind, and need to rotate it into the previous B block:
 
-    Rotate(array, B_remaining, MakeRange(B_split, blockA.start + block_size))
+    Rotate(array, blockA.start - B_split, MakeRange(B_split, blockA.start + block_size))
     Merge(array, lastA, MakeRange(lastA.end, B_split), using buffer2 as the internal buffer)
 
 We rotate A into the B block to where it belongs (at index B_split), then merge the previous A block with the B values that follow it. Pretty straightforward. However, rotating is a fairly expensive operation (requiring three reversals), and Merge needs to swap the entire contents of lastA with the contents of buffer2 before merging.
