@@ -1,6 +1,10 @@
 /***********************************************************
  WikiSort: by Arne Kutzner, Pok-Son Kim, and Mike McFadden
  https://github.com/BonzaiThePenguin/WikiSort
+ 
+ to run:
+ javac WikiSort.java
+ java WikiSort
 ***********************************************************/
 
 import java.util.*;
@@ -15,8 +19,8 @@ class Test {
 class TestComparator implements Comparator<Test> {
     public int compare(Test a, Test b) {
     	if (a.value < b.value) return -1;
-	if (a.value > b.value) return 1;
-	return 0;
+		if (a.value > b.value) return 1;
+		return 0;
     }
 }
 
@@ -53,12 +57,14 @@ class WikiSorter<T> {
 	
 	// also, if you change this to dynamically allocate a full-size buffer,
 	// the algorithm seamlessly degenerates into a standard merge sort!
-	private static final int CACHE_SIZE = 512;
+	private static int cache_size = 512;
 	private T[] cache;
 	
 	public WikiSorter() {
-		T[] cache1 = (T[]) new Object[CACHE_SIZE];
-		cache = cache1;
+		@SuppressWarnings("unchecked")
+		T[] cache1 = (T[])new Object[cache_size];
+		if (cache1 == null) cache_size = 0;
+		else cache = cache1;
 	}
 	
 	public static <T> void sort(T[] array, Comparator<T> comp) {
@@ -151,14 +157,14 @@ class WikiSorter<T> {
 		if (use_cache) {
 			// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
 			if (range1.length() <= range2.length()) {
-				if (range1.length() <= CACHE_SIZE) {
+				if (range1.length() <= cache_size) {
 					java.lang.System.arraycopy(array, range1.start, cache, 0, range1.length());
 					java.lang.System.arraycopy(array, range2.start, array, range1.start, range2.length());
 					java.lang.System.arraycopy(cache, 0, array, range1.start + range2.length(), range1.length());
 					return;
 				}
 			} else {
-				if (range2.length() <= CACHE_SIZE) {
+				if (range2.length() <= cache_size) {
 					java.lang.System.arraycopy(array, range2.start, cache, 0, range2.length());
 					java.lang.System.arraycopy(array, range1.start, array, range2.end - range1.length(), range1.length());
 					java.lang.System.arraycopy(cache, 0, array, range1.start, range2.length());
@@ -175,7 +181,7 @@ class WikiSorter<T> {
 	// standard merge operation using an internal buffer
 	void Merge(T array[], Range buffer, Range A, Range B, Comparator<T> comp) {
 		// if A fits into the cache, use that instead of the internal buffer
-		if (A.length() <= CACHE_SIZE) {
+		if (A.length() <= cache_size) {
 			int A_index = 0;
 			int B_index = B.start;
 			int insert_index = A.start;
@@ -328,7 +334,7 @@ class WikiSorter<T> {
 					B.set(mid, end);
 					
 					// try to fill up two buffers with unique values in ascending order
-					if (A.length() <= CACHE_SIZE) {
+					if (A.length() <= cache_size) {
 						java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
 						Merge(array, buffer2, A, B, comp);
 						continue;
@@ -354,7 +360,7 @@ class WikiSorter<T> {
 						// if the size of each block fits into the cache, we only need one buffer for tagging the A blocks
 						// this is because the other buffer is used as a swap space for merging the A blocks into the B values that follow it,
 						// but we can just use the cache as the buffer instead. this skips some memmoves and an insertion sort
-						if (buffer_size <= CACHE_SIZE) {
+						if (buffer_size <= cache_size) {
 							buffer2.set(A.start, A.start);
 							
 							if (buffer1.length() == buffer_size) {
@@ -513,7 +519,7 @@ class WikiSorter<T> {
 					int indexA = 0;
 					T min_value = array[minA];
 					
-					if (lastA.length() <= CACHE_SIZE)
+					if (lastA.length() <= cache_size)
 						java.lang.System.arraycopy(array, lastA.start, cache, 0, lastA.length());
 					else
 						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
@@ -539,7 +545,7 @@ class WikiSorter<T> {
 							Merge(array, buffer2, lastA, new Range(lastA.end, B_split), comp);
 							
 							// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
-							if (block_size <= CACHE_SIZE)
+							if (block_size <= cache_size)
 								java.lang.System.arraycopy(array, blockA.start, cache, 0, block_size);
 							else
 								BlockSwap(array, blockA.start, buffer2.start, block_size);
@@ -678,6 +684,7 @@ class MergeSorter<T> {
 	}
 	
 	void Sort(T array[], Comparator<T> comp) {
+		@SuppressWarnings("unchecked")
 		T[] buffer = (T[]) new Object[array.length];
 		SortR(array, new Range(0, array.length), comp, buffer);
 	}
@@ -762,7 +769,7 @@ class TestingMostlyEqual extends Testing {
 	}
 }
 
-class Main {
+class WikiSort {
 	static double Seconds() {
 		return System.currentTimeMillis()/1000.0;
 	}
@@ -801,8 +808,8 @@ class Main {
 			new TestingMostlyEqual()
 		};
 		
-		WikiSorter Wiki = new WikiSorter<Test>();
-		MergeSorter Merge = new MergeSorter<Test>();
+		WikiSorter<Test> Wiki = new WikiSorter<Test>();
+		MergeSorter<Test> Merge = new MergeSorter<Test>();
 		
 		System.out.println("running test cases...");
 		int total = max_size;
