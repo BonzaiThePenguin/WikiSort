@@ -209,7 +209,7 @@ All of these examples used perfect squares for the size of A (√16 = 4), but wh
 ============================
 <b>And what about that last unevenly sized B block?</b>
 
-If you get to that point and there are still A blocks left, just stop and merge the last A block with those B values.
+If you get to that point and there are still A blocks left, you'll have to <i>rotate</i> the last A block with that uneven-sized B block, rather than <i>block swap</i>. You'll still need to check whether the A block should be rotated into that B block, exactly the same as before.
 
 ============================
 <b>Aren't there still n^2 operations being used?</b>
