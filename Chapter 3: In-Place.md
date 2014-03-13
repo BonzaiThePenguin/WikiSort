@@ -160,34 +160,35 @@ And of course once the smallest A block is dropped behind, you can find the new 
 
 With rotations, of course! The first step is to count out the unique values we've found:
 
+    1. let's say we need to find 5 unique values for our buffer
     [0 0 0 1 1 2 3 3 3 4 4 5 6 6 6 6 6 7 7 8 9 ... ]
      1     2   3 4     5
 
 If we find enough values, we would then stop there and start rotating at that index:
 
+    2. we need to rotate this 4 to be next to the 3
     [0 0 0 1 1 2 3 [3 3 4] 4 5 6 6 6 6 6 7 7 8 9 ... ]
                         ^
-                        |___ we need to rotate this 4 to be next to the 3
     
     [0 0 0 1 1 2 3 [4 3 3] 4 5 6 6 6 6 6 7 7 8 9 ... ]
                     ^
                     |___ like so
     
+    3. now rotate [3 4] to be next to the 2 (wait, it's already there!)
     [0 0 0 1 1 2 [3 4] 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                    ^
-                   |___ now rotate [3 4] to be next to the 2 (wait, it's already there!)
     
+    4. now rotate [2 3 4] to be next to the 1
     [0 0 0 1 [1 2 3 4] 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                   ^
-                  |___ now rotate [2 3 4] to be next to the 1
     
+    5. lastly, rotate [1 2 3 4] to be next to the 0
     [0 [0 0 1 2 3 4] 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                ^
-               |___ lastly, rotate [1 2 3 4] to be next to the 0
     
+    6. here's our buffer!
     [0 1 2 3 4][0 0 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
         ^
-        |___ here's our buffer!
 
 Redistributing the buffers back into [A+B] after merging is the same process, but in reverse.
 
