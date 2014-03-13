@@ -40,8 +40,21 @@ And since there's a good chance the data is already somewhat in order, let's ski
         for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
     >       if (A[last] <= B[first])
-    >           the data was already in order, so we're done!
+    >           the data was already in order, so no need to do anything!
     >       else
+                merge A and B
+
+<br/><br/>
+<i>And</i> in the off-chance the blocks were in <i>reverse</i> order, a simple rotation "sorts" them just fine:
+
+    for each size 16, 32, 64, 128, ..., power_of_two
+        for each chunk of the array of that size, up to power_of_two
+            get the ranges for A and B
+    >       if (B[last] < A[first])
+    >           swap the positions of A and B using a rotation
+            else if (A[last] <= B[first])
+                the data was already in order, so no need to do anything!
+            else
                 merge A and B
 
 <br/><br/>
