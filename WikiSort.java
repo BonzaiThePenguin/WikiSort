@@ -7,6 +7,10 @@
  java WikiSort
 ***********************************************************/
 
+// this is only included here as a proof of concept;
+// you should probably just stick to Java's built-in sort so you get native speeds.
+// (good old interpreted bytecode)
+
 import java.util.*;
 import java.lang.*;
 import java.io.*;
