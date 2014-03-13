@@ -63,7 +63,9 @@ Now that the obvious optimizations are out of the way, let's take a closer look 
     for each size 16, 32, 64, 128, ..., power_of_two
         for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
-            if (A[last] <= B[first])
+            if (B[last] < A[first])
+                swap the positions of A and B using a rotation
+            else if (A[last] <= B[first])
                 the data was already in order, so we're done!
             else
                 merge A and B (shown below):
@@ -87,7 +89,9 @@ But since our goal is to make a super-fast sort, let's break down the barriers a
         
         for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
-            if (A[last] <= B[first])
+            if (B[last] < A[first])
+                swap the positions of A and B using a rotation
+            else if (A[last] <= B[first])
                 the data was already in order, so we're done!
             else
                 merge A and B (shown below):
@@ -104,7 +108,9 @@ Next up, we are <i>technically</i> allowed to use extra memory storage and still
 
     for each chunk of the array of that size, up to power_of_two
         get the ranges for A and B
-        if (A[last] <= B[first])
+        if (B[last] < A[first])
+            swap the positions of A and B using a rotation
+        else if (A[last] <= B[first])
             the data was already in order, so we're done!
         else
     >       if A fits into the cache
@@ -126,7 +132,7 @@ And of course we can go through and write cached versions of the tool functions 
             Reverse(array, range)
 
 <br/><br/>
-This should get the performance up to about 75% of a standard merge sort. This is already pretty good, but let's take it farther!<br/><br/>
+This should get the performance up to about <b>75%</b> of a standard merge sort. This is already pretty good, but let's take it farther!<br/><br/>
 
 
 <b>Profile</b><br/>
