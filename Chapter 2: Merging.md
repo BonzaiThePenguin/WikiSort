@@ -11,11 +11,12 @@ Merge sorting works by breaking an array into two halves, over and over again, u
             mid = range.start + range.length/2
             MergeSort(array, MakeRange(range.start, mid))
             MergeSort(array, MakeRange(mid, range.end))
+            
             Merge(array, MakeRange(range.start, mid), MakeRange(mid, range.end))
 
 <br/><br/>
 <b>Standard merge</b><br/>
-The merge operation of the merge sort algorithm takes two arrays that <i>are already sorted</i>, and combines them into a single array containing A and B sorted together. The operation is acutally quite simple: just take the smaller of the two values at the start of A and B and add it to the final array. Once A and B are empty, the final array is completed!<br/>
+The merge operation of the merge sort algorithm takes two arrays that <i>are already sorted</i> (either from swapping or insertion sorting, as mentioned above), and combines them into a single array containing A and B sorted together. The operation is acutally quite simple: just take the smaller of the two values at the start of A and B and add it to the final array. Once A and B are empty, the final array is completed!<br/>
 
     Merge(array, A, B)
         Copy A and B into a buffer
@@ -33,36 +34,38 @@ The merge operation of the merge sort algorithm takes two arrays that <i>are alr
 Here's an example of how it works:
     
     1. we want to merge these two arrays, A and B:
-    [0 2 4 7]  [1 3 7 8]
-    []
+    [0 2 4 7]  [1 3 7 8]  []
     
     2. 0 is smaller
-    [2 4 7]  [1 3 7 8]
-    [0]
+    [0 2 4 7]  [1 3 7 8]  []
+     ^          ^
     
     3. 1 is smaller
-    [2 4 7]  [3 7 8]
-    [0 1]
+    [2 4 7]  [1 3 7 8]  [0]
+     ^        ^
     
     4. 2 is smaller
-    [4 7]  [3 7 8]
-    [0 1 2]
+    [2 4 7]  [3 7 8]  [0 1]
+     ^        ^
     
     5. 3 is smaller
-    [4 7]  [7 8]
-    [0 1 2 3]
+    [4 7]  [3 7 8]  [0 1 2]
+     ^      ^
     
     6. 4 is smaller
-    [7]  [7 8]
-    [0 1 2 3 4]
+    [4 7]  [7 8]  [0 1 2 3]
+     ^      ^
     
     7. 7 and 7 are equal, so give precedence to A
-    []  [7 8]
-    [0 1 2 3 4 7]
+    [7]  [7 8]  [0 1 2 3 4]
+     ^    ^
     
     8. A is empty, so just add the rest of B to the end
-    [] []
-    [0 1 2 3 4 7 7 8]
+    []  [7 8]  [0 1 2 3 4 7]
+         ^
+    
+    9. A + B have been merged!
+    []  []  [0 1 2 3 4 7 7 8]
 
 <br/><br/>
 <b>Problems</b><br/>
@@ -149,15 +152,15 @@ The floating-point multiplication was verified as correct for over 17 billion it
                 
                 Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
-This is considerably more involved than the standard bottom-up design, but <b>it guarantees that the two ranges being merged will always have the same size to within one item, which ends up being about 10% faster</b>.
+This is considerably more involved than the standard bottom-up design, but it guarantees that the two ranges being merged will always have the same size to within one item, <b>which ends up being about 10% faster</b>.
 
 ==========================
 
-This removes the need for the O(log n) stack space! Although, to be fair, that wasn't really an issue – sorting 1.5 million items only recurses ~20 times anyway. The real problem is that O(n) for the separate buffer! What can we do about <i>that</i>?<br/><br/><br/>
+This removes the need for the O(log n) stack space! Although, to be fair, that wasn't really an issue – sorting 1.5 million items only recurses ~20 times anyway. The real problem is that O(n) space for the separate buffer! What can we do about <i>that</i>?<br/><br/><br/>
 
 
 <b>Merging using a half-size buffer</b><br/>
-One obvious optimization is to only copy the values from A into the buffer, since by the time we run the risk of overwriting values in the range of B we will have already read and compared those values. Here's what this variant looks like:<br/>
+One simple optimization is to only copy the values from A into the buffer, since by the time we run the risk of overwriting values in the range of B we will have already read and compared those values. Here's what this variant looks like:<br/>
 
     Merge(array, A, B)
         Copy the values from A into the buffer, but leave B where it is
