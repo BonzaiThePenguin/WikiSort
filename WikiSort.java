@@ -90,7 +90,7 @@ class WikiSorter<T> {
 		return start;
 	}
     
-    	// find the index of the last value within the range that is equal to array[index], plus 1
+	// find the index of the last value within the range that is equal to array[index], plus 1
 	int BinaryLast(T array[], T value, Range range, Comparator<T> comp) {
 		int start = range.start, end = range.end - 1;
 		while (start < end) {
@@ -133,7 +133,7 @@ class WikiSorter<T> {
 	}
 	
 	// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
-	void Rotate(T array[], int amount, Range range) {
+	void Rotate(T array[], int amount, Range range, boolean use_cache) {
 		if (range.length() == 0) return;
 		
 		int split;
@@ -145,22 +145,24 @@ class WikiSorter<T> {
 		Range range1 = new Range(range.start, split);
 		Range range2 = new Range(split, range.end);
 		
-		// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
-		//if (range1.length() <= range2.length()) {
-		//	if (range1.length() <= CACHE_SIZE) {
-		//		java.lang.System.arraycopy(array, range1.start, cache, 0, range1.length());
-		//		java.lang.System.arraycopy(array, range2.start, array, range1.start, range2.length());
-		//		java.lang.System.arraycopy(cache, 0, array, range1.start + range2.length(), range1.length());
-		//		return;
-		//	}
-		//} else {
-		//	if (range2.length() <= CACHE_SIZE) {
-		//		java.lang.System.arraycopy(array, range2.start, cache, 0, range2.length());
-		//		java.lang.System.arraycopy(array, range1.start, array, range2.end - range1.length(), range1.length());
-		//		java.lang.System.arraycopy(cache, 0, array, range1.start, range2.length());
-		//		return;
-		//	}
-		//}
+		if (use_cache) {
+			// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
+			if (range1.length() <= range2.length()) {
+				if (range1.length() <= CACHE_SIZE) {
+					java.lang.System.arraycopy(array, range1.start, cache, 0, range1.length());
+					java.lang.System.arraycopy(array, range2.start, array, range1.start, range2.length());
+					java.lang.System.arraycopy(cache, 0, array, range1.start + range2.length(), range1.length());
+					return;
+				}
+			} else {
+				if (range2.length() <= CACHE_SIZE) {
+					java.lang.System.arraycopy(array, range2.start, cache, 0, range2.length());
+					java.lang.System.arraycopy(array, range1.start, array, range2.end - range1.length(), range1.length());
+					java.lang.System.arraycopy(cache, 0, array, range1.start, range2.length());
+					return;
+				}
+			}
+		}
 		
 		Reverse(array, range1);
 		Reverse(array, range2);
@@ -315,7 +317,7 @@ class WikiSorter<T> {
 				
 				if (comp.compare(array[end - 1], array[start]) < 0) {
 					// the two ranges are in reverse order, so a simple rotation should fix it
-					Rotate(array, mid - start, new Range(start, end));
+					Rotate(array, mid - start, new Range(start, end), true);
 					
 				} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
 					// these two ranges weren't already in order, so we'll need to merge them!
@@ -445,7 +447,7 @@ class WikiSorter<T> {
 								
 								// rotate A into place
 								int amount = split - A.end;
-								Rotate(array, -amount, new Range(A.start, split));
+								Rotate(array, -amount, new Range(A.start, split), true);
 								
 								// calculate the new A and B ranges
 								B.start = split;
@@ -460,7 +462,7 @@ class WikiSorter<T> {
 						count = 0;
 						for (int index = bufferA.start; count < length; index--) {
 							if (index == A.start || comp.compare(array[index - 1], array[index]) != 0) {
-								Rotate(array, -count, new Range(index + 1, bufferA.start + 1));
+								Rotate(array, -count, new Range(index + 1, bufferA.start + 1), true);
 								bufferA.start = index + count; count++;
 							}
 						}
@@ -471,7 +473,7 @@ class WikiSorter<T> {
 						count = 0;
 						for (int index = bufferB.start; count < length; index++) {
 							if (index == B.end - 1 || comp.compare(array[index], array[index + 1]) != 0) {
-								Rotate(array, count, new Range(bufferB.start, index));
+								Rotate(array, count, new Range(bufferB.start, index), true);
 								bufferB.start = index - count; count++;
 							}
 						}
@@ -561,7 +563,8 @@ class WikiSorter<T> {
 							
 						} else if (blockB.length() < block_size) {
 							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-							Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end));
+							// (using the cache is disabled since we have the contents of the previous A block in it!)
+							Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false);
 							lastB.set(blockA.start, blockA.start + blockB.length());
 							blockA.start += blockB.length();
 							blockA.end += blockB.length();
@@ -599,7 +602,7 @@ class WikiSorter<T> {
 				for (int index = levelA.end; levelA.length() > 0; index++) {
 					if (index == levelB.start || comp.compare(array[index], array[levelA.start]) >= 0) {
 						int amount = index - levelA.end;
-						Rotate(array, -amount, new Range(levelA.start, index));
+						Rotate(array, -amount, new Range(levelA.start, index), true);
 						levelA.start += (amount + 1);
 						levelA.end += amount;
 						index--;
@@ -610,7 +613,7 @@ class WikiSorter<T> {
 				for (int index = levelB.start; levelB.length() > 0; index--) {
 					if (index == level_start || comp.compare(array[levelB.end - 1], array[index - 1]) >= 0) {
 						int amount = levelB.start - index;
-						Rotate(array, amount, new Range(index, levelB.end));
+						Rotate(array, amount, new Range(index, levelB.end), true);
 						levelB.start -= amount;
 						levelB.end -= (amount + 1);
 						index++;
@@ -778,7 +781,7 @@ class Main {
 	}
 	
 	public static void main (String[] args) throws java.lang.Exception {
-		int max_size = 150000;
+		int max_size = 1500000;
 		TestComparator comp = new TestComparator();
 		Test[] array1;
 		Test[] array2;
