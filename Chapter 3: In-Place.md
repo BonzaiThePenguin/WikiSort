@@ -95,7 +95,7 @@ As soon as we've found the exact spot where an A block should be, and have rotat
 
 At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] \(marked with a ^ above).
 
-Once we merge the previous A block with the B values that follow it, that means that part of the array is <i>completely finished being sorted</i> (see the top of this chapter) and we don't need to keep track of it anymore. In fact, we only need to keep track of the starting point of the new A block we just dropped behind, the starting point of the A blocks that are "rolling" along, and how many A blocks are left. This does not change regardless of the number of A blocks that need to be inserted – hence O(1) memory.
+Once we merge the previous A block with the B values that follow it, that means that part of the array is <i>completely finished being merged</i> (see the top of this chapter) and we don't need to keep track of it anymore. In fact, we only need to keep track of the starting point of the new A block we just dropped behind, the starting point of the A blocks that are "rolling" along, and how many A blocks are left. This does not change regardless of the number of A blocks that need to be inserted – hence O(1) memory.
 
 Anyway, this process repeats until there are no A blocks left, at which point we merge it with the remainder of the B array.
 
