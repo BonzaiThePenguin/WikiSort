@@ -15,8 +15,8 @@ We think of it like this:
     [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
     
     2. insert them into B where they belong
-       the rule for inserting is that the first value of each A block must be
-       less than or equal to the LAST value of the NEXT B block
+       (the rule for inserting is that the first value of each A block must be
+        less than or equal to the first value of the next B block)
     [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
     
     3. merge each [A][B] combination
@@ -52,7 +52,7 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
       |__ first B block (swapped with [ 0 ])
     
     3. keep going until we find where we want to "drop" the smallest A block behind
-       (as in A[first] <= B[last], where A is the minimum A block and B is the block we just swapped over)
+       (A[first] <= B[last], where A is the minimum A block, or [ 0 ], and B is the block we just swapped over)
     [ B ][ B ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
                 ^                        ^
                 |__ the first A block needs to be block swapped here
@@ -67,8 +67,10 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
     [ B ][B][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
           ^      ^
           |______|__ B was split into two parts
+          
+Note that after the rotation, A[first] is indeed <= the first B value that follows it.
 
-As soon as we find the exact spot where an A block should be, and rotate it into place in the array, we should immediately merge the previous A block with any B values that follow it. So, to continue the above example:
+As soon as we've found the exact spot where an A block should be, and have rotated it into place in the array, we should immediately merge the previous A block with any B values that follow it. So, to continue the above example:
 
     6. find the next A block to move into position
     [ B ][B][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
