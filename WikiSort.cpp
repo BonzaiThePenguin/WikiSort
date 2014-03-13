@@ -173,18 +173,6 @@ namespace Wiki {
 		const long size = last - first;
 		__typeof__(&first[0]) array = &first[0];
 		
-		// reverse any descending ranges in the array, as that will allow them to sort faster
-		Range reverse = Range(0, 1);
-		for (long index = 1; index < size; index++) {
-			if (compare(array[index], array[index - 1]))
-				reverse.end++;
-			else {
-				Reverse(array, reverse);
-				reverse = Range(index, index + 1);
-			}
-		}
-		Reverse(array, reverse);
-		
 		// if there are 32 or fewer items, just insertion sort the entire array
 		if (size <= 32) {
 			InsertionSort(array, Range(0, size), compare);
