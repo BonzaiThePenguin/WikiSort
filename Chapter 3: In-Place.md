@@ -16,7 +16,7 @@ We think of it like this:
     
     2. insert them into B where they belong
        the rule for inserting is that the first value of each A block must be
-       less than or equal to the LAST value of the PREVIOUS B block
+       less than or equal to the LAST value of the NEXT B block
     [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
     
     3. merge each [A][B] combination
@@ -52,11 +52,13 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
       |__ first B block (swapped with [ 0 ])
     
     3. keep going until we find where we want to "drop" the smallest A block behind
+       (as in A[first] <= B[last], where A is the minimum A block and B is the block we just swapped over)
     [ B ][ B ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
                 ^                        ^
                 |__ the first A block needs to be block swapped here
     
     4. find the EXACT spot within B where the A block should go
+       (using a binary search for A[first] <= B[index])
     [ B ][ B ][ 0 ][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
             ^
             |__ really, it SHOULD be here
