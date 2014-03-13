@@ -19,8 +19,8 @@ class Test {
 class TestComparator implements Comparator<Test> {
     public int compare(Test a, Test b) {
     	if (a.value < b.value) return -1;
-		if (a.value > b.value) return 1;
-		return 0;
+	if (a.value > b.value) return 1;
+	return 0;
     }
 }
 
