@@ -50,6 +50,9 @@ class WikiSorter<T> {
 	// since the cache size is fixed, it's still O(1) memory!
 	// just keep in mind that making it too small ruins the point (nothing will fit into it),
 	// and making it too large also ruins the point (so much for "low memory"!)
+	
+	// also, if you change this to dynamically allocate a full-size buffer,
+	// the algorithm seamlessly degenerates into a standard merge sort!
 	private static final int CACHE_SIZE = 512;
 	private T[] cache;
 	
