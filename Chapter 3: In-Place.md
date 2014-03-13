@@ -143,7 +143,7 @@ The next trick is to use <i>another</i> A block to store <i>another</i> set of u
     [ 1 2 3 4 ]  [ 1 7 2 3 ][ 4 8 5 5 ][ 5 9 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 1 5 5 10 ]
                      ^          ^          ^                                                  ^ ^ ^
 
-The reason we tag the second value of each A block, rather than the first or last, is because we use (A[first] <= B[last]) to decide where to leave the smallest A block. We currently don't use the last value for anything, but it could be useful for detecting contiguous A blocks (the last value of one A block equals the first value of the next, meaning B won't break them apart).
+The reason we tag the second value of each A block, rather than the first or last, is because we use (A[first] <= B[last]) to decide where to leave the smallest A block. We currently don't use the last value of A for anything, but it could be useful for detecting contiguous A blocks (the last value of one A block equals the first value of the next, meaning B won't break them apart).
 
 Anyway, when we go to merge an A block with the B values that follow it, just swap the second value in the A block back with its actual value in the buffer, so the original data is restored. Unlike the first buffer, the values in this one will still be in order by the time we're finished, so we never need to sort this section. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
 
@@ -200,6 +200,16 @@ If neither A nor B contain enough unique values to fill up the two required bloc
         calculate the new A and B ranges:
         B = MakeRange(mid, B.start + B.length)
         A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
+
+============================
+<b>And what if A can't be broken up into evenly sized blocks?</b>
+
+All of these examples used perfect squares for the size of A (√16 = 4), but what if A has... <i>17</i> items? Not a problem – just have the <i>first</i> A block be unevenly sized, and don't roll it through the B blocks with the rest of the A blocks. Once you drop the first evenly sized A block behind and rotate it into the B block, that uneven A block should be merged with the B values that follow it.
+
+============================
+<b>And what about that last unevenly sized B block?</b>
+
+If you get to that point and there are still A blocks left, just stop and merge the last A block with those B values.
 
 ============================
 <b>Aren't there still n^2 operations being used?</b>
