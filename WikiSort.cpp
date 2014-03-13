@@ -581,7 +581,7 @@ namespace Testing {
 	}
 	
 	// purely random data is one of the few cases where it is slower than stable_sort(),
-	// although it does end up only running at about 75% as fast in that situation
+	// although it does end up only running at about 85% as fast in that situation
 	long Random(long index, long total) {
 		return rand();
 	}
