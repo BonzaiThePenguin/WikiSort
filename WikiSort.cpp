@@ -13,8 +13,6 @@
 #include <math.h>
 #include <assert.h>
 
-using namespace std;
-
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 // structure to represent ranges within the array
@@ -48,61 +46,31 @@ long FloorPowerOfTwo (const long value) {
 // find the index of the first value within the range that is equal to array[index]
 template <typename T, typename Comparison>
 long BinaryFirst(const T array[], const T &value, const Range range, const Comparison compare) {
-	long start = range.start, end = range.end - 1;
-	while (start < end) {
-		long mid = start + (end - start)/2;
-		if (compare(array[mid], value))
-			start = mid + 1;
-		else
-			end = mid;
-	}
-	if (start == range.end - 1 && compare(array[start], value)) start++;
-	return start;
+	return std::lower_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
 template <typename T, typename Comparison>
 long BinaryLast(const T array[], const T &value, const Range range, const Comparison compare) {
-	long start = range.start, end = range.end - 1;
-	while (start < end) {
-		long mid = start + (end - start)/2;
-		if (!compare(value, array[mid]))
-			start = mid + 1;
-		else
-			end = mid;
-	}
-	if (start == range.end - 1 && !compare(value, array[start])) start++;
-	return start;
+	return std::upper_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
 }
 
 // n^2 sorting algorithm used to sort tiny chunks of the full array
 template <typename T, typename Comparison>
 void InsertionSort(T array[], const Range range, const Comparison compare) {
-	for (long i = range.start + 1; i < range.end; i++) {
-		const T temp = array[i]; long j;
-		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
-			array[j] = array[j - 1];
-		array[j] = temp;
-	}
+	std::__insertion_sort(&array[range.start], &array[range.end], compare);
 }
 
 // reverse a range within the array
 template <typename T>
 void Reverse(T array[], const Range range) {
-	for (long index = range.length()/2 - 1; index >= 0; index--)
-		swap(array[range.start + index], array[range.end - index - 1]);
+	std::reverse(&array[range.start], &array[range.end]);
 }
 
 // swap a series of values in the array
 template <typename T>
 void BlockSwap(T array[], const long start1, const long start2, const long block_size) {
-	if (start1 == start2) return;
-	T *array1 = &array[start1], *array2 = &array[start2], *last = &array[start1 + block_size];
-	while (array1 != last) {
-		swap(*array1, *array2);
-		array1++;
-		array2++;
-	}
+	std::swap_ranges(&array[start1], &array[start1 + block_size], &array[start2]);
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
@@ -134,9 +102,7 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 		}
 	}
 	
-	Reverse(array, range1);
-	Reverse(array, range2);
-	Reverse(array, range);
+	std::rotate(&array[range1.start], &array[range2.start], &array[range2.end]);
 }
 
 namespace Wiki {
@@ -168,7 +134,7 @@ namespace Wiki {
 			}
 			
 			// copy the remainder of A into the final array
-			memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
+			std::copy(A_index, A_last, insert_index);
 		} else {
 			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
@@ -181,12 +147,12 @@ namespace Wiki {
 			if (B.length() > 0 && A.length() > 0) {
 				while (true) {
 					if (!compare(*B_index, *A_index)) {
-						swap(*insert_index, *A_index);
+						std::swap(*insert_index, *A_index);
 						A_index++;
 						insert_index++;
 						if (A_index == A_last) break;
 					} else {
-						swap(*insert_index, *B_index);
+						std::swap(*insert_index, *B_index);
 						B_index++;
 						insert_index++;
 						if (B_index == B_last) break;
@@ -194,7 +160,7 @@ namespace Wiki {
 				}
 			}
 			
-			swap_ranges(A_index, A_last, insert_index);
+			std::swap_ranges(A_index, A_last, insert_index);
 		}
 	}
 	
@@ -203,8 +169,8 @@ namespace Wiki {
 	void Sort(Iterator first, Iterator last, const Comparison compare) {
 		// map first and last to a C-style array, so we don't have to change the rest of the code
 		// (bit of a nasty hack, but it's good enough for now...)
-		__typeof__(&first[0]) array = &first[0];
 		const long size = last - first;
+		__typeof__(&first[0]) array = &first[0];
 		
 		// reverse any descending ranges in the array, as that will allow them to sort faster
 		Range reverse = Range(0, 1);
@@ -233,7 +199,7 @@ namespace Wiki {
 		// also, if you change this to dynamically allocate a full-size buffer,
 		// the algorithm seamlessly degenerates into a standard merge sort!
 		const long cache_size = 512;
-		__typeof__(*array) cache[cache_size];
+		__typeof__(array[0]) cache[cache_size];
 		
 		// calculate how to scale the index value to the range within the array
 		// (this is essentially fixed-point math, where we manually check for and handle overflow)
@@ -268,6 +234,8 @@ namespace Wiki {
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
 			Range level1 = Range(0, 0), level2, levelA, levelB;
 			
+			// maybe try to find the buffers to pull out in one pass here
+			
 			decimal = fractional = 0;
 			while (decimal < size) {
 				start = decimal;
@@ -299,7 +267,7 @@ namespace Wiki {
 					Range A = Range(start, mid), B = Range(mid, end);
 					
 					if (A.length() <= cache_size) {
-						memcpy(&cache[0], &array[A.start], A.length() * sizeof(array[0]));
+						std::copy(&array[A.start], &array[A.end], &cache[0]);
 						Merge(array, Range(0, 0), A, B, compare, cache, cache_size);
 						continue;
 					}
@@ -465,20 +433,20 @@ namespace Wiki {
 					
 					// swap the second value of each A block with the value in buffer1
 					for (long index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
-						swap(array[buffer1.start + index], array[indexA]);
+						std::swap(array[buffer1.start + index], array[indexA]);
 					
 					// start rolling the A blocks through the B blocks!
 					// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
 					lastA = firstA;
 					lastB = Range(0, 0);
-					blockB = Range(B.start, B.start + min(block_size, B.length() - bufferB.length()));
+					blockB = Range(B.start, B.start + std::min(block_size, B.length() - bufferB.length()));
 					blockA.start += firstA.length();
 					
 					long minA = blockA.start, indexA = 0;
 					__typeof__(*array) min_value = array[minA];
 					
 					if (lastA.length() <= cache_size)
-						memcpy(&cache[0], &array[lastA.start], lastA.length() * sizeof(array[0]));
+						std::copy(&array[lastA.start], &array[lastA.end], &cache[0]);
 					else
 						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 					
@@ -494,14 +462,14 @@ namespace Wiki {
 							
 							// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
 							// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
-							swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
+							std::swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 							
 							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
 							Merge(array, buffer2, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
 							
 							// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
 							if (block_size <= cache_size)
-								memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
+								std::copy(&array[blockA.start], &array[blockA.start + block_size], cache);
 							else
 								BlockSwap(array, blockA.start, buffer2.start, block_size);
 							
@@ -646,6 +614,8 @@ namespace Testing {
 		return 1000 + rand() * 1.0/RAND_MAX * 4;
 	}
 }
+
+using namespace std;
 
 // make sure the items within the given range are in a stable order
 template <typename Comparison>
