@@ -112,11 +112,9 @@ namespace Wiki {
 	void Merge(T array[], const Range buffer, const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) {
 		// if A fits into the cache, use that instead of the internal buffer
 		if (A.length() <= cache_size) {
-			T *A_index = &cache[0];
-			T *B_index = &array[B.start];
+			T *A_index = &cache[0], *B_index = &array[B.start];
+			T *A_last = &cache[A.length()], *B_last = &array[B.end];
 			T *insert_index = &array[A.start];
-			T *A_last = &cache[A.length()];
-			T *B_last = &array[B.end];
 			
 			if (B.length() > 0 && A.length() > 0) {
 				while (true) {
@@ -139,11 +137,9 @@ namespace Wiki {
 		} else {
 			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-			T *A_index = &array[buffer.start];
-			T *B_index = &array[B.start];
+			T *A_index = &array[buffer.start], *B_index = &array[B.start];
+			T *A_last = &array[buffer.start + A.length()], *B_last = &array[B.end];
 			T *insert_index = &array[A.start];
-			T *A_last = &array[buffer.start + A.length()];
-			T *B_last = &array[B.end];
 			
 			if (B.length() > 0 && A.length() > 0) {
 				while (true) {
@@ -222,8 +218,6 @@ namespace Wiki {
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
 			Range level1 = Range(0, 0), level2, levelA, levelB;
-			
-			// maybe try to find the buffers to pull out in one pass here
 			
 			decimal = fractional = 0;
 			while (decimal < size) {
@@ -551,7 +545,7 @@ namespace Wiki {
 		}
 	}
 }
-					
+
 
 // structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
 typedef struct {
@@ -570,7 +564,7 @@ namespace Testing {
 	}
 	
 	// purely random data is one of the few cases where it is slower than stable_sort(),
-	// although it does end up only running at about 85% as fast in that situation
+	// although it does end up only running at about 87% as fast in that situation
 	long Random(long index, long total) {
 		return rand();
 	}
@@ -680,6 +674,16 @@ int main() {
 		
 		for (long index = 0; index < total; index++) {
 			Test item;
+			
+			//Testing::Pathological,
+			//Testing::Random,
+			//Testing::MostlyDescending,
+			//Testing::MostlyAscending,
+			//Testing::Ascending,
+			//Testing::Descending,
+			//Testing::Equal,
+			//Testing::Jittered,
+			//Testing::MostlyEqual
 			
 			item.value = Testing::Random(index, total);
 			item.index = index;
