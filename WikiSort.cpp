@@ -199,11 +199,12 @@ namespace Wiki {
 	}
 	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
-	template <typename T, typename Comparison>
-	void Sort(vector<T> &vec, const Comparison compare) {
-		// switch over to a C-array, as it runs faster and we never resize the vector
-		T *array = &vec[0];
-		const long size = vec.size();
+	template <typename Iterator, typename Comparison>
+	void Sort(Iterator first, Iterator last, const Comparison compare) {
+		// map first and last to a C-style array, so we don't have to change the rest of the code
+		// (bit of a nasty hack, but it's good enough for now...)
+		__typeof__(&first[0]) array = &first[0];
+		const long size = last - first;
 		
 		// reverse any descending ranges in the array, as that will allow them to sort faster
 		Range reverse = Range(0, 1);
@@ -229,7 +230,7 @@ namespace Wiki {
 		// and making it too large also ruins the point (so much for "low memory"!)
 		// removing the cache entirely still gives 70% of the performance of a standard merge
 		const long cache_size = 512;
-		T cache[cache_size];
+		__typeof__(*array) cache[cache_size];
 		
 		// calculate how to scale the index value to the range within the array
 		// (this is essentially fixed-point math, where we manually check for and handle overflow)
@@ -471,7 +472,7 @@ namespace Wiki {
 					blockA.start += firstA.length();
 					
 					long minA = blockA.start, indexA = 0;
-					T min_value = array[minA];
+					__typeof__(*array) min_value = array[minA];
 					
 					if (lastA.length() <= cache_size)
 						memcpy(&cache[0], &array[lastA.start], lastA.length() * sizeof(array[0]));
@@ -696,7 +697,7 @@ int main() {
 			array1[index] = array2[index] = item;
 		}
 		
-		Wiki::Sort(array1, compare);
+		Wiki::Sort(array1.begin(), array1.end(), compare);
 		
 		stable_sort(array2.begin(), array2.end(), compare);
 		
@@ -725,7 +726,7 @@ int main() {
 		}
 		
 		double time1 = Seconds();
-		Wiki::Sort(array1, compare);
+		Wiki::Sort(array1.begin(), array1.end(), compare);
 		time1 = Seconds() - time1;
 		total_time1 += time1;
 		
