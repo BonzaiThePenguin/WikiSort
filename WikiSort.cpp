@@ -229,6 +229,9 @@ namespace Wiki {
 		// just keep in mind that making it too small ruins the point (nothing will fit into it),
 		// and making it too large also ruins the point (so much for "low memory"!)
 		// removing the cache entirely still gives 70% of the performance of a standard merge
+		
+		// also, if you change this to dynamically allocate a full-size buffer,
+		// the algorithm seamlessly degenerates into a standard merge sort!
 		const long cache_size = 512;
 		__typeof__(*array) cache[cache_size];
 		
