@@ -35,7 +35,7 @@ That's the general idea, but it raises some questions:
 &nbsp;&nbsp;• How exactly do we "insert" each A block into B without it being an n^2 operation?<br/>
 &nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b><br/><br/>
 
-First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length), which incidentally means there will be √(A.length) <i>number</i> of A blocks as well. You'll see why we use that size in a second.<br/><br/>
+First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length), which incidentally means there will be √(A.length) <i>number</i> of A blocks as well. You'll see why we use that size at the end of this chapter.<br/><br/>
 
 Next up, you don't <i>actually</i> break the array into anything. What you instead do is keep track of the size of each block (sqrt(A.length)), how many A blocks there are (A.length/block_size), and the start and end of A within the array. Each block is then defined <i>implicitly</i> as A.start + block_size * index, where index is from 0 to (block_count - 1).<br/><br/>
 
