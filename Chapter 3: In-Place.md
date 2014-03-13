@@ -214,10 +214,12 @@ If neither A nor B contain enough unique values to fill up the two required bloc
 
 All of these examples used perfect squares for the size of A (√16 = 4), but what if A has... <i>17</i> items? Not a problem – just have the <i>first</i> A block be unevenly sized, and don't roll it through the B blocks with the rest of the A blocks. Once you drop the first evenly sized A block behind and rotate it into the B block, that uneven A block should be merged with the B values that follow it.
 
+Since this unevenly sized A block won't be rolled along with the rest of the A blocks, you do not need to "tag" it with a unique value from the buffer.
+
 ============================
 <b>And what about that last unevenly sized B block?</b>
 
-If you get to that point and there are still A blocks left, you'll have to <i>rotate</i> the remaining A blocks with that uneven-sized B block, rather than <i>block swap</i>. You'll still need to check every remaining A block to see if it needs to be rotated back into that B block, exactly the same as before.
+If you get to that point and there are still A blocks left, you'll have to <i>rotate</i> the remaining A blocks with that uneven-sized B block, rather than <i>block swap</i>, so that the unevenly sized B block appears before those A blocks in the array. You'll still need to check every remaining A block to see if it needs to be rotated back into that B block, exactly the same as before.
 
 ============================
 <b>Aren't there still n^2 operations being used?</b>
