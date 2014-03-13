@@ -45,7 +45,23 @@ class Range {
 	}
 }
 
-class Wiki {
+class WikiSorter<T> {
+	// use a small cache to speed up some of the operations
+	// since the cache size is fixed, it's still O(1) memory!
+	// just keep in mind that making it too small ruins the point (nothing will fit into it),
+	// and making it too large also ruins the point (so much for "low memory"!)
+	private static final int CACHE_SIZE = 512;
+	private T[] cache;
+	
+	public WikiSorter() {
+		T[] cache1 = (T[]) new Object[CACHE_SIZE];
+		cache = cache1;
+	}
+	
+	public static <T> void sort(T[] array, Comparator<T> comp) {
+		new WikiSorter<T>().Sort(array, comp);
+	}
+	
 	// toolbox functions used by the sorter
 	
 	// 63 -> 32, 64 -> 64, etc.
@@ -61,7 +77,7 @@ class Wiki {
 	}
 	
 	// find the index of the first value within the range that is equal to array[index]
-	static int BinaryFirst(Test array[], Test value, Range range, TestComparator comp) {
+	int BinaryFirst(T array[], T value, Range range, Comparator<T> comp) {
 		int start = range.start, end = range.end - 1;
 		while (start < end) {
 			int mid = start + (end - start)/2;
@@ -73,9 +89,9 @@ class Wiki {
 		if (start == range.end - 1 && comp.compare(array[start], value) < 0) start++;
 		return start;
 	}
-	
-	// find the index of the last value within the range that is equal to array[index], plus 1
-	static int BinaryLast(Test array[], Test value, Range range, TestComparator comp) {
+    
+    	// find the index of the last value within the range that is equal to array[index], plus 1
+	int BinaryLast(T array[], T value, Range range, Comparator<T> comp) {
 		int start = range.start, end = range.end - 1;
 		while (start < end) {
 			int mid = start + (end - start)/2;
@@ -89,9 +105,9 @@ class Wiki {
 	}
 	
 	// n^2 sorting algorithm used to sort tiny chunks of the full array
-	static void InsertionSort(Test array[], Range range, TestComparator comp) {
+	void InsertionSort(T array[], Range range, Comparator<T> comp) {
 		for (int i = range.start + 1; i < range.end; i++) {
-			Test temp = array[i]; int j;
+			T temp = array[i]; int j;
 			for (j = i; j > range.start && comp.compare(temp, array[j - 1]) < 0; j--)
 				array[j] = array[j - 1];
 			array[j] = temp;
@@ -99,25 +115,25 @@ class Wiki {
 	}
 	
 	// reverse a range within the array
-	static void Reverse(Test array[], Range range) {
+	void Reverse(T array[], Range range) {
 		for (int index = range.length()/2 - 1; index >= 0; index--) {
-			Test swap = array[range.start + index];
+			T swap = array[range.start + index];
 			array[range.start + index] = array[range.end - index - 1];
 			array[range.end - index - 1] = swap;
 		}
 	}
 	
 	// swap a series of values in the array
-	static void BlockSwap(Test array[], int start1, int start2, int block_size) {
+	void BlockSwap(T array[], int start1, int start2, int block_size) {
 		for (int index = 0; index < block_size; index++) {
-			Test swap = array[start1 + index];
+			T swap = array[start1 + index];
 			array[start1 + index] = array[start2 + index];
 			array[start2 + index] = swap;
 		}
 	}
 	
 	// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
-	static void Rotate(Test array[], int amount, Range range) {
+	void Rotate(T array[], int amount, Range range) {
 		if (range.length() == 0) return;
 		
 		int split;
@@ -129,43 +145,89 @@ class Wiki {
 		Range range1 = new Range(range.start, split);
 		Range range2 = new Range(split, range.end);
 		
+		// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
+		//if (range1.length() <= range2.length()) {
+		//	if (range1.length() <= CACHE_SIZE) {
+		//		java.lang.System.arraycopy(array, range1.start, cache, 0, range1.length());
+		//		java.lang.System.arraycopy(array, range2.start, array, range1.start, range2.length());
+		//		java.lang.System.arraycopy(cache, 0, array, range1.start + range2.length(), range1.length());
+		//		return;
+		//	}
+		//} else {
+		//	if (range2.length() <= CACHE_SIZE) {
+		//		java.lang.System.arraycopy(array, range2.start, cache, 0, range2.length());
+		//		java.lang.System.arraycopy(array, range1.start, array, range2.end - range1.length(), range1.length());
+		//		java.lang.System.arraycopy(cache, 0, array, range1.start, range2.length());
+		//		return;
+		//	}
+		//}
+		
 		Reverse(array, range1);
 		Reverse(array, range2);
 		Reverse(array, range);
 	}
 	
 	// standard merge operation using an internal buffer
-	static void Merge(Test array[], Range buffer, Range A, Range B, TestComparator comp) {
-		// whenever we find a value to add to the final array, swap it with the value that's already in that spot
-		// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-		int A_count = 0, B_count = 0, insert = 0;
-		
-		if (B.length() > 0 && A.length() > 0) {
-			while (true) {
-				if (comp.compare(array[B.start + B_count], array[buffer.start + A_count]) >= 0) {
-					Test swap = array[A.start + insert];
-					array[A.start + insert] = array[buffer.start + A_count];
-					array[buffer.start + A_count] = swap;
-					A_count++;
-					insert++;
-					if (A_count >= A.length()) break;
-				} else {
-					Test swap = array[A.start + insert];
-					array[A.start + insert] = array[B.start + B_count];
-					array[B.start + B_count] = swap;
-					B_count++;
-					insert++;
-					if (B_count >= B.length()) break;
+	void Merge(T array[], Range buffer, Range A, Range B, Comparator<T> comp) {
+		// if A fits into the cache, use that instead of the internal buffer
+		if (A.length() <= CACHE_SIZE) {
+			int A_index = 0;
+			int B_index = B.start;
+			int insert_index = A.start;
+			int A_last = A.length();
+			int B_last = B.end;
+			
+			if (B.length() > 0 && A.length() > 0) {
+				while (true) {
+					if (comp.compare(array[B_index], cache[A_index]) >= 0) {
+						array[insert_index] = cache[A_index];
+						A_index++;
+						insert_index++;
+						if (A_index == A_last) break;
+					} else {
+						array[insert_index] = array[B_index];
+						B_index++;
+						insert_index++;
+						if (B_index == B_last) break;
+					}
 				}
 			}
+			
+			// copy the remainder of A into the final array
+			java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
+			
+		} else {
+			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
+			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
+			int A_count = 0, B_count = 0, insert = 0;
+			
+			if (B.length() > 0 && A.length() > 0) {
+				while (true) {
+					if (comp.compare(array[B.start + B_count], array[buffer.start + A_count]) >= 0) {
+						T swap = array[A.start + insert];
+						array[A.start + insert] = array[buffer.start + A_count];
+						array[buffer.start + A_count] = swap;
+						A_count++;
+						insert++;
+						if (A_count >= A.length()) break;
+					} else {
+						T swap = array[A.start + insert];
+						array[A.start + insert] = array[B.start + B_count];
+						array[B.start + B_count] = swap;
+						B_count++;
+						insert++;
+						if (B_count >= B.length()) break;
+					}
+				}
+			}
+			
+			// swap the remainder of A into the final array
+			BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
 		}
-		
-		// swap the remainder of A into the final array
-		BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
 	}
 	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
-	static void Sort(Test array[], TestComparator comp) {
+	void Sort(T array[], Comparator<T> comp) {
 		int size = array.length;
 		
 		// reverse any descending ranges in the array, as that will allow them to sort faster
@@ -210,6 +272,16 @@ class Wiki {
 			InsertionSort(array, new Range(start, end), comp);
 		}
 		
+		// we need to keep track of a lot of ranges during this sort!
+		Range bufferA = new Range(), bufferB = new Range();
+		Range buffer1 = new Range(), buffer2 = new Range();
+		Range blockA = new Range(), blockB = new Range();
+		Range lastA = new Range(), lastB = new Range();
+		Range firstA = new Range();
+		Range level1 = new Range(), level2 = new Range();
+		Range levelA = new Range(), levelB = new Range();
+		Range A = new Range(), B = new Range();
+		
 		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
 		for (int merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
 			int block_size = (int)Math.sqrt(decimal_step);
@@ -217,8 +289,7 @@ class Wiki {
 			
 			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
 			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
-			Range level1 = new Range(), level2 = new Range();
-			Range levelA = new Range(), levelB = new Range();
+			level1.set(0, 0);
 			
 			decimal = fractional = 0;
 			while (decimal < size) {
@@ -248,13 +319,15 @@ class Wiki {
 					
 				} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
 					// these two ranges weren't already in order, so we'll need to merge them!
-					Range A = new Range(start, mid), B = new Range(mid, end);
+					A.set(start, mid);
+					B.set(mid, end);
 					
-					Range bufferA = new Range(), bufferB = new Range();
-					Range buffer1 = new Range(), buffer2 = new Range();
-					Range blockA = new Range(), blockB = new Range();
-					Range lastA = new Range(), lastB = new Range();
-					Range firstA = new Range();
+					// try to fill up two buffers with unique values in ascending order
+					if (A.length() <= CACHE_SIZE) {
+						java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
+						Merge(array, buffer2, A, B, comp);
+						continue;
+					}
 					
 					// try to fill up two buffers with unique values in ascending order
 					if (level1.length() > 0) {
@@ -273,62 +346,94 @@ class Wiki {
 									break;
 						buffer1.end = buffer1.start + count;
 						
-						// the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too
-						count = 0;
-						for (buffer2.start = buffer1.start + 1; buffer2.start < A.end; buffer2.start++)
-							if (comp.compare(array[buffer2.start - 1], array[buffer2.start]) != 0)
-								if (++count == buffer_size)
-									break;
-						buffer2.end = buffer2.start + count;
-						
-						if (buffer2.length() == buffer_size) {
-							// we found enough values for both buffers in A
-							bufferA.set(buffer2.start, buffer2.start + buffer_size * 2);
-							bufferB.set(B.end, B.end);
-							buffer1.set(A.start, A.start + buffer_size);
-							buffer2.set(A.start + buffer_size, A.start + buffer_size * 2);
+						// if the size of each block fits into the cache, we only need one buffer for tagging the A blocks
+						// this is because the other buffer is used as a swap space for merging the A blocks into the B values that follow it,
+						// but we can just use the cache as the buffer instead. this skips some memmoves and an insertion sort
+						if (buffer_size <= CACHE_SIZE) {
+							buffer2.set(A.start, A.start);
 							
-						} else if (buffer1.length() == buffer_size) {
-							// we found enough values for one buffer in A, so we'll need to find one buffer in B
-							bufferA.set(buffer1.start, buffer1.start + buffer_size);
-							buffer1.set(A.start, A.start + buffer_size);
-							
-							// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
-							count = 1;
-							for (buffer2.start = B.end - 2; buffer2.start >= B.start; buffer2.start--)
-								if (comp.compare(array[buffer2.start], array[buffer2.start + 1]) != 0)
-									if (++count == buffer_size)
-										break;
-							buffer2.end = buffer2.start + count;
-							
-							if (buffer2.length() == buffer_size) {
-								bufferB.set(buffer2.start, buffer2.start + buffer_size);
-								buffer2.set(B.end - buffer_size, B.end);
+							if (buffer1.length() == buffer_size) {
+								// we found enough values for the buffer in A
+								bufferA.set(buffer1.start, buffer1.start + buffer_size);
+								bufferB.set(B.end, B.end);
+								buffer1.set(A.start, A.start + buffer_size);
 								
-							} else buffer1.end = buffer1.start; // failure
+							} else {
+								// we were unable to find enough unique values in A, so try B
+								bufferA.set(buffer1.start, buffer1.start);
+								buffer1.set(A.start, A.start);
+								
+								// the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
+								count = 1;
+								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
+									if (comp.compare(array[buffer1.start], array[buffer1.start + 1]) != 0)
+										if (++count == buffer_size)
+											break;
+								buffer1.end = buffer1.start + count;
+								
+								if (buffer1.length() == buffer_size) {
+									bufferB.set(buffer1.start, buffer1.start + buffer_size);
+									buffer1.set(B.end - buffer_size, B.end);
+								}
+							}
 						} else {
-							// we were unable to find a single buffer in A, so we'll need to find two buffers in B
-							count = 1;
-							for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
-								if (comp.compare(array[buffer1.start], array[buffer1.start + 1]) != 0)
-									if (++count == buffer_size)
-										break;
-							buffer1.end = buffer1.start + count;
-							
+							// the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too
 							count = 0;
-							for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--)
-								if (comp.compare(array[buffer2.start], array[buffer2.start + 1]) != 0)
+							for (buffer2.start = buffer1.start + 1; buffer2.start < A.end; buffer2.start++)
+								if (comp.compare(array[buffer2.start - 1], array[buffer2.start]) != 0)
 									if (++count == buffer_size)
 										break;
 							buffer2.end = buffer2.start + count;
 							
 							if (buffer2.length() == buffer_size) {
-								bufferA.set(A.start, A.start);
-								bufferB.set(buffer2.start, buffer2.start + buffer_size * 2);
-								buffer1.set(B.end - buffer_size, B.end);
-								buffer2.set(buffer1.start - buffer_size, buffer1.start);
+								// we found enough values for both buffers in A
+								bufferA.set(buffer2.start, buffer2.start + buffer_size * 2);
+								bufferB.set(B.end, B.end);
+								buffer1.set(A.start, A.start + buffer_size);
+								buffer2.set(A.start + buffer_size, A.start + buffer_size * 2);
 								
-							} else buffer1.end = buffer1.start; // failure
+							} else if (buffer1.length() == buffer_size) {
+								// we found enough values for one buffer in A, so we'll need to find one buffer in B
+								bufferA.set(buffer1.start, buffer1.start + buffer_size);
+								buffer1.set(A.start, A.start + buffer_size);
+								
+								// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
+								count = 1;
+								for (buffer2.start = B.end - 2; buffer2.start >= B.start; buffer2.start--)
+									if (comp.compare(array[buffer2.start], array[buffer2.start + 1]) != 0)
+										if (++count == buffer_size)
+											break;
+								buffer2.end = buffer2.start + count;
+								
+								if (buffer2.length() == buffer_size) {
+									bufferB.set(buffer2.start, buffer2.start + buffer_size);
+									buffer2.set(B.end - buffer_size, B.end);
+									
+								} else buffer1.end = buffer1.start; // failure
+							} else {
+								// we were unable to find a single buffer in A, so we'll need to find two buffers in B
+								count = 1;
+								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
+									if (comp.compare(array[buffer1.start], array[buffer1.start + 1]) != 0)
+										if (++count == buffer_size)
+											break;
+								buffer1.end = buffer1.start + count;
+								
+								count = 0;
+								for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--)
+									if (comp.compare(array[buffer2.start], array[buffer2.start + 1]) != 0)
+										if (++count == buffer_size)
+											break;
+								buffer2.end = buffer2.start + count;
+								
+								if (buffer2.length() == buffer_size) {
+									bufferA.set(A.start, A.start);
+									bufferB.set(buffer2.start, buffer2.start + buffer_size * 2);
+									buffer1.set(B.end - buffer_size, B.end);
+									buffer2.set(buffer1.start - buffer_size, buffer1.start);
+									
+								} else buffer1.end = buffer1.start; // failure
+							}
 						}
 						
 						if (buffer1.length() < buffer_size) {
@@ -386,7 +491,7 @@ class Wiki {
 					// swap the second value of each A block with the value in buffer1
 					int index = 0;
 					for (int indexA = firstA.end + 1; indexA < blockA.end; indexA += block_size) {
-						Test swap = array[buffer1.start + index];
+						T swap = array[buffer1.start + index];
 						array[buffer1.start + index] = array[indexA];
 						array[indexA] = swap;
 						index++;
@@ -401,9 +506,12 @@ class Wiki {
 					
 					int minA = blockA.start;
 					int indexA = 0;
-					Test min_value = array[minA];
+					T min_value = array[minA];
 					
-					BlockSwap(array, lastA.start, buffer2.start, lastA.length());
+					if (lastA.length() <= CACHE_SIZE)
+						java.lang.System.arraycopy(array, lastA.start, cache, 0, lastA.length());
+					else
+						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 					
 					while (true) {
 						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
@@ -417,7 +525,7 @@ class Wiki {
 							
 							// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
 							// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
-							Test swap = array[blockA.start + 1];
+							T swap = array[blockA.start + 1];
 							array[blockA.start + 1] = array[buffer1.start + indexA];
 							array[buffer1.start + indexA] = swap;
 							indexA++;
@@ -426,7 +534,10 @@ class Wiki {
 							Merge(array, buffer2, lastA, new Range(lastA.end, B_split), comp);
 							
 							// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
-							BlockSwap(array, blockA.start, buffer2.start, block_size);
+							if (block_size <= CACHE_SIZE)
+								java.lang.System.arraycopy(array, blockA.start, cache, 0, block_size);
+							else
+								BlockSwap(array, blockA.start, buffer2.start, block_size);
 							
 							// this is equivalent to rotating, but faster
 							// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
@@ -517,15 +628,22 @@ class Wiki {
 	}
 }
 
-class Main {
-	static double Seconds() {
-		return System.currentTimeMillis()/1000.0;
+class MergeSorter<T> {
+	// n^2 sorting algorithm used to sort tiny chunks of the full array
+	void InsertionSort(T array[], Range range, Comparator<T> comp) {
+		for (int i = range.start + 1; i < range.end; i++) {
+			T temp = array[i]; int j;
+			for (j = i; j > range.start && comp.compare(temp, array[j - 1]) < 0; j--)
+				array[j] = array[j - 1];
+			array[j] = temp;
+		}
 	}
 	
 	// standard merge sort, so we have a baseline for how well the in-place merge works
-	static void MergeSortR(Test array[], Range range, TestComparator comp, Test buffer[]) {
+	void SortR(T array[], Range range, Comparator<T> comp, T buffer[]) {
 		if (range.length() < 32) {
-			Wiki.InsertionSort(array, range, comp);
+			// insertion sort
+			InsertionSort(array, range, comp);
 			return;
 		}
 		
@@ -533,11 +651,10 @@ class Main {
 		Range A = new Range(range.start, mid);
 		Range B = new Range(mid, range.end);
 		
-		MergeSortR(array, A, comp, buffer);
-		MergeSortR(array, B, comp, buffer);
+		SortR(array, A, comp, buffer);
+		SortR(array, B, comp, buffer);
 		
-		// standard merge operation here (only A is copied to the buffer, and only the parts that weren't already where they should be)
-		A.set(Wiki.BinaryLast(array, array[B.start], A, comp), A.end);
+		// standard merge operation here (only A is copied to the buffer)
 		java.lang.System.arraycopy(array, A.start, buffer, 0, A.length());
 		int A_count = 0, B_count = 0, insert = 0;
 		while (A_count < A.length() && B_count < B.length()) {
@@ -554,8 +671,94 @@ class Main {
 		java.lang.System.arraycopy(buffer, A_count, array, A.start + insert, A.length() - A_count);
 	}
 	
-	static void MergeSort(Test array[], TestComparator comp) {
-		MergeSortR(array, new Range(0, array.length), comp, new Test[array.length]);
+	void Sort(T array[], Comparator<T> comp) {
+		T[] buffer = (T[]) new Object[array.length];
+		SortR(array, new Range(0, array.length), comp, buffer);
+	}
+	
+	public static <T> void sort(T[] array, Comparator<T> comp) {
+		new MergeSorter<T>().Sort(array, comp);
+	}
+}
+
+class SortRandom {
+	public static Random rand;
+	public static int nextInt(int max) {
+		// set the seed on the random number generator
+		if (rand == null) rand = new Random(10141985);
+		return rand.nextInt(max);
+	}
+	public static int nextInt() {
+		return nextInt(2147483647);
+	}
+}
+
+class Testing {
+	int value(int index, int total) {
+		return index;
+	}
+}
+
+class TestingPathological extends Testing {
+	int value(int index, int total) {
+		if (index == 0) return 10;
+		else if (index < total/2) return 11;
+		else if (index == total - 1) return 10;
+		return 9;
+	}
+}
+
+class TestingRandom extends Testing {
+	int value(int index, int total) {
+		return SortRandom.nextInt();
+	}
+}
+
+class TestingMostlyDescending extends Testing {
+	int value(int index, int total) {
+		return total - index + SortRandom.nextInt(5) - 2;
+	}
+}
+
+class TestingMostlyAscending extends Testing {
+	int value(int index, int total) {
+		return index + SortRandom.nextInt(5) - 2;
+	}
+}
+
+class TestingAscending extends Testing {
+	int value(int index, int total) {
+		return index;
+	}
+}
+
+class TestingDescending extends Testing {
+	int value(int index, int total) {
+		return total - index;
+	}
+}
+
+class TestingEqual extends Testing {
+	int value(int index, int total) {
+		return 1000;
+	}
+}
+
+class TestingJittered extends Testing {
+	int value(int index, int total) {
+		return (SortRandom.nextInt(100) <= 90) ? index : (index - 2);
+	}
+}
+
+class TestingMostlyEqual extends Testing {
+	int value(int index, int total) {
+		return 1000 + SortRandom.nextInt(4);
+	}
+}
+
+class Main {
+	static double Seconds() {
+		return System.currentTimeMillis()/1000.0;
 	}
 	
 	static void Verify(Test array[], Range range, TestComparator comp, String msg) {
@@ -565,8 +768,8 @@ class Main {
 			if (!(comp.compare(array[index - 1], array[index]) < 0 ||
 				  (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
 				
-				for (int index2 = range.start; index2 < range.end; index2++)
-					System.out.println(array[index2].value + " (" + array[index2].index + ")");
+				//for (int index2 = range.start; index2 < range.end; index2++)
+				//	System.out.println(array[index2].value + " (" + array[index2].index + ")");
 				
 				System.out.println("failed with message: " + msg);
 				throw new RuntimeException();
@@ -575,15 +778,55 @@ class Main {
 	}
 	
 	public static void main (String[] args) throws java.lang.Exception {
-		int max_size = 1500000;
+		int max_size = 150000;
 		TestComparator comp = new TestComparator();
 		Test[] array1;
 		Test[] array2;
 		
-		// set the seed on the random number generator
-		Random rand = new Random(10141985);
+		Testing[] test_cases = {
+			new TestingPathological(),
+			new TestingRandom(),
+			new TestingMostlyDescending(),
+			new TestingMostlyAscending(),
+			new TestingAscending(),
+			new TestingDescending(),
+			new TestingEqual(),
+			new TestingJittered(),
+			new TestingMostlyEqual()
+		};
 		
-		int total;
+		WikiSorter Wiki = new WikiSorter<Test>();
+		MergeSorter Merge = new MergeSorter<Test>();
+		
+		System.out.println("running test cases...");
+		int total = max_size;
+		array1 = new Test[total];
+		array2 = new Test[total];
+		
+		for (int test_case = 0; test_case < test_cases.length; test_case++) {
+			
+			for (int index = 0; index < total; index++) {
+				Test item = new Test();
+				
+				item.value = test_cases[test_case].value(index, total);
+				item.index = index;
+				
+				array1[index] = item;
+				array2[index] = item;
+			}
+			
+			Wiki.Sort(array1, comp);
+			Merge.Sort(array2, comp);
+			
+			Verify(array1, new Range(0, total), comp, "test case failed");
+			if (total > 0)
+				if (comp.compare(array1[0], array2[0]) != 0) throw new Exception();
+			for (int index = 1; index < total; index++) {
+				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
+				if (array2[index].index != array1[index].index) throw new Exception();
+			}
+		}
+		System.out.println("passed!");
 		
 		double total_time = Seconds();
 		double total_time1 = 0, total_time2 = 0;
@@ -595,7 +838,7 @@ class Main {
 			for (int index = 0; index < total; index++) {
 				Test item = new Test();
 				
-				item.value = (int)(rand.nextInt(192585));
+				item.value = SortRandom.nextInt();
 				item.index = index;
 				
 				array1[index] = item;
@@ -608,7 +851,7 @@ class Main {
 			total_time1 += time1;
 			
 			double time2 = Seconds();
-			MergeSort(array2, comp);
+			Merge.Sort(array2, comp);
 			time2 = Seconds() - time2;
 			total_time2 += time2;
 			
