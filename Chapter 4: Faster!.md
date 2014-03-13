@@ -16,25 +16,7 @@ Well, the first optimization pretty much all sorting algorithms do is apply an i
 Keep in mind that those groups of "16" items will need to be <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">scaled in exactly the same way that we scale the ranges as part of the merge sort</a>. It should actually end up sorting anywhere from 16 to <i>31</i> items at a time.
 
 <br/><br/>
-Another common problem with merge sort is that sorting data that is currently in <i>reverse order</i> can be noticeably slower than other arrangements. A quick fix for this is to simply reverse any descending ranges within the array:
-
-    range = MakeRange(0, 1)
-    for (long index = 1; index < count; index++)
-        if (array[index] < array[index - 1])
-            range.end = range.end + 1
-        else
-            Reverse(array, range)
-            range = MakeRange(index, index + 1)
-    Reverse(array, range)
-
-    for each 16 items in the array, up to power_of_two
-        insertion sort them
-    
-    for each size 16, 32, 64, 128, ..., power_of_two
-       and so forth
-
-<br/><br/>
-And since there's a good chance the data is already somewhat in order, let's skip merging any sections that are already sorted:
+Also, since there's a good chance the data is already somewhat in order, let's skip merging any sections that are already sorted:
 
     for each size 16, 32, 64, 128, ..., power_of_two
         for each chunk of the array of that size, up to power_of_two
@@ -45,7 +27,7 @@ And since there's a good chance the data is already somewhat in order, let's ski
                 merge A and B
 
 <br/><br/>
-<i>And</i> in the off-chance the blocks were in <i>reverse</i> order, a simple rotation "sorts" them just fine:
+And in the off-chance the blocks were in <i>reverse</i> order, a simple rotation "merges" them just fine:
 
     for each size 16, 32, 64, 128, ..., power_of_two
         for each chunk of the array of that size, up to power_of_two
