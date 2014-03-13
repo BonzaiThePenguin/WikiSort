@@ -2,9 +2,10 @@
  WikiSort: by Arne Kutzner, Pok-Son Kim, and Mike McFadden
  https://github.com/BonzaiThePenguin/WikiSort
  
- to compile:
+ to run:
  clang -o WikiSort.x WikiSort.c -O3
  (or replace 'clang' with 'gcc')
+ ./WikiSort.x
 ***********************************************************/
 
 #include <stdio.h>
