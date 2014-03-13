@@ -241,18 +241,6 @@ class WikiSorter<T> {
 	void Sort(T array[], Comparator<T> comp) {
 		int size = array.length;
 		
-		// reverse any descending ranges in the array, as that will allow them to sort faster
-		Range reverse = new Range(0, 1);
-		for (int index = 1; index < size; index++) {
-			if (comp.compare(array[index], array[index - 1]) < 0)
-				reverse.end++;
-			else {
-				Reverse(array, reverse);
-				reverse.set(index, index + 1);
-			}
-		}
-		Reverse(array, reverse);
-		
 		// if there are 32 or fewer items, just insertion sort the entire array
 		if (size <= 32) {
 			InsertionSort(array, new Range(0, size), comp);
