@@ -13,6 +13,7 @@
 #include <vector>
 #include <math.h>
 #include <assert.h>
+#include <cstring>
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
@@ -89,16 +90,16 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 	// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
 	if (range1.length() <= range2.length()) {
 		if (range1.length() <= cache_size) {
-			memcpy(&cache[0], &array[range1.start], range1.length() * sizeof(array[0]));
-			memmove(&array[range1.start], &array[range2.start], range2.length() * sizeof(array[0]));
-			memcpy(&array[range1.start + range2.length()], &cache[0], range1.length() * sizeof(array[0]));
+            std::memcpy(&cache[0], &array[range1.start], range1.length() * sizeof(array[0]));
+            std::memmove(&array[range1.start], &array[range2.start], range2.length() * sizeof(array[0]));
+            std::memcpy(&array[range1.start + range2.length()], &cache[0], range1.length() * sizeof(array[0]));
 			return;
 		}
 	} else {
 		if (range2.length() <= cache_size) {
-			memcpy(&cache[0], &array[range2.start], range2.length() * sizeof(array[0]));
-			memmove(&array[range2.end - range1.length()], &array[range1.start], range1.length() * sizeof(array[0]));
-			memcpy(&array[range1.start], &cache[0], range2.length() * sizeof(array[0]));
+            std::memcpy(&cache[0], &array[range2.start], range2.length() * sizeof(array[0]));
+            std::memmove(&array[range2.end - range1.length()], &array[range1.start], range1.length() * sizeof(array[0]));
+            std::memcpy(&array[range1.start], &cache[0], range2.length() * sizeof(array[0]));
 			return;
 		}
 	}
