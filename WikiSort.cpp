@@ -435,7 +435,8 @@ namespace Wiki {
 						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 					
 					while (true) {
-						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
+						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
+						// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
 						if ((lastB.length() > 0 && !compare(array[lastB.end - 1], min_value)) || blockB.length() == 0) {
 							// figure out where to split the previous B block, and rotate it at the split
 							long B_split = BinaryFirst(array, min_value, lastB, compare);
