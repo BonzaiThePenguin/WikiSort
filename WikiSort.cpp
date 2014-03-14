@@ -90,16 +90,16 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 	// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
 	if (range1.length() <= range2.length()) {
 		if (range1.length() <= cache_size) {
-            std::memcpy(&cache[0], &array[range1.start], range1.length() * sizeof(array[0]));
-            std::memmove(&array[range1.start], &array[range2.start], range2.length() * sizeof(array[0]));
-            std::memcpy(&array[range1.start + range2.length()], &cache[0], range1.length() * sizeof(array[0]));
+			std::memcpy(&cache[0], &array[range1.start], range1.length() * sizeof(array[0]));
+			std::memmove(&array[range1.start], &array[range2.start], range2.length() * sizeof(array[0]));
+			std::memcpy(&array[range1.start + range2.length()], &cache[0], range1.length() * sizeof(array[0]));
 			return;
 		}
 	} else {
 		if (range2.length() <= cache_size) {
-            std::memcpy(&cache[0], &array[range2.start], range2.length() * sizeof(array[0]));
-            std::memmove(&array[range2.end - range1.length()], &array[range1.start], range1.length() * sizeof(array[0]));
-            std::memcpy(&array[range1.start], &cache[0], range2.length() * sizeof(array[0]));
+			std::memcpy(&cache[0], &array[range2.start], range2.length() * sizeof(array[0]));
+			std::memmove(&array[range2.end - range1.length()], &array[range1.start], range1.length() * sizeof(array[0]));
+			std::memcpy(&array[range1.start], &cache[0], range2.length() * sizeof(array[0]));
 			return;
 		}
 	}
@@ -659,9 +659,7 @@ int main() {
 		stable_sort(array2.begin(), array2.end(), compare);
 		
 		Verify(&array1[0], Range(0, total), compare, "test case failed");
-		if (total > 0)
-			assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
-		for (long index = 1; index < total; index++)
+		for (long index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 	}
 	cout << "passed!" << endl;
@@ -709,9 +707,7 @@ int main() {
 		cout << "verifying... " << flush;
 		
 		Verify(&array1[0], Range(0, total), compare, "testing the final array");
-		if (total > 0)
-			assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
-		for (long index = 1; index < total; index++)
+		for (long index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 		
 		cout << "correct!" << endl;
