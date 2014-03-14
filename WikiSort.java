@@ -824,9 +824,7 @@ class WikiSort {
 			Merge.Sort(array2, comp);
 			
 			Verify(array1, new Range(0, total), comp, "test case failed");
-			if (total > 0)
-				if (comp.compare(array1[0], array2[0]) != 0) throw new Exception();
-			for (int index = 1; index < total; index++) {
+			for (int index = 0; index < total; index++) {
 				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
 				if (array2[index].index != array1[index].index) throw new Exception();
 			}
@@ -866,9 +864,7 @@ class WikiSort {
 			System.out.println("verifying...");
 			
 			Verify(array1, new Range(0, total), comp, "testing the final array");
-			if (total > 0)
-				if (comp.compare(array1[0], array2[0]) != 0) throw new Exception();
-			for (int index = 1; index < total; index++) {
+			for (int index = 0; index < total; index++) {
 				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
 				if (array2[index].index != array1[index].index) throw new Exception();
 			}
