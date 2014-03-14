@@ -1,7 +1,4 @@
 /***********************************************************
- WikiSort: by Arne Kutzner, Pok-Son Kim, and Mike McFadden
- https://github.com/BonzaiThePenguin/WikiSort
- 
  to run:
  clang++ -o WikiSort.x WikiSort.cpp -O3
  (or replace 'clang++' with 'g++')
