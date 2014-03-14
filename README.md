@@ -20,7 +20,7 @@ That's where <b>WikiSort</b> comes in. WikiSort is stable, it uses O(1) memory, 
 <sub><b>WikiSort with 150,000,000 random items, verified against stable_sort()</b><br/>(using a fixed-size cache of 512, vs. stable_sort()'s 75,000,000)</sub><br/><br/>
 
 <b>How does it work?</b><br/>
-WikiSort is a bottom-up in-place merge sort at heart, but it bears little resemblance to existing algorithms. Its in-place merge is based on the work described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>, although it uses a highly simplified and optimized design.
+WikiSort is a bottom-up in-place merge sort at heart, and is based on the work described in <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. Kim's and Kutzner's algorithm is a stable merge algorithm with great performance characteristics and proven correctness, but no attempt at adapting their work to a stable merge <i>sort</i> apparently existed. This is that attempt.
 
 <b>If you want to learn more, check out the documentation!</b><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">Chapter 1: Tools</a><br/>
