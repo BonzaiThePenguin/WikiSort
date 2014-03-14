@@ -61,7 +61,7 @@ Now that the obvious optimizations are out of the way, let's take a closer look 
                 redistribute both buffers back through A and B
 
 <br/><br/>
-The first thing that should jump out is that we're calculating block_size and block_count on every run of the inner loop, <i>even though the size never changes</i>. In fact, most of these operations could be pulled out from the inner loop! This is because the in-place merge algorithm was designed to be self-contained, wholly separate from any higher-level logic using it.<br/><br/>
+The first thing that should jump out is that we're calculating block_size and block_count on every run of the inner loop, <i>even though the size never changes</i>. In fact, most of these operations could be pulled out from the inner loop! This is because the in-place merge algorithm was designed to be self-contained, and we just threw it into a bottom-up merge sort as-is.<br/><br/>
 
 But since our goal is to make a super-fast sort, let's break down the barriers and start <i>merging</i> them together (hahaha). Here are the components you can safely pull out from the inner loop:
 
