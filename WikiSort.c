@@ -766,9 +766,7 @@ int main() {
 		MergeSort(array2, total, compare);
 		
 		WikiVerify(array1, MakeRange(0, total), compare, "test case failed");
-		if (total > 0)
-			assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
-		for (index = 1; index < total; index++)
+		for (index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 	}
 	printf("passed!\n");
@@ -805,9 +803,7 @@ int main() {
 		fflush(stdout);
 		
 		WikiVerify(array1, MakeRange(0, total), compare, "testing the final array");
-		if (total > 0)
-			assert(!compare(array1[0], array2[0]) && !compare(array2[0], array1[0]));
-		for (index = 1; index < total; index++)
+		for (index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 		
 		printf("correct!\n");
