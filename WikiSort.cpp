@@ -11,8 +11,8 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
-#include <math.h>
-#include <assert.h>
+#include <cmath>
+#include <cassert>
 #include <cstring>
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
