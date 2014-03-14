@@ -1,7 +1,4 @@
 /***********************************************************
- WikiSort: by Arne Kutzner, Pok-Son Kim, and Mike McFadden
- https://github.com/BonzaiThePenguin/WikiSort
- 
  to run:
  javac WikiSort.java
  java WikiSort
