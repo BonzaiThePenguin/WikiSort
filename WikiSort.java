@@ -687,7 +687,7 @@ class SortRandom {
 	public static Random rand;
 	public static int nextInt(int max) {
 		// set the seed on the random number generator
-		if (rand == null) rand = new Random(10141985);
+		if (rand == null) rand = new Random();
 		return rand.nextInt(max);
 	}
 	public static int nextInt() {
