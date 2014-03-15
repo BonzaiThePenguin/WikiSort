@@ -209,6 +209,8 @@ If neither A nor B contain enough unique values to fill up the two required bloc
         B = MakeRange(mid, B.start + B.length)
         A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
 
+<b>Update:</b> Upon closer inspection, this aspect of the algorithm is almost certainly sub-optimal. The paper addresses various methods to deal with failing to find enough unique values. Anyone want to give it a shot?
+
 ============================
 <b>And what if A can't be broken up into evenly sized blocks?</b>
 
