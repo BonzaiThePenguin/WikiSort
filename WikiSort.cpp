@@ -635,7 +635,8 @@ int main() {
 	};
 	
 	// initialize the random-number generator
-	srand(/*time(NULL)*/ 10141985);
+	srand(time(NULL));
+	//srand(10141985); // in case you want the same random numbers
 	
 	cout << "running test cases... " << flush;
 	long total = max_size;
