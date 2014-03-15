@@ -1,7 +1,7 @@
 Chapter 3: In-place
 ==============
 
-To reiterate, much of the work presented here is based on a paper called <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a>. The main differences are the removal of the movement imitation buffer <i>s1 t s2</i>, interlacing the "block rolling" with the local merges, and adapting it to work efficiently with a bottom-up merge sort.<br/><br/>
+To reiterate, much of the work presented here is based on a paper called <a href="http://ak.hanyang.ac.kr/papers/tamc2008.pdf">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a> [PDF]. The main differences are the removal of the movement imitation buffer <i>s1 t s2</i>, interlacing the "block rolling" with the local merges, and adapting it to work efficiently with a bottom-up merge sort.<br/><br/>
 
 <b>The basic idea</b>
 
