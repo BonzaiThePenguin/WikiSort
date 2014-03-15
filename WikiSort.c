@@ -741,7 +741,8 @@ int main() {
 	};
 	
 	/* initialize the random-number generator */
-	srand(/*time(NULL)*/ 10141985);
+	srand(time(NULL));
+	/*srand(10141985);*/ /* in case you want the same random numbers */
 	
 	printf("running test cases... ");
 	fflush(stdout);
