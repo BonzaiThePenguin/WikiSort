@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cassert>
 #include <cstring>
+#include <ctime>
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
