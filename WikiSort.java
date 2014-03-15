@@ -4,9 +4,8 @@
  java WikiSort
 ***********************************************************/
 
-// this is only included here as a proof of concept;
-// you should probably just stick to Java's built-in sort so you get native speeds.
-// (good old interpreted bytecode)
+// this version is over 4x slower on my system than the C++ version
+// if you can make it faster/better, please do :)
 
 import java.util.*;
 import java.lang.*;
