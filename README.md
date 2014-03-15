@@ -12,6 +12,6 @@ Dr. Kutzner's and Dr. Kim's paper addresses this, but many of the papers define 
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/>
 &nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204:%20Faster!.md">Chapter 4: Faster!</a><br/><br/>
 
-WikiSort is fast, stable, uses O(1) memory, and <b><a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/LICENSE">public domain</a></b>! It is also an <b>open standard</b> and will change as superior techniques become known – if you see something in the algorithm that could be improved, please flag the issue!<br/><br/>
+WikiSort is fast, stable, uses O(1) memory, and <b><a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/LICENSE">public domain</a></b>! It will also change as superior techniques become known – if you see something in the algorithm that could be improved, please flag the issue!<br/><br/>
 
 <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c">C</a>, <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp">C++</a>, and <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.java">Java</a> versions are currently available.<br/><br/>
