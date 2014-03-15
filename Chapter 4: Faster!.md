@@ -1,7 +1,7 @@
 Chapter 4: Faster!
 ======================
 
-Alright, so you've read the documentation, you've pored through the <a href="http://www.researchgate.net/publication/225153768_Ratio_Based_Stable_In-Place_Merging">paper by Pok-Son Kim and Arne Kutzner</a>, <i>and</i> you've successfully designed your own in-place merge sort, and... it's 3x slower than a standard merge sort. Huh.<br/><br/>
+Alright, so you've read the documentation, you've pored through the <a href="http://ak.hanyang.ac.kr/papers/tamc2008.pdf">paper by Pok-Son Kim and Arne Kutzner</a> [PDF], <i>and</i> you've successfully designed your own in-place merge sort, and... it's 3x slower than a standard merge sort. Huh.<br/><br/>
 
 Now what?<br/><br/>
 
