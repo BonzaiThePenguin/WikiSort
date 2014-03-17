@@ -3,6 +3,10 @@ WikiSort
 
 **Note**: if you want to coordinate your progress with other developers, check out <a href="http://reddit.com/r/BlockMergeSort">/r/BlockMergeSort</a> on Reddit.
 
+Also, an updated version of their paper from 2011 is now available <a href="http://ak.hanyang.ac.kr/papers/performant-in-place-merging.pdf">here</a>!
+
+======
+
 WikiSort is a stable bottom-up in-place merge sort based on the work described in <a href="http://ak.hanyang.ac.kr/papers/tamc2008.pdf">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a> [PDF]. Kim's and Kutzner's algorithm is a stable merge algorithm with great performance characteristics and proven correctness, but no attempt at adapting their work to a stable merge <i>sort</i> apparently existed. This is one such attempt!
 
 <b>What separates this from those other in-place merge papers?</b><br/>
