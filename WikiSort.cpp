@@ -499,7 +499,7 @@ namespace Wiki {
 						Range firstA = Range(A.start, A.start + blockA.length() % block_size);
 						
 						// swap the second value of each A block with the value in buffer1
-						for (index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
+						for (long index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
 							std::swap(array[buffer1.start + index], array[indexA]);
 						
 						// start rolling the A blocks through the B blocks!
