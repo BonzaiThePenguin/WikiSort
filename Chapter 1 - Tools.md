@@ -42,13 +42,13 @@ Here's an example showing why and how this works:
 
     1. we have [0 1 2 3 4] and we want [2 3 4 0 1] by rotating by 2
     [0 1 2 3 4]
-    
+
     2. reverse the first two items
     [1 0][2 3 4]
-    
+
     3. reverse the last three items
     [1 0][4 3 2]
-    
+
     4. reverse the entire array
     [2 3 4][0 1]
 
@@ -58,10 +58,10 @@ One important thing to note is that rotations can be applied to sections of an a
 
     1. we start with this:
     [0 1 2 3 4 5 6]
-    
+
     2. let's rotate [2 3 4] to the left one
     [0 1 [2 3 4] 5 6]
-    
+
     3. all done; note that [0 1] and [5 6] are still the same
     [0 1 [3 4 2] 5 6]
 

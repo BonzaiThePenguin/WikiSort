@@ -9,7 +9,7 @@ Well, the first optimization pretty much all sorting algorithms do is apply an i
 
     for each 16 items in the array, up to power_of_two
         insertion sort them
-    
+
     for each size 16, 32, 64, 128, ..., power_of_two
        and so forth
 
@@ -51,7 +51,7 @@ Now that the obvious optimizations are out of the way, let's take a closer look 
                 the data was already in order, so we're done!
             else
                 merge A and B (shown below):
-                
+
                 calculate block_size, block_count, etc.
                 split A and B up into blocks
                 pull out unique values to fill two of the blocks (buffers)
@@ -68,7 +68,7 @@ But since our goal is to make a super-fast sort, let's break down the barriers a
     for each size 16, 32, 64, 128, ... power_of_two
     >   calculate block_size, block_count, etc.
     >   pull out unique values to fill two of the blocks (buffers)
-        
+
         for each chunk of the array of that size, up to power_of_two
             get the ranges for A and B
             if (B[last] < A[first])
@@ -77,11 +77,11 @@ But since our goal is to make a super-fast sort, let's break down the barriers a
                 the data was already in order, so we're done!
             else
                 merge A and B (shown below):
-                
+
                 split A and B up into blocks
                 tag each of the A blocks using the first buffer
                 roll the A blocks through the B blocks and merge them using the second buffer
-        
+
     >   insertion sort the second buffer
     >   redistribute both buffers back through A and B
 
@@ -172,13 +172,13 @@ What if we instead swapped lastA into buffer2 beforehand, since that's where it 
     [ previous B bl] <-[ock ][ A block to rotate ]
     [ previous B bl]   [ A block to rotate ][ock ] <-
     [ previous B bl][ A block to rotate ][ock ]
-    
+
     But if we swapped the A block with buffer2 beforehand:
     [ previous B block ] [ the second buffer ]
-    
+
     And we get to this step:
     [ previous B bl]   [ock ][ the second buffer ]
-    
+
     We can skip the costly rotation and just block swap:
     [ previous B bl]   [ock ][ the second buf][fer ]
                          ^                      ^

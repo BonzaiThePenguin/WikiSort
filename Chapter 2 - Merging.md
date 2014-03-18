@@ -11,7 +11,7 @@ Merge sorting works by breaking an array into two halves, over and over again, u
             mid = range.start + range.length/2
             MergeSort(array, MakeRange(range.start, mid))
             MergeSort(array, MakeRange(mid, range.end))
-            
+
             Merge(array, MakeRange(range.start, mid), MakeRange(mid, range.end))
 
 <br/><br/>
@@ -32,38 +32,38 @@ The merge operation of the merge sort algorithm takes two arrays that <i>are alr
         Copy the remaining part of the buffer back into the array
 
 Here's an example of how it works:
-    
+
     1. we want to merge these two arrays, A and B:
     [0 2 4 7]  [1 3 7 8]  []
-    
+
     2. 0 is smaller
     [0 2 4 7]  [1 3 7 8]  []
      ^          ^
-    
+
     3. 1 is smaller
     [2 4 7]  [1 3 7 8]  [0]
      ^        ^
-    
+
     4. 2 is smaller
     [2 4 7]  [3 7 8]  [0 1]
      ^        ^
-    
+
     5. 3 is smaller
     [4 7]  [3 7 8]  [0 1 2]
      ^      ^
-    
+
     6. 4 is smaller
     [4 7]  [7 8]  [0 1 2 3]
      ^      ^
-    
+
     7. 7 and 7 are equal, so give precedence to A
     [7]  [7 8]  [0 1 2 3 4]
      ^    ^
-    
+
     8. A is empty, so just add the rest of B to the end
     []  [7 8]  [0 1 2 3 4 7]
          ^
-    
+
     9. A + B have been merged!
     []  []  [0 1 2 3 4 7 7 8]
 
@@ -83,7 +83,7 @@ To remove the recursion, we can use what's called a <a href="http://www.algorith
                 start = merge
                 mid = merge + length
                 end = merge + length * 2
-                
+
                 Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
 For an array of size 16, it does this (the operation is shown to the right):
@@ -112,13 +112,13 @@ Which is of course exactly what we wanted. Note that it starts off by merging ch
     MergeSort(array, count)
     >   power_of_two = FloorPowerOfTwo(count)
     >   scale = count/power_of_two // 1.0 <= scale < 2.0
-        
+
         for (length = 16; length < power_of_two; length = length * 2)
             for (merge = 0; merge < power_of_two; merge = merge + length * 2)
                 start = merge * scale
                 mid = (merge + length) * scale
                 end = (merge + length * 2) * scale
-                
+
                 Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
 The floating-point multiplication was verified as correct for over 17 billion items (as in there was no unexpected roundoff error), but if that seems a bit flaky to you it's also possible to handle the scaling with integer operations:
@@ -128,28 +128,28 @@ The floating-point multiplication was verified as correct for over 17 billion it
         fractional_base = power_of_two/16
         fractional_step = size % fractional_base (modulus, which gets the remainder from size/fractional_base)
         decimal_step = floor(size/fractional_base)
-        
+
         for (length = 16; length < power_of_two; length = length * 2)
             decimal = fractional = 0
             while (decimal < size)
                 start = decimal
-                
+
                 decimal = decimal + decimal_step
                 fractional = fractional + fractional_step
                 if (fractional >= fractional_base)
                     fractional = fractional - fractional_base
                     decimal = decimal + 1
-                
+
                 mid = decimal
-                
+
                 decimal = decimal + decimal_step
                 fractional = fractional + fractional_step
                 if (fractional >= fractional_base)
                     fractional = fractional - fractional_base
                     decimal = decimal + 1
-                
+
                 end = decimal
-                
+
                 Merge(array, MakeRange(start, mid), MakeRange(mid, end))
 
 This is considerably more involved than the standard bottom-up design, but it guarantees that the two ranges being merged will always have the same size to within one item, <b>which ends up being about 10% faster</b>.

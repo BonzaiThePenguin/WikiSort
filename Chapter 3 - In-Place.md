@@ -13,15 +13,15 @@ We think of it like this:
 
     1. break A into evenly sized blocks
     [ A ][ A ][ A ][ A ][ A ][ A ][ A ][                   B               ]
-    
+
     2. insert them into B where they belong
        (the rule for inserting is that the first value of each A block must be
         less than or equal to the first value of the next B block)
     [ A ][  B  ][ A ][B][ A ][ A ][   B   ][ A ][  B ][ A ][B][ A ][   B   ]
-    
+
     3. merge each [A][B] combination
     [ A ][  B  ]  [ A ][B]  [ A ]  [ A ][   B   ]  [ A ][  B ]  [ A ][B]  [ A ][   B   ]
-    
+
     4. all finished!
     [ A  +  B  ]  [ A + B]  [ A ]  [  A  +   B  ]  [ A  +  B ]  [ A + B]  [ A   +   B  ]
       = [ A  +  B  ][ A + B][ A ][  A  +   B  ][ A  +  B ][ A + B][ A   +   B  ]
@@ -45,29 +45,29 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
     [ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ B ][ B ][ B ][ B ][ B ][ B ][ B ][] <- extra bit of B left over
       ^
       |__ first A block
-    
+
     2. allow the A blocks to be moved out of order, then simply swap it with the next B block
     [ B ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ B ][ B ][ B ][ B ][ B ][ B ][]
       ^                                  ^
       |__ first B block (swapped with [ 0 ])
-    
+
     3. keep going until we find where we want to "drop" the smallest A block behind
        (A[first] <= B[last], where A is the minimum A block, or [ 0 ], and B is the block we just swapped over)
     [ B ][ B ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 0 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
                 ^                        ^
                 |__ the first A block needs to be block swapped here
-    
+
     4. find the EXACT spot within B where the A block should go
        (using a binary search for A[first] <= B[index])
     [ B ][ B ][ 0 ][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
             ^
             |__ really, it SHOULD be here
-    
+
     5. use a rotation to move the A block into its final position!
     [ B ][B][ 0 ][][ 3 ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ B ][ B ][ B ][ B ][ B ][]
           ^      ^
           |______|__ B was split into two parts
-          
+
 Note that after the rotation, A[first] is indeed <= the first B value that follows it.
 
 As soon as we've found the exact spot where an A block should be, and have rotated it into place in the array, we should immediately merge the previous A block with any B values that follow it. So, to continue the above example:
@@ -76,19 +76,19 @@ As soon as we've found the exact spot where an A block should be, and have rotat
     [ B ][B][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
                      ^                             ^
                      |__ [ 3 ] was here            |__ but it was swapped over to here
-    
+
     (notice that we left [ 0 ] behind, while the rest of the A blocks keep rolling along)
-    
+
     7. let's say for example that we want to drop the next smallest A block here
     [ B ][B][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
                           ^                   ^
                                               |__ swap this with [ 4 ]
-    
+
     8. once again, find the EXACT spot where [ 1 ] should be rotated into the previous B block
     [ B ][B][ 0 ][][ B ][ 1 ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
                      ^
                      |__ in this example, it's going in the exact middle
-    
+
     9. there!
     [ B ][B][ 0 ][B][ 1 ][B ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
                   ^
@@ -105,17 +105,17 @@ Anyway, this process repeats until there are no A blocks left, at which point we
 We went from needing to merge A and B to needing to merge an A block with <i>some number</i> of B values. Isn't that the same thing?
 
 Not necessarily. Let's allow ourselves to temporarily modify the array so that the first A block actually contains the first unique values within A. So, for example:
-    
+
     1. we want to merge these arrays:
     [ 1 1 1 2 2 3 3 4 4 5 5 5 5 5 5 6 ][ 2 2 3 3 3 4 4 5 5 6 7 8 8 9 9 9 10 ]
-    
+
     2. the size of each A block should be √(A.length), which in this case is √16 = 4
     [ 1 1 1 2 ][ 2 3 3 4 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
       ^     ^      ^   ^
-    
+
     3. the first A block needs to contain the first unique values in A (marked with ^ above)
     [ 1 2 3 4 ][ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ] [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
-    
+
     4. now we only merge the remaining A blocks – the first one is reserved for other purposes
     [ 1 2 3 4 ]      [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]      [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
 
@@ -133,18 +133,18 @@ The next trick is to use <i>another</i> A block to store <i>another</i> set of u
     1. we already pulled out unique values for the first block, but now we need another one
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
                                 ^              ^
-    
+
     2. oops, we don't have enough unique values! Fortunately we can use B just as well:
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
                                                                                 ^      ^     ^    ^
-    
+
     3. notice that the last B block was resized, to make room for this reserved block
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
-    
+
     4. anyway, now tag the A blocks with these unique values, by swapping the second value with one from the buffer
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
                      ^          ^          ^                                                  ^ ^ ^
-    
+
     5. all done!
     [ 1 2 3 4 ]  [ 1 7 2 3 ][ 4 8 5 5 ][ 5 9 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 1 5 5 10 ]
                      ^          ^          ^                                                  ^ ^ ^
@@ -169,23 +169,23 @@ If we find enough values, we would then stop there and start rotating at that in
     2. we need to rotate this 4 to be next to the 3
     [0 0 0 1 1 2 3 [3 3 4] 4 5 6 6 6 6 6 7 7 8 9 ... ]
                         ^
-    
+
     [0 0 0 1 1 2 3 [4 3 3] 4 5 6 6 6 6 6 7 7 8 9 ... ]
                     ^
                     |___ like so
-    
+
     3. now rotate [3 4] to be next to the 2 (wait, it's already there!)
     [0 0 0 1 1 2 [3 4] 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                    ^
-    
+
     4. now rotate [2 3 4] to be next to the 1
     [0 0 0 1 [1 2 3 4] 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                   ^
-    
+
     5. lastly, rotate [1 2 3 4] to be next to the 0
     [0 [0 0 1 2 3 4] 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                ^
-    
+
     6. here's our buffer!
     [0 1 2 3 4][0 0 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
         ^
@@ -200,11 +200,11 @@ If neither A nor B contain enough unique values to fill up the two required bloc
     while (A.length > 0 and B.length > 0)
         find the first place in B where the first item in A needs to be inserted:
         mid = BinaryFirst(array, A.start, B)
-        
+
         rotate A into place:
         amount = mid - (A.start + A.length)
         Rotate(array, amount, MakeRange(A.start, mid))
-        
+
         calculate the new A and B ranges:
         B = MakeRange(mid, B.start + B.length)
         A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
