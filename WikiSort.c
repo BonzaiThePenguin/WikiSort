@@ -1,4 +1,10 @@
 /***********************************************************
+ WikiSort (public domain license)
+ https://github.com/BonzaiThePenguin/WikiSort
+ 
+ Reading the documentation on that GitHub page
+ is HIGHLY recommended before reading this code!
+ 
  to run:
  clang -o WikiSort.x WikiSort.c -O3
  (or replace 'clang' with 'gcc')
@@ -20,9 +26,9 @@ double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 /* various #defines for the C code */
 #ifndef true
-	#define true 1
-	#define false 0
-	typedef uint8_t bool;
+#define true 1
+#define false 0
+typedef uint8_t bool;
 #endif
 
 #define Var(name, value)				__typeof__(value) name = value
@@ -95,30 +101,30 @@ long FloorPowerOfTwo (const long value) {
 }
 
 /* find the index of the first value within the range that is equal to array[index] */
-long BinaryFirst(const Test array[], const long index, const Range range, const Comparison compare) {
+long BinaryFirst(const Test array[], const Test value, const Range range, const Comparison compare) {
 	long start = range.start, end = range.end - 1;
 	while (start < end) {
 		long mid = start + (end - start)/2;
-		if (compare(array[mid], array[index]))
+		if (compare(array[mid], value))
 			start = mid + 1;
 		else
 			end = mid;
 	}
-	if (start == range.end - 1 && compare(array[start], array[index])) start++;
+	if (start == range.end - 1 && compare(array[start], value)) start++;
 	return start;
 }
 
 /* find the index of the last value within the range that is equal to array[index], plus 1 */
-long BinaryLast(const Test array[], const long index, const Range range, const Comparison compare) {
+long BinaryLast(const Test array[], const Test value, const Range range, const Comparison compare) {
 	long start = range.start, end = range.end - 1;
 	while (start < end) {
 		long mid = start + (end - start)/2;
-		if (!compare(array[index], array[mid]))
+		if (!compare(value, array[mid]))
 			start = mid + 1;
 		else
 			end = mid;
 	}
-	if (start == range.end - 1 && !compare(array[index], array[start])) start++;
+	if (start == range.end - 1 && !compare(value, array[start])) start++;
 	return start;
 }
 
@@ -183,10 +189,11 @@ void Rotate(Test array[], const long amount, const Range range, Test cache[], co
 	Reverse(array, range);
 }
 
-/* standard merge operation using an internal or external buffer */
-void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, const Comparison compare, Test cache[], const long cache_size) {
-	/* if A fits into the cache, use that instead of the internal buffer */
+/* standard merge operation using an internal or external buffer, */
+/* or if neither are available, use a different in-place merge */
+void WikiMerge(Test array[], const Range buffer, Range A, Range B, const Comparison compare, Test cache[], const long cache_size) {
 	if (Range_length(A) <= cache_size) {
+		/* A fits into the cache, so use that instead of the internal buffer */
 		Test *A_index = &cache[0];
 		Test *B_index = &array[B.start];
 		Test *insert_index = &array[A.start];
@@ -211,7 +218,7 @@ void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, c
 		
 		/* copy the remainder of A into the final array */
 		memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
-	} else {
+	} else if (Range_length(buffer) > 0) {
 		/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
 		/* when this algorithm is finished, 'buffer' will contain its original contents, but in a different order */
 		long A_count = 0, B_count = 0, insert = 0;
@@ -234,6 +241,23 @@ void WikiMerge(Test array[], const Range buffer, const Range A, const Range B, c
 		
 		/* swap the remainder of A into the final array */
 		BlockSwap(array, buffer.start + A_count, A.start + insert, Range_length(A) - A_count);
+	} else {
+		/* A did not fit into the cache, AND there was no internal buffer available, so we'll need to use a different algorithm entirely */
+		/* this one just repeatedly binary searches into B and rotates A into position, */
+		/* although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm" */
+		
+		while (Range_length(A) > 0 && Range_length(B) > 0) {
+			/* find the first place in B where the first item in A needs to be inserted */
+			long mid = BinaryFirst(array, array[A.start], B, compare);
+			
+			/* rotate A into place */
+			long amount = mid - A.end;
+			Rotate(array, -amount, MakeRange(A.start, mid), cache, 0);
+			
+			/* calculate the new A and B ranges */
+			B.start = mid;
+			A = MakeRange(BinaryLast(array, array[A.start + amount], A, compare), B.start);
+		}
 	}
 }
 
@@ -244,14 +268,16 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	/* just keep in mind that making it too small ruins the point (nothing will fit into it), */
 	/* and making it too large also ruins the point (so much for "low memory"!) */
 	/* removing the cache entirely still gives 70% of the performance of a standard merge */
-	
-	/* also, if you change this to dynamically allocate a full-size buffer, */
-	/* the algorithm seamlessly degenerates into a standard merge sort! */
 	#define CACHE_SIZE 512
 	const long cache_size = CACHE_SIZE;
 	Test cache[CACHE_SIZE];
 	
-	long index, merge_size, start, mid, end, fractional, decimal;
+	/* also, if you change this to dynamically allocate a full-size buffer, */
+	/* the algorithm seamlessly degenerates into a standard merge sort! */
+	/* const long cache_size = (size + 1)/2; */
+	/* etc. */
+	
+	long merge_size, start, mid, end, fractional, decimal;
 	long power_of_two, fractional_base, fractional_step, decimal_step;
 	
 	/* if there are 32 or fewer items, just insertion sort the entire array */
@@ -274,7 +300,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 		
 		decimal += decimal_step;
 		fractional += fractional_step;
-		if (fractional >= fractional_base) { fractional -= fractional_base; decimal += 1; }
+		if (fractional >= fractional_base) {
+			fractional -= fractional_base;
+			decimal += 1;
+		}
 		
 		end = decimal;
 		
@@ -283,342 +312,424 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	
 	/* then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc. */
 	for (merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
-		long block_size = sqrt(decimal_step);
-		long buffer_size = decimal_step/block_size + 1;
-		
-		/* as an optimization, we really only need to pull out an internal buffer once for each level of merges */
-		/* after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level */
-		Range level1 = MakeRange(0, 0), level2, levelA, levelB;
-		
-		decimal = fractional = 0;
-		while (decimal < size) {
-			start = decimal;
-			
-			decimal += decimal_step;
-			fractional += fractional_step;
-			if (fractional >= fractional_base) { fractional -= fractional_base; decimal += 1; }
-			
-			mid = decimal;
-			
-			decimal += decimal_step;
-			fractional += fractional_step;
-			if (fractional >= fractional_base) { fractional -= fractional_base; decimal += 1; }
-			
-			end = decimal;
-			
-			if (compare(array[end - 1], array[start])) {
-				/* the two ranges are in reverse order, so a simple rotation should fix it */
-				Rotate(array, mid - start, MakeRange(start, end), cache, cache_size);
-			} else if (compare(array[mid], array[mid - 1])) {
-				Range bufferA, bufferB, buffer1, buffer2, blockA, blockB, firstA, lastA, lastB;
-				long indexA, minA, findA;
-				Test min_value;
+		/* if every A and B block will fit into the cache (we use < rather than <= since the block might be one more than decimal_step), */
+		/* use a special branch specifically for merging with the cache */
+		if (decimal_step < cache_size) {
+			decimal = fractional = 0;
+			while (decimal < size) {
+				start = decimal;
 				
-				/* these two ranges weren't already in order, so we'll need to merge them! */
-				Range A = MakeRange(start, mid), B = MakeRange(mid, end);
-				
-				/* try to fill up two buffers with unique values in ascending order */
-				if (Range_length(A) <= cache_size) {
-					memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
-					WikiMerge(array, MakeRange(0, 0), A, B, compare, cache, cache_size);
-					continue;
+				decimal += decimal_step;
+				fractional += fractional_step;
+				if (fractional >= fractional_base) {
+					fractional -= fractional_base;
+					decimal++;
 				}
 				
-				if (Range_length(level1) > 0) {
-					/* reuse the buffers we found in a previous iteration */
-					bufferA = MakeRange(A.start, A.start);
-					bufferB = MakeRange(B.end, B.end);
-					buffer1 = level1;
-					buffer2 = level2;
+				mid = decimal;
+				
+				decimal += decimal_step;
+				fractional += fractional_step;
+				if (fractional >= fractional_base) {
+					fractional -= fractional_base;
+					decimal++;
+				}
+				
+				end = decimal;
+				
+				if (compare(array[end - 1], array[start])) {
+					/* the two ranges are in reverse order, so a simple rotation should fix it */
+					Rotate(array, mid - start, MakeRange(start, end), cache, cache_size);
+				} else if (compare(array[mid], array[mid - 1])) {
+					/* these two ranges weren't already in order, so we'll need to merge them! */
+					memcpy(&cache[0], &array[start], (mid - start) * sizeof(array[0]));
+					WikiMerge(array, MakeRange(0, 0), MakeRange(start, mid), MakeRange(mid, end), compare, cache, cache_size);
+				}
+			}
+		} else {
+			/* this is where the in-place merge logic starts! */
+			
+			/* as a reminder (you read the documentation, right? :P), here's what it must do: */
+			/* 1. pull out two internal buffers containing √A unique values */
+			/* 2. loop over the A and B areas within this level of the merge sort */
+			/*     3. break A and B into blocks of size 'block_size' */
+			/*     4. "tag" each of the A blocks with values from the first internal buffer */
+			/*     5. roll the A blocks through the B blocks and drop/rotate them where they belong */
+			/*     6. merge each A block with any B values that follow, using the cache or second the internal buffer */
+			/* 7. sort the second internal buffer if it exists */
+			/* 8. redistribute the two internal buffers back into the array */
+			
+			long block_size = sqrt(decimal_step);
+			long buffer_size = decimal_step/block_size + 1;
+			
+			/* as an optimization, we really only need to pull out the internal buffers once for each level of merges */
+			/* after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level */
+			Range buffer1, buffer2, A, B;
+			long index, last, count, pull_index = 0, find = buffer_size + buffer_size;
+			struct { long from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
+			
+			buffer1 = MakeRange(0, 0);
+			buffer2 = MakeRange(0, 0);
+			
+			/* we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each), */
+			/* or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values, */
+			/* OR if we couldn't find that many unique values, we need the largest possible buffer we can get */
+			
+			/* in the case where it couldn't find a single buffer of at least √A unique values, */
+			/* all of the Merge steps must be replaced by a different merge algorithm (check the end of the Merge function above) */
+			decimal = fractional = 0;
+			while (decimal < size) {
+				start = decimal;
+				
+				decimal += decimal_step;
+				fractional += fractional_step;
+				if (fractional >= fractional_base) {
+					fractional -= fractional_base;
+					decimal++;
+				}
+				
+				mid = decimal;
+				
+				decimal += decimal_step;
+				fractional += fractional_step;
+				if (fractional >= fractional_base) {
+					fractional -= fractional_base;
+					decimal++;
+				}
+				
+				end = decimal;
+				
+				/* check A (from start to mid) for the number of unique values we need to fill an internal buffer */
+				/* these values will be pulled out to the start of A */
+				last = start; count = 1;
+				for (index = start + 1; index < mid; index++) {
+					if (compare(array[index - 1], array[index])) {
+						last = index;
+						if (++count >= find) break;
+					}
+				}
+				index = last;
+				
+				if (count >= buffer_size) {
+					/* keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer */
+					pull[pull_index].range = MakeRange(start, end);
+					pull[pull_index].count = count;
+					pull[pull_index].from = index;
+					pull[pull_index].to = start;
+					pull_index = 1;
 					
-				} else {
-					long count, length;
-					
-					/* the first item is always going to be the first unique value, so let's start searching at the next index */
-					count = 1;
-					for (buffer1.start = A.start + 1; buffer1.start < A.end; buffer1.start++)
-						if (compare(array[buffer1.start - 1], array[buffer1.start]) || compare(array[buffer1.start], array[buffer1.start - 1]))
-							if (++count == buffer_size)
-								break;
-					buffer1.end = buffer1.start + count;
-					
-					/* if the size of each block fits into the cache, we only need one buffer for tagging the A blocks */
-					/* this is because the other buffer is used as a swap space for merging the A blocks into the B values that follow it, */
-					/* but we can just use the cache as the buffer instead. this skips some memmoves and an insertion sort */
-					if (buffer_size <= cache_size) {
-						buffer2 = MakeRange(A.start, A.start);
+					if (count == buffer_size + buffer_size) {
+						/* we were able to find a single contiguous section containing 2√A unique values, */
+						/* so this section can be used to contain both of the internal buffers we'll need */
+						buffer1 = MakeRange(start, start + buffer_size);
+						buffer2 = MakeRange(start + buffer_size, start + count);
+						break;
+					} else if (find == buffer_size + buffer_size) {
+						buffer1 = MakeRange(start, start + count);
 						
-						if (Range_length(buffer1) == buffer_size) {
-							/* we found enough values for the buffer in A */
-							bufferA = MakeRange(buffer1.start, buffer1.start + buffer_size);
-							bufferB = MakeRange(B.end, B.end);
-							buffer1 = MakeRange(A.start, A.start + buffer_size);
+						/* we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values, */
+						/* so we still need to find a second separate buffer of at least √A unique values */
+						find = buffer_size;
+					} else {
+						/* we found a second buffer in an 'A' area containing √A unique values, so we're done! */
+						buffer2 = MakeRange(start, start + count);
+						break;
+					}
+				} else if (pull_index == 0 && count > Range_length(buffer1)) {
+					/* keep track of the largest buffer we were able to find */
+					buffer1 = MakeRange(start, start + count);
+					
+					pull[pull_index].range = MakeRange(start, end);
+					pull[pull_index].count = count;
+					pull[pull_index].from = index;
+					pull[pull_index].to = start;
+				}
+				
+				/* check B (from mid to end) for the number of unique values we need to fill an internal buffer */
+				/* these values will be pulled out to the end of B */
+				last = end - 1; count = 1;
+				for (index = end - 2; index >= mid; index--) {
+					if (compare(array[index], array[index + 1])) {
+						last = index;
+						if (++count >= find) break;
+					}
+				}
+				index = last;
+				
+				if (count >= buffer_size) {
+					/* keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer */
+					pull[pull_index].range = MakeRange(start, end);
+					pull[pull_index].count = count;
+					pull[pull_index].from = index;
+					pull[pull_index].to = end;
+					pull_index = 1;
+					
+					if (count == buffer_size + buffer_size) {
+						/* we were able to find a single contiguous section containing 2√A unique values, */
+						/* so this section can be used to contain both of the internal buffers we'll need */
+						buffer1 = MakeRange(end - count, end - buffer_size);
+						buffer2 = MakeRange(end - buffer_size, end);
+						break;
+					} else if (find == buffer_size + buffer_size) {
+						buffer1 = MakeRange(end - count, end);
+						
+						/* we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values, */
+						/* so we still need to find a second separate buffer of at least √A unique values */
+						find = buffer_size;
+					} else {
+						/* we found a second buffer in an 'B' area containing √A unique values, so we're done! */
+						buffer2 = MakeRange(end - count, end);
+						
+						/* buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area, */
+						/* we need to adjust the end point so it knows to stop redistrubing its values before reaching buffer2 */
+						if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
+						
+						break;
+					}
+				} else if (pull_index == 0 && count > Range_length(buffer1)) {
+					/* keep track of the largest buffer we were able to find */
+					buffer1 = MakeRange(end - count, end);
+					
+					pull[pull_index].range = MakeRange(start, end);
+					pull[pull_index].count = count;
+					pull[pull_index].from = index;
+					pull[pull_index].to = end;
+				}
+			}
+			
+			/* pull out the two ranges so we can use them as internal buffers */
+			for (pull_index = 0; pull_index < 2; pull_index++) {
+				long length = pull[pull_index].count; count = 0;
+				
+				if (pull[pull_index].to < pull[pull_index].from) {
+					/* we're pulling the values out to the left, which means the start of an A area */
+					for (index = pull[pull_index].from; count < length; index--) {
+						if (index == pull[pull_index].to || compare(array[index - 1], array[index])) {
+							Rotate(array, -count, MakeRange(index + 1, pull[pull_index].from + 1), cache, cache_size);
+							pull[pull_index].from = index + count; count++;
+						}
+					}
+				} else if (pull[pull_index].to > pull[pull_index].from) {
+					/* we're pulling values out to the right, which means the end of a B area */
+					for (index = pull[pull_index].from; count < length; index++) {
+						if (index == pull[pull_index].to - 1 || compare(array[index], array[index + 1])) {
+							Rotate(array, count, MakeRange(pull[pull_index].from, index), cache, cache_size);
+							pull[pull_index].from = index - count; count++;
+						}
+					}
+				}
+			}
+			
+			/* adjust block_size and buffer_size based on the values we were able to pull out */
+			buffer_size = Range_length(buffer1);
+			block_size = (decimal_step + 1)/buffer_size + 1;
+			
+			/* the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks, */
+			/* so this was originally here to test the math for adjusting block_size above */
+			/* assert((decimal_step + 1)/block_size <= buffer_size); */
+			
+			/* now that the two internal buffers have been created, it's time to merge each A+B combination at this level of the merge sort! */
+			decimal = fractional = 0;
+			while (decimal < size) {
+				start = decimal;
+				
+				decimal += decimal_step;
+				fractional += fractional_step;
+				if (fractional >= fractional_base) {
+					fractional -= fractional_base;
+					decimal++;
+				}
+				
+				mid = decimal;
+				
+				decimal += decimal_step;
+				fractional += fractional_step;
+				if (fractional >= fractional_base) {
+					fractional -= fractional_base;
+					decimal++;
+				}
+				
+				end = decimal;
+				
+				/* calculate the ranges for A and B, and make sure to remove any portions that are being used by the internal buffers */
+				A = MakeRange(start, mid);
+				B = MakeRange(mid, end);
+				
+				for (pull_index = 0; pull_index < 2; pull_index++) {
+					if (start == pull[pull_index].range.start) {
+						if (pull[pull_index].from > pull[pull_index].to)
+							A.start += pull[pull_index].count;
+						else if (pull[pull_index].from < pull[pull_index].to)
+							B.end -= pull[pull_index].count;
+					}
+				}
+				
+				if (compare(array[B.end - 1], array[A.start])) {
+					/* the two ranges are in reverse order, so a simple rotation should fix it */
+					Rotate(array, A.end - A.start, MakeRange(A.start, B.end), cache, cache_size);
+				} else if (compare(array[A.end], array[A.end - 1])) {
+					/* these two ranges weren't already in order, so we'll need to merge them! */
+					Range blockA, firstA, lastA, lastB, blockB;
+					long minA, indexA, findA;
+					__typeof__(array[0]) min_value;
+					
+					/* break the remainder of A into blocks. firstA is the uneven-sized first A block */
+					blockA = MakeRange(A.start, A.end);
+					firstA = MakeRange(A.start, A.start + Range_length(blockA) % block_size);
+					
+					/* swap the second value of each A block with the value in buffer1 */
+					for (index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
+						Swap(array[buffer1.start + index], array[indexA]);
+					
+					/* start rolling the A blocks through the B blocks! */
+					/* whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well */
+					lastA = firstA;
+					lastB = MakeRange(0, 0);
+					blockB = MakeRange(B.start, B.start + Min(block_size, Range_length(B)));
+					blockA.start += Range_length(firstA);
+					
+					minA = blockA.start;
+					indexA = 0;
+					min_value = array[minA];
+					
+					/* if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it */
+					/* otherwise, if the second buffer is available, block swap the contents into that */
+					if (Range_length(lastA) <= cache_size)
+						memcpy(&cache[0], &array[lastA.start], Range_length(lastA) * sizeof(array[0]));
+					else if (Range_length(buffer2) > 0)
+						BlockSwap(array, lastA.start, buffer2.start, Range_length(lastA));
+					
+					while (true) {
+						/* if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block, */
+						/* then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks. */
+						if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], min_value)) || Range_length(blockB) == 0) {
+							/* figure out where to split the previous B block, and rotate it at the split */
+							long B_split = BinaryFirst(array, min_value, lastB, compare);
+							long B_remaining = lastB.end - B_split;
 							
-						} else {
-							/* we were unable to find enough unique values in A, so try B */
-							bufferA = MakeRange(buffer1.start, buffer1.start);
-							buffer1 = MakeRange(A.start, A.start);
+							/* swap the minimum A block to the beginning of the rolling A blocks */
+							BlockSwap(array, blockA.start, minA, block_size);
 							
-							/* the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index */
-							count = 1;
-							for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
-								if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start]))
-									if (++count == buffer_size)
-										break;
-							buffer1.end = buffer1.start + count;
+							/* we need to swap the second item of the previous A block back with its original value, which is stored in buffer1 */
+							/* since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized */
+							Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 							
-							if (Range_length(buffer1) == buffer_size) {
-								bufferB = MakeRange(buffer1.start, buffer1.start + buffer_size);
-								buffer1 = MakeRange(B.end - buffer_size, B.end);
+							/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
+							WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+							
+							if (Range_length(buffer2) > 0 || block_size <= cache_size) {
+								/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
+								if (block_size <= cache_size)
+									memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
+								else
+									BlockSwap(array, blockA.start, buffer2.start, block_size);
+								
+								/* this is equivalent to rotating, but faster */
+								/* the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it */
+								/* either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs */
+								BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+							} else {
+								/* we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation */
+								Rotate(array, blockA.start - B_split, MakeRange(B_split, blockA.start + block_size), cache, cache_size);
 							}
-						}
-					} else {
-						/* the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too */
-						count = 0;
-						for (buffer2.start = buffer1.start + 1; buffer2.start < A.end; buffer2.start++)
-							if (compare(array[buffer2.start - 1], array[buffer2.start]) || compare(array[buffer2.start], array[buffer2.start - 1]))
-								if (++count == buffer_size)
-									break;
-						buffer2.end = buffer2.start + count;
-						
-						if (Range_length(buffer2) == buffer_size) {
-							/* we found enough values for both buffers in A */
-							bufferA = MakeRange(buffer2.start, buffer2.start + buffer_size * 2);
-							bufferB = MakeRange(B.end, B.end);
-							buffer1 = MakeRange(A.start, A.start + buffer_size);
-							buffer2 = MakeRange(A.start + buffer_size, A.start + buffer_size * 2);
 							
-						} else if (Range_length(buffer1) == buffer_size) {
-							/* we found enough values for one buffer in A, so we'll need to find one buffer in B */
-							bufferA = MakeRange(buffer1.start, buffer1.start + buffer_size);
-							buffer1 = MakeRange(A.start, A.start + buffer_size);
+							/* now we need to update the ranges and stuff */
+							lastA = MakeRange(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
+							lastB = MakeRange(lastA.end, lastA.end + B_remaining);
 							
-							/* like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index */
-							count = 1;
-							for (buffer2.start = B.end - 2; buffer2.start >= B.start; buffer2.start--)
-								if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start]))
-									if (++count == buffer_size)
-										break;
-							buffer2.end = buffer2.start + count;
+							blockA.start += block_size;
+							if (Range_length(blockA) == 0)
+								break;
 							
-							if (Range_length(buffer2) == buffer_size) {
-								bufferB = MakeRange(buffer2.start, buffer2.start + buffer_size);
-								buffer2 = MakeRange(B.end - buffer_size, B.end);
-								
-							} else buffer1.end = buffer1.start; /* failure */
+							/* search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!) */
+							minA = blockA.start + 1;
+							for (findA = minA + block_size; findA < blockA.end; findA += block_size)
+								if (compare(array[findA], array[minA]))
+									minA = findA;
+							minA = minA - 1; /* decrement once to get back to the start of that A block */
+							min_value = array[minA];
+							
+						} else if (Range_length(blockB) < block_size) {
+							/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
+							/* this needs to disable the cache if it determines that the contents of the previous A block are in it */
+							if (Range_length(buffer2) > 0 || block_size <= cache_size)
+								Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, 0); /* cache disabled */
+							else
+								Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, cache_size); /* cache enabled */
+							
+							lastB = MakeRange(blockA.start, blockA.start + Range_length(blockB));
+							blockA.start += Range_length(blockB);
+							blockA.end += Range_length(blockB);
+							minA += Range_length(blockB);
+							blockB.end = blockB.start;
 						} else {
-							/* we were unable to find a single buffer in A, so we'll need to find two buffers in B */
-							count = 1;
-							for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
-								if (compare(array[buffer1.start], array[buffer1.start + 1]) || compare(array[buffer1.start + 1], array[buffer1.start]))
-									if (++count == buffer_size)
-										break;
-							buffer1.end = buffer1.start + count;
+							/* roll the leftmost A block to the end by swapping it with the next B block */
+							BlockSwap(array, blockA.start, blockB.start, block_size);
+							lastB = MakeRange(blockA.start, blockA.start + block_size);
+							if (minA == blockA.start)
+								minA = blockA.end;
 							
-							count = 0;
-							for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--)
-								if (compare(array[buffer2.start], array[buffer2.start + 1]) || compare(array[buffer2.start + 1], array[buffer2.start]))
-									if (++count == buffer_size)
-										break;
-							buffer2.end = buffer2.start + count;
+							blockA.start += block_size;
+							blockA.end += block_size;
+							blockB.start += block_size;
+							blockB.end += block_size;
 							
-							if (Range_length(buffer2) == buffer_size) {
-								bufferA = MakeRange(A.start, A.start);
-								bufferB = MakeRange(buffer2.start, buffer2.start + buffer_size * 2);
-								buffer1 = MakeRange(B.end - buffer_size, B.end);
-								buffer2 = MakeRange(buffer1.start - buffer_size, buffer1.start);
-								
-							} else buffer1.end = buffer1.start; /* failure */
+							if (blockB.end > B.end)
+								blockB.end = B.end;
 						}
 					}
 					
-					if (Range_length(buffer1) < buffer_size) {
-						/* we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated */
-						/* we can use this knowledge to write a merge operation that is optimized for arrays of repeating values */
-						while (Range_length(A) > 0 && Range_length(B) > 0) {
-							/* find the first place in B where the first item in A needs to be inserted */
-							long mid = BinaryFirst(array, A.start, B, compare);
-							
-							/* rotate A into place */
-							long amount = mid - A.end;
-							Rotate(array, -amount, MakeRange(A.start, mid), cache, cache_size);
-							
-							/* calculate the new A and B ranges */
-							B.start = mid;
-							A = MakeRange(BinaryLast(array, A.start + amount, A, compare), B.start);
-						}
-						
-						continue;
-					}
-					
-					/* move the unique values to the start of A if needed */
-					length = Range_length(bufferA);
-					count = 0;
-					for (index = bufferA.start; count < length; index--) {
-						if (index == A.start || compare(array[index - 1], array[index]) || compare(array[index], array[index - 1])) {
-							Rotate(array, -count, MakeRange(index + 1, bufferA.start + 1), cache, cache_size);
-							bufferA.start = index + count; count++;
-						}
-					}
-					bufferA = MakeRange(A.start, A.start + length);
-					
-					/* move the unique values to the end of B if needed */
-					length = Range_length(bufferB);
-					count = 0;
-					for (index = bufferB.start; count < length; index++) {
-						if (index == B.end - 1 || compare(array[index], array[index + 1]) || compare(array[index + 1], array[index])) {
-							Rotate(array, count, MakeRange(bufferB.start, index), cache, cache_size);
-							bufferB.start = index - count; count++;
-						}
-					}
-					bufferB = MakeRange(B.end - length, B.end);
-					
-					/* reuse these buffers next time! */
-					level1 = buffer1;
-					level2 = buffer2;
-					levelA = bufferA;
-					levelB = bufferB;
-				}
-				
-				/* break the remainder of A into blocks. firstA is the uneven-sized first A block */
-				blockA = MakeRange(bufferA.end, A.end);
-				firstA = MakeRange(bufferA.end, bufferA.end + Range_length(blockA) % block_size);
-				
-				/* swap the second value of each A block with the value in buffer1 */
-				index = 0;
-				for (indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size)
-					Swap(array[buffer1.start + index], array[indexA]);
-				
-				/* start rolling the A blocks through the B blocks! */
-				/* whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well */
-				lastA = firstA;
-				lastB = MakeRange(0, 0);
-				blockB = MakeRange(B.start, B.start + Min(block_size, Range_length(B) - Range_length(bufferB)));
-				blockA.start += Range_length(firstA);
-				
-				minA = blockA.start;
-				min_value = array[minA];
-				indexA = 0;
-				
-				if (Range_length(lastA) <= cache_size)
-					memcpy(&cache[0], &array[lastA.start], Range_length(lastA) * sizeof(array[0]));
-				else
-					BlockSwap(array, lastA.start, buffer2.start, Range_length(lastA));
-				
-				while (true) {
-					/* if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block */
-					if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], min_value)) || Range_length(blockB) == 0) {
-						/* figure out where to split the previous B block, and rotate it at the split */
-						long B_split = BinaryFirst(array, minA, lastB, compare);
-						long B_remaining = lastB.end - B_split;
-						
-						/* swap the minimum A block to the beginning of the rolling A blocks */
-						BlockSwap(array, blockA.start, minA, block_size);
-						
-						/* we need to swap the second item of the previous A block back with its original value, which is stored in buffer1 */
-						/* since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized */
-						Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
-						
-						/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
-						WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
-						
-						/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
-						if (block_size <= cache_size)
-							memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
-						else
-							BlockSwap(array, blockA.start, buffer2.start, block_size);
-						
-						/* this is equivalent to rotating, but faster */
-						/* the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it */
-						/* either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs */
-						BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
-						
-						/* now we need to update the ranges and stuff */
-						lastA = MakeRange(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
-						lastB = MakeRange(lastA.end, lastA.end + B_remaining);
-						blockA.start += block_size;
-						if (Range_length(blockA) == 0)
-							break;
-						
-						/* search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!) */
-						minA = blockA.start + 1;
-						for (findA = minA + block_size; findA < blockA.end; findA += block_size)
-							if (compare(array[findA], array[minA])) minA = findA;
-						minA = minA - 1; /* decrement once to get back to the start of that A block */
-						min_value = array[minA];
-						
-					} else if (Range_length(blockB) < block_size) {
-						/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
-						/* (using the cache is disabled since we have the contents of the previous A block in it!) */
-						Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, 0);
-						lastB = MakeRange(blockA.start, blockA.start + Range_length(blockB));
-						blockA.start += Range_length(blockB);
-						blockA.end += Range_length(blockB);
-						minA += Range_length(blockB);
-						blockB.end = blockB.start;
-						
-					} else {
-						/* roll the leftmost A block to the end by swapping it with the next B block */
-						BlockSwap(array, blockA.start, blockB.start, block_size);
-						lastB = MakeRange(blockA.start, blockA.start + block_size);
-						if (minA == blockA.start)
-							minA = blockA.end;
-						
-						blockA.start += block_size;
-						blockA.end += block_size;
-						blockB.start += block_size;
-						blockB.end += block_size;
-						if (blockB.end > bufferB.start)
-							blockB.end = bufferB.start;
-					}
-				}
-				
-				/* merge the last A block with the remaining B blocks */
-				WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B.end - Range_length(bufferB)), compare, cache, cache_size);
-			}
-		}
-		
-		if (Range_length(level1) > 0) {
-			long level_start;
-			
-			/* when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up */
-			/* insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer */
-			InsertionSort(array, level2, compare);
-			
-			/* redistribute bufferA back into the array */
-			level_start = levelA.start;
-			for (index = levelA.end; Range_length(levelA) > 0; index++) {
-				if (index == levelB.start || !compare(array[index], array[levelA.start])) {
-					long amount = index - levelA.end;
-					Rotate(array, -amount, MakeRange(levelA.start, index), cache, cache_size);
-					levelA.start += (amount + 1);
-					levelA.end += amount;
-					index--;
+					/* merge the last A block with the remaining B blocks */
+					WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B.end), compare, cache, cache_size);
 				}
 			}
 			
-			/* redistribute bufferB back into the array */
-			for (index = levelB.start; Range_length(levelB) > 0; index--) {
-				if (index == level_start || !compare(array[levelB.end - 1], array[index - 1])) {
-					long amount = levelB.start - index;
-					Rotate(array, amount, MakeRange(index, levelB.end), cache, cache_size);
-					levelB.start -= amount;
-					levelB.end -= (amount + 1);
-					index++;
+			/* when we're finished with this step we should have the one or two internal buffers left over, where the second buffer is all jumbled up */
+			/* insertion sort the second buffer, then redistribute the buffers back into the array using the opposite process used for creating the buffer */
+			InsertionSort(array, buffer2, compare);
+			
+			for (pull_index = 0; pull_index < 2; pull_index++) {
+				if (pull[pull_index].from > pull[pull_index].to) {
+					/* the values were pulled out to the left, so redistribute them back to the right */
+					Range buffer = MakeRange(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
+					for (index = buffer.end; Range_length(buffer) > 0; index++) {
+						if (index == pull[pull_index].range.end || !compare(array[index], array[buffer.start])) {
+							long amount = index - buffer.end;
+							Rotate(array, -amount, MakeRange(buffer.start, index), cache, cache_size);
+							buffer.start += (amount + 1);
+							buffer.end += amount;
+							index--;
+						}
+					}
+				} else if (pull[pull_index].from < pull[pull_index].to) {
+					/* the values were pulled out to the right, so redistribute them back to the left */
+					Range buffer = MakeRange(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
+					for (index = buffer.start; Range_length(buffer) > 0; index--) {
+						if (index == pull[pull_index].range.start || !compare(array[buffer.end - 1], array[index - 1])) {
+							long amount = buffer.start - index;
+							Rotate(array, amount, MakeRange(index, buffer.end), cache, cache_size);
+							buffer.start -= amount;
+							buffer.end -= (amount + 1);
+							index++;
+						}
+					}
 				}
 			}
 		}
 		
+		/* double the size of each A and B area that will be merged in the next level */
 		decimal_step += decimal_step;
 		fractional_step += fractional_step;
 		if (fractional_step >= fractional_base) {
 			fractional_step -= fractional_base;
-			decimal_step += 1;
+			decimal_step++;
 		}
 	}
 	
 	#undef CACHE_SIZE
 }
+
+
 
 
 /* standard merge sort, so we have a baseline for how well the in-place merge works */
@@ -639,7 +750,7 @@ void MergeSortR(Test array[], const Range range, const Comparison compare, Test 
 	MergeSortR(array, B, compare, buffer);
 	
 	/* standard merge operation here (only A is copied to the buffer, and only the parts that weren't already where they should be) */
-	A = MakeRange(BinaryLast(array, B.start, A, compare), A.end);
+	A = MakeRange(BinaryLast(array, array[B.start], A, compare), A.end);
 	memcpy(&buffer[0], &array[A.start], Range_length(A) * sizeof(array[0]));
 	while (A_count < Range_length(A) && B_count < Range_length(B)) {
 		if (!compare(array[A.end + B_count], buffer[A_count])) {
@@ -656,10 +767,13 @@ void MergeSortR(Test array[], const Range range, const Comparison compare, Test 
 }
 
 void MergeSort(Test array[], const long array_count, const Comparison compare) {
-	Var(buffer, Allocate(Test, array_count));
+	Var(buffer, Allocate(Test, (array_count + 1)/2));
 	MergeSortR(array, MakeRange(0, array_count), compare, buffer);
 	free(buffer);
 }
+
+
+
 
 
 long TestingPathological(long index, long total) {
@@ -671,6 +785,12 @@ long TestingPathological(long index, long total) {
 
 long TestingRandom(long index, long total) {
 	return rand();
+}
+
+/* random distribution of few values was a problem with the last version, but it's better now */
+/* although the algorithm in the Merge function still isn't the one the paper suggests using! */
+long TestingRandomFew(long index, long total) {
+	return rand() * 100.0/RAND_MAX;
 }
 
 long TestingMostlyDescending(long index, long total) {
@@ -731,6 +851,7 @@ int main() {
 	__typeof__(&TestingPathological) test_cases[] = {
 		TestingPathological,
 		TestingRandom,
+		TestingRandomFew,
 		TestingMostlyDescending,
 		TestingMostlyAscending,
 		TestingAscending,
@@ -778,6 +899,17 @@ int main() {
 		for (index = 0; index < total; index++) {
 			Test item;
 			
+			/* TestingPathological */
+			/* TestingRandom */
+			/* TestingRandomFew */
+			/* TestingMostlyDescending */
+			/* TestingMostlyAscending */
+			/* TestingAscending */
+			/* TestingDescending */
+			/* TestingEqual */
+			/* TestingJittered */
+			/* TestingMostlyEqual */
+			
 			item.index = index;
 			item.value = TestingRandom(index, total);
 			
@@ -794,7 +926,7 @@ int main() {
 		time2 = Seconds() - time2;
 		total_time2 += time2;
 		
-		printf("[%ld] wiki: %f, merge: %f (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
+		printf("[%ld] WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
@@ -809,7 +941,7 @@ int main() {
 	
 	total_time = Seconds() - total_time;
 	printf("tests completed in %f seconds\n", total_time);
-	printf("wiki: %f, merge: %f (%f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+	printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
 	
 	free(array1); free(array2);
 	return 0;

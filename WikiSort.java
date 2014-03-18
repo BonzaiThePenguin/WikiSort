@@ -1,4 +1,10 @@
 /***********************************************************
+ WikiSort (public domain license)
+ https://github.com/BonzaiThePenguin/WikiSort
+ 
+ Reading the documentation on that GitHub page
+ is HIGHLY recommended before reading this code!
+ 
  to run:
  javac WikiSort.java
  java WikiSort
@@ -19,8 +25,8 @@ class Test {
 class TestComparator implements Comparator<Test> {
     public int compare(Test a, Test b) {
     	if (a.value < b.value) return -1;
-	if (a.value > b.value) return 1;
-	return 0;
+		if (a.value > b.value) return 1;
+		return 0;
     }
 }
 
@@ -46,6 +52,18 @@ class Range {
 	
 	int length() {
 		return end - start;
+	}
+}
+
+class Pull {
+	public int from, to, count;
+	public Range range;
+	public Pull() { range = new Range(0, 0); }
+	void reset() {
+		range.set(0, 0);
+		from = 0;
+		to = 0;
+		count = 0;
 	}
 }
 
@@ -178,10 +196,11 @@ class WikiSorter<T> {
 		Reverse(array, range);
 	}
 	
-	// standard merge operation using an internal buffer
+	// standard merge operation using an internal or external buffer,
+	// or if neither are available, use a different in-place merge
 	void Merge(T array[], Range buffer, Range A, Range B, Comparator<T> comp) {
-		// if A fits into the cache, use that instead of the internal buffer
 		if (A.length() <= cache_size) {
+			// A fits into the cache, so use that instead of the internal buffer
 			int A_index = 0;
 			int B_index = B.start;
 			int insert_index = A.start;
@@ -207,7 +226,7 @@ class WikiSorter<T> {
 			// copy the remainder of A into the final array
 			java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
 			
-		} else {
+		} else if (buffer.length() > 0) {
 			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
 			int A_count = 0, B_count = 0, insert = 0;
@@ -234,6 +253,25 @@ class WikiSorter<T> {
 			
 			// swap the remainder of A into the final array
 			BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
+		} else {
+			// A did not fit into the cache, AND there was no internal buffer available, so we'll need to use a different algorithm entirely
+			// this one just repeatedly binary searches into B and rotates A into position,
+			// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
+			A = new Range(A.start, A.end);
+			B = new Range(B.start, B.end);
+			
+			while (A.length() > 0 && B.length() > 0) {
+				// find the first place in B where the first item in A needs to be inserted
+				int mid = BinaryFirst(array, array[A.start], B, comp);
+				
+				// rotate A into place
+				int amount = mid - A.end;
+				Rotate(array, -amount, new Range(A.start, mid), false);
+				
+				// calculate the new A and B ranges
+				B.start = A.end = mid;
+				A.start = BinaryLast(array, array[A.start + amount], A, comp);
+			}
 		}
 	}
 	
@@ -272,357 +310,431 @@ class WikiSorter<T> {
 		}
 		
 		// we need to keep track of a lot of ranges during this sort!
-		Range bufferA = new Range(), bufferB = new Range();
 		Range buffer1 = new Range(), buffer2 = new Range();
 		Range blockA = new Range(), blockB = new Range();
 		Range lastA = new Range(), lastB = new Range();
 		Range firstA = new Range();
-		Range level1 = new Range(), level2 = new Range();
-		Range levelA = new Range(), levelB = new Range();
 		Range A = new Range(), B = new Range();
+		
+		Pull[] pull = new Pull[2];
+		pull[0] = new Pull();
+		pull[1] = new Pull();
 		
 		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
 		for (int merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
-			int block_size = (int)Math.sqrt(decimal_step);
-			int buffer_size = decimal_step/block_size + 1;
 			
-			// as an optimization, we really only need to pull out an internal buffer once for each level of merges
-			// after that we can reuse the same buffer over and over, then redistribute it when we're finished with this level
-			level1.set(0, 0);
-			
-			decimal = fractional = 0;
-			while (decimal < size) {
-				int start = decimal;
-				
-				decimal += decimal_step;
-				fractional += fractional_step;
-				if (fractional >= fractional_base) {
-					fractional -= fractional_base;
-					decimal++;
-				}
-				
-				int mid = decimal;
-				
-				decimal += decimal_step;
-				fractional += fractional_step;
-				if (fractional >= fractional_base) {
-					fractional -= fractional_base;
-					decimal++;
-				}
-				
-				int end = decimal;
-				
-				if (comp.compare(array[end - 1], array[start]) < 0) {
-					// the two ranges are in reverse order, so a simple rotation should fix it
-					Rotate(array, mid - start, new Range(start, end), true);
+			// if every A and B block will fit into the cache (we use < rather than <= since the block might be one more than decimal_step),
+			// use a special branch specifically for merging with the cache
+			if (decimal_step < cache_size) {
+				decimal = fractional = 0;
+				while (decimal < size) {
+					int start = decimal;
 					
-				} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
-					// these two ranges weren't already in order, so we'll need to merge them!
+					decimal += decimal_step;
+					fractional += fractional_step;
+					if (fractional >= fractional_base) {
+						fractional -= fractional_base;
+						decimal++;
+					}
+					
+					int mid = decimal;
+					
+					decimal += decimal_step;
+					fractional += fractional_step;
+					if (fractional >= fractional_base) {
+						fractional -= fractional_base;
+						decimal++;
+					}
+					
+					int end = decimal;
+					
+					if (comp.compare(array[end - 1], array[start]) < 0) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, mid - start, new Range(start, end), true);
+					} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
+						// these two ranges weren't already in order, so we'll need to merge them!
+						java.lang.System.arraycopy(array, start, cache, 0, mid - start);
+						Merge(array, new Range(0, 0), new Range(start, mid), new Range(mid, end), comp);
+					}
+				}
+			} else {
+				// this is where the in-place merge logic starts!
+				
+				// as a reminder (you read the documentation, right? :P), here's what it must do:
+				// 1. pull out two internal buffers containing √A unique values
+				// 2. loop over the A and B areas within this level of the merge sort
+				//     3. break A and B into blocks of size 'block_size'
+				//     4. "tag" each of the A blocks with values from the first internal buffer
+				//     5. roll the A blocks through the B blocks and drop/rotate them where they belong
+				//     6. merge each A block with any B values that follow, using the cache or second the internal buffer
+				// 7. sort the second internal buffer if it exists
+				// 8. redistribute the two internal buffers back into the array
+				
+				int block_size = (int)Math.sqrt(decimal_step);
+				int buffer_size = decimal_step/block_size + 1;
+				
+				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
+				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
+				int index, last, count, pull_index = 0, find = buffer_size + buffer_size;
+				buffer1.set(0, 0);
+				buffer2.set(0, 0);
+				
+				pull[0].reset();
+				pull[1].reset();
+				
+				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
+				// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
+				// OR if we couldn't find that many unique values, we need the largest possible buffer we can get
+				
+				// in the case where it couldn't find a single buffer of at least √A unique values,
+				// all of the Merge steps must be replaced by a different merge algorithm (check the end of the Merge function above)
+				decimal = fractional = 0;
+				while (decimal < size) {
+					int start = decimal;
+					
+					decimal += decimal_step;
+					fractional += fractional_step;
+					if (fractional >= fractional_base) {
+						fractional -= fractional_base;
+						decimal++;
+					}
+					
+					int mid = decimal;
+					
+					decimal += decimal_step;
+					fractional += fractional_step;
+					if (fractional >= fractional_base) {
+						fractional -= fractional_base;
+						decimal++;
+					}
+					
+					int end = decimal;
+					
+					// check A (from start to mid) for the number of unique values we need to fill an internal buffer
+					// these values will be pulled out to the start of A
+					last = start; count = 1;
+					for (index = start + 1; index < mid; index++) {
+						if (comp.compare(array[index - 1], array[index]) < 0) {
+							last = index;
+							if (++count >= find) break;
+						}
+					}
+					index = last;
+					
+					if (count >= buffer_size) {
+						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
+						pull[pull_index].range.set(start, end);
+						pull[pull_index].count = count;
+						pull[pull_index].from = index;
+						pull[pull_index].to = start;
+						pull_index = 1;
+						
+						if (count == buffer_size + buffer_size) {
+							// we were able to find a single contiguous section containing 2√A unique values,
+							// so this section can be used to contain both of the internal buffers we'll need
+							buffer1.set(start, start + buffer_size);
+							buffer2.set(start + buffer_size, start + count);
+							break;
+						} else if (find == buffer_size + buffer_size) {
+							buffer1.set(start, start + count);
+							
+							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
+							// so we still need to find a second separate buffer of at least √A unique values
+							find = buffer_size;
+						} else {
+							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
+							buffer2.set(start, start + count);
+							break;
+						}
+					} else if (pull_index == 0 && count > buffer1.length()) {
+						// keep track of the largest buffer we were able to find
+						buffer1.set(start, start + count);
+						
+						pull[pull_index].range.set(start, end);
+						pull[pull_index].count = count;
+						pull[pull_index].from = index;
+						pull[pull_index].to = start;
+					}
+					
+					// check B (from mid to end) for the number of unique values we need to fill an internal buffer
+					// these values will be pulled out to the end of B
+					last = end - 1; count = 1;
+					for (index = end - 2; index >= mid; index--) {
+						if (comp.compare(array[index], array[index + 1]) < 0) {
+							last = index;
+							if (++count >= find) break;
+						}
+					}
+					index = last;
+					
+					if (count >= buffer_size) {
+						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
+						pull[pull_index].range.set(start, end);
+						pull[pull_index].count = count;
+						pull[pull_index].from = index;
+						pull[pull_index].to = end;
+						pull_index = 1;
+						
+						if (count == buffer_size + buffer_size) {
+							// we were able to find a single contiguous section containing 2√A unique values,
+							// so this section can be used to contain both of the internal buffers we'll need
+							buffer1.set(end - count, end - buffer_size);
+							buffer2.set(end - buffer_size, end);
+							break;
+						} else if (find == buffer_size + buffer_size) {
+							buffer1.set(end - count, end);
+							
+							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
+							// so we still need to find a second separate buffer of at least √A unique values
+							find = buffer_size;
+						} else {
+							// we found a second buffer in an 'B' area containing √A unique values, so we're done!
+							buffer2.set(end - count, end);
+							
+							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
+							// we need to adjust the end point so it knows to stop redistrubing its values before reaching buffer2
+							if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
+							
+							break;
+						}
+					} else if (pull_index == 0 && count > buffer1.length()) {
+						// keep track of the largest buffer we were able to find
+						buffer1.set(end - count, end);
+						
+						pull[pull_index].range.set(start, end);
+						pull[pull_index].count = count;
+						pull[pull_index].from = index;
+						pull[pull_index].to = end;
+					}
+				}
+				
+				// pull out the two ranges so we can use them as internal buffers
+				for (pull_index = 0; pull_index < 2; pull_index++) {
+					int length = pull[pull_index].count; count = 0;
+					
+					if (pull[pull_index].to < pull[pull_index].from) {
+						// we're pulling the values out to the left, which means the start of an A area
+						for (index = pull[pull_index].from; count < length; index--) {
+							if (index == pull[pull_index].to || comp.compare(array[index - 1], array[index]) < 0) {
+								Rotate(array, -count, new Range(index + 1, pull[pull_index].from + 1), true);
+								pull[pull_index].from = index + count; count++;
+							}
+						}
+					} else if (pull[pull_index].to > pull[pull_index].from) {
+						// we're pulling values out to the right, which means the end of a B area
+						for (index = pull[pull_index].from; count < length; index++) {
+							if (index == pull[pull_index].to - 1 || comp.compare(array[index], array[index + 1]) < 0) {
+								Rotate(array, count, new Range(pull[pull_index].from, index), true);
+								pull[pull_index].from = index - count; count++;
+							}
+						}
+					}
+				}
+				
+				// adjust block_size and buffer_size based on the values we were able to pull out
+				buffer_size = buffer1.length();
+				block_size = (decimal_step + 1)/buffer_size + 1;
+				
+				// now that the two internal buffers have been created, it's time to merge each A+B combination at this level of the merge sort!
+				decimal = fractional = 0;
+				while (decimal < size) {
+					int start = decimal;
+					
+					decimal += decimal_step;
+					fractional += fractional_step;
+					if (fractional >= fractional_base) {
+						fractional -= fractional_base;
+						decimal++;
+					}
+					
+					int mid = decimal;
+					
+					decimal += decimal_step;
+					fractional += fractional_step;
+					if (fractional >= fractional_base) {
+						fractional -= fractional_base;
+						decimal++;
+					}
+					
+					int end = decimal;
+					
+					// calculate the ranges for A and B, and make sure to remove any portions that are being used by the internal buffers
 					A.set(start, mid);
 					B.set(mid, end);
 					
-					// try to fill up two buffers with unique values in ascending order
-					if (A.length() <= cache_size) {
-						java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
-						Merge(array, buffer2, A, B, comp);
-						continue;
+					for (pull_index = 0; pull_index < 2; pull_index++) {
+						if (start == pull[pull_index].range.start) {
+							if (pull[pull_index].from > pull[pull_index].to)
+								A.start += pull[pull_index].count;
+							else if (pull[pull_index].from < pull[pull_index].to)
+								B.end -= pull[pull_index].count;
+						}
 					}
 					
-					// try to fill up two buffers with unique values in ascending order
-					if (level1.length() > 0) {
-						// reuse the buffers we found in a previous iteration
-						bufferA.set(A.start, A.start);
-						bufferB.set(B.end, B.end);
-						buffer1.set(level1.start, level1.end);
-						buffer2.set(level2.start, level2.end);
+					if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
+					} else if (comp.compare(array[A.end], array[A.end - 1]) < 0) {
+						// these two ranges weren't already in order, so we'll need to merge them!
 						
-					} else {
-						// the first item is always going to be the first unique value, so let's start searching at the next index
-						int count = 1;
-						for (buffer1.start = A.start + 1; buffer1.start < A.end; buffer1.start++)
-							if (comp.compare(array[buffer1.start - 1], array[buffer1.start]) != 0)
-								if (++count == buffer_size)
-									break;
-						buffer1.end = buffer1.start + count;
+						// break the remainder of A into blocks. firstA is the uneven-sized first A block
+						blockA.set(A.start, A.end);
+						firstA.set(A.start, A.start + blockA.length() % block_size);
 						
-						// if the size of each block fits into the cache, we only need one buffer for tagging the A blocks
-						// this is because the other buffer is used as a swap space for merging the A blocks into the B values that follow it,
-						// but we can just use the cache as the buffer instead. this skips some memmoves and an insertion sort
-						if (buffer_size <= cache_size) {
-							buffer2.set(A.start, A.start);
-							
-							if (buffer1.length() == buffer_size) {
-								// we found enough values for the buffer in A
-								bufferA.set(buffer1.start, buffer1.start + buffer_size);
-								bufferB.set(B.end, B.end);
-								buffer1.set(A.start, A.start + buffer_size);
+						// swap the second value of each A block with the value in buffer1
+						index = 0;
+						for (int indexA = firstA.end + 1; indexA < blockA.end; indexA += block_size)  {
+							T swap = array[buffer1.start + index];
+							array[buffer1.start + index] = array[indexA];
+							array[indexA] = swap;
+							index++;
+						}
+						
+						// start rolling the A blocks through the B blocks!
+						// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
+						lastA.set(firstA.start, firstA.end);
+						lastB.set(0, 0);
+						blockB.set(B.start, B.start + Math.min(block_size, B.length()));
+						blockA.start += firstA.length();
+						
+						int minA = blockA.start;
+						int indexA = 0;
+						T min_value = array[minA];
+						
+						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
+						// otherwise, if the second buffer is available, block swap the contents into that
+						if (lastA.length() <= cache_size)
+							java.lang.System.arraycopy(array, lastA.start, cache, 0, lastA.length());
+						else if (buffer2.length() > 0)
+							BlockSwap(array, lastA.start, buffer2.start, lastA.length());
+						
+						while (true) {
+							// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
+							// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
+							if ((lastB.length() > 0 && comp.compare(array[lastB.end - 1], min_value) >= 0) || blockB.length() == 0) {
+								// figure out where to split the previous B block, and rotate it at the split
+								int B_split = BinaryFirst(array, min_value, lastB, comp);
+								int B_remaining = lastB.end - B_split;
 								
-							} else {
-								// we were unable to find enough unique values in A, so try B
-								bufferA.set(buffer1.start, buffer1.start);
-								buffer1.set(A.start, A.start);
+								// swap the minimum A block to the beginning of the rolling A blocks
+								BlockSwap(array, blockA.start, minA, block_size);
 								
-								// the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
-								count = 1;
-								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
-									if (comp.compare(array[buffer1.start], array[buffer1.start + 1]) != 0)
-										if (++count == buffer_size)
-											break;
-								buffer1.end = buffer1.start + count;
+								// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
+								// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
+								T swap = array[blockA.start + 1];
+								array[blockA.start + 1] = array[buffer1.start + indexA];
+								array[buffer1.start + indexA] = swap;
+								indexA++;
 								
-								if (buffer1.length() == buffer_size) {
-									bufferB.set(buffer1.start, buffer1.start + buffer_size);
-									buffer1.set(B.end - buffer_size, B.end);
+								// locally merge the previous A block with the B values that follow it, using the buffer as swap space
+								Merge(array, buffer2, lastA, new Range(lastA.end, B_split), comp);
+								
+								if (buffer2.length() > 0 || block_size <= cache_size) {
+									// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
+									if (block_size <= cache_size)
+										java.lang.System.arraycopy(array, blockA.start, cache, 0, block_size);
+									else
+										BlockSwap(array, blockA.start, buffer2.start, block_size);
+									
+									// this is equivalent to rotating, but faster
+									// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
+									// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
+									BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+								} else {
+									// we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation
+									Rotate(array, blockA.start - B_split, new Range(B_split, blockA.start + block_size), true);
 								}
-							}
-						} else {
-							// the first item of the second buffer isn't guaranteed to be the first unique value, so we need to find the first unique item too
-							count = 0;
-							for (buffer2.start = buffer1.start + 1; buffer2.start < A.end; buffer2.start++)
-								if (comp.compare(array[buffer2.start - 1], array[buffer2.start]) != 0)
-									if (++count == buffer_size)
-										break;
-							buffer2.end = buffer2.start + count;
-							
-							if (buffer2.length() == buffer_size) {
-								// we found enough values for both buffers in A
-								bufferA.set(buffer2.start, buffer2.start + buffer_size * 2);
-								bufferB.set(B.end, B.end);
-								buffer1.set(A.start, A.start + buffer_size);
-								buffer2.set(A.start + buffer_size, A.start + buffer_size * 2);
 								
-							} else if (buffer1.length() == buffer_size) {
-								// we found enough values for one buffer in A, so we'll need to find one buffer in B
-								bufferA.set(buffer1.start, buffer1.start + buffer_size);
-								buffer1.set(A.start, A.start + buffer_size);
+								// now we need to update the ranges and stuff
+								lastA.set(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
+								lastB.set(lastA.end, lastA.end + B_remaining);
 								
-								// like before, the last value is guaranteed to be the first unique value we encounter, so we can start searching at the next index
-								count = 1;
-								for (buffer2.start = B.end - 2; buffer2.start >= B.start; buffer2.start--)
-									if (comp.compare(array[buffer2.start], array[buffer2.start + 1]) != 0)
-										if (++count == buffer_size)
-											break;
-								buffer2.end = buffer2.start + count;
+								blockA.start += block_size;
+								if (blockA.length() == 0)
+									break;
 								
-								if (buffer2.length() == buffer_size) {
-									bufferB.set(buffer2.start, buffer2.start + buffer_size);
-									buffer2.set(B.end - buffer_size, B.end);
-									
-								} else buffer1.end = buffer1.start; // failure
+								// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
+								minA = blockA.start + 1;
+								for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
+									if (comp.compare(array[findA], array[minA]) < 0)
+										minA = findA;
+								minA = minA - 1; // decrement once to get back to the start of that A block
+								min_value = array[minA];
+								
+							} else if (blockB.length() < block_size) {
+								// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
+								// this needs to disable the cache if it determines that the contents of the previous A block are in it
+								if (buffer2.length() > 0 || block_size <= cache_size)
+									Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false); // cache disabled
+								else
+									Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), true); // cache enabled
+								
+								lastB.set(blockA.start, blockA.start + blockB.length());
+								blockA.start += blockB.length();
+								blockA.end += blockB.length();
+								minA += blockB.length();
+								blockB.end = blockB.start;
 							} else {
-								// we were unable to find a single buffer in A, so we'll need to find two buffers in B
-								count = 1;
-								for (buffer1.start = B.end - 2; buffer1.start >= B.start; buffer1.start--)
-									if (comp.compare(array[buffer1.start], array[buffer1.start + 1]) != 0)
-										if (++count == buffer_size)
-											break;
-								buffer1.end = buffer1.start + count;
+								// roll the leftmost A block to the end by swapping it with the next B block
+								BlockSwap(array, blockA.start, blockB.start, block_size);
+								lastB.set(blockA.start, blockA.start + block_size);
+								if (minA == blockA.start)
+									minA = blockA.end;
 								
-								count = 0;
-								for (buffer2.start = buffer1.start - 1; buffer2.start >= B.start; buffer2.start--)
-									if (comp.compare(array[buffer2.start], array[buffer2.start + 1]) != 0)
-										if (++count == buffer_size)
-											break;
-								buffer2.end = buffer2.start + count;
+								blockA.start += block_size;
+								blockA.end += block_size;
+								blockB.start += block_size;
+								blockB.end += block_size;
 								
-								if (buffer2.length() == buffer_size) {
-									bufferA.set(A.start, A.start);
-									bufferB.set(buffer2.start, buffer2.start + buffer_size * 2);
-									buffer1.set(B.end - buffer_size, B.end);
-									buffer2.set(buffer1.start - buffer_size, buffer1.start);
-									
-								} else buffer1.end = buffer1.start; // failure
+								if (blockB.end > B.end)
+									blockB.end = B.end;
 							}
 						}
 						
-						if (buffer1.length() < buffer_size) {
-							// we failed to fill both buffers with unique values, which implies we're merging two subarrays with a lot of the same values repeated
-							// we can use this knowledge to write a merge operation that is optimized for arrays of repeating values
-							while (A.length() > 0 && B.length() > 0) {
-								// find the first place in B where the first item in A needs to be inserted
-								int split = BinaryFirst(array, array[A.start], B, comp);
-								
-								// rotate A into place
-								int amount = split - A.end;
-								Rotate(array, -amount, new Range(A.start, split), true);
-								
-								// calculate the new A and B ranges
-								B.start = split;
-								A.set(BinaryLast(array, array[A.start + amount], A, comp), B.start);
-							}
-							
-							continue;
-						}
-						
-						// move the unique values to the start of A if needed
-						int length = bufferA.length();
-						count = 0;
-						for (int index = bufferA.start; count < length; index--) {
-							if (index == A.start || comp.compare(array[index - 1], array[index]) != 0) {
-								Rotate(array, -count, new Range(index + 1, bufferA.start + 1), true);
-								bufferA.start = index + count; count++;
-							}
-						}
-						bufferA.set(A.start, A.start + length);
-						
-						// move the unique values to the end of B if needed
-						length = bufferB.length();
-						count = 0;
-						for (int index = bufferB.start; count < length; index++) {
-							if (index == B.end - 1 || comp.compare(array[index], array[index + 1]) != 0) {
-								Rotate(array, count, new Range(bufferB.start, index), true);
-								bufferB.start = index - count; count++;
-							}
-						}
-						bufferB.set(B.end - length, B.end);
-						
-						// reuse these buffers next time!
-						level1.set(buffer1.start, buffer1.end);
-						level2.set(buffer2.start, buffer2.end);
-						levelA.set(bufferA.start, bufferA.end);
-						levelB.set(bufferB.start, bufferB.end);
-					}
-					
-					// break the remainder of A into blocks. firstA is the uneven-sized first A block
-					blockA.set(bufferA.end, A.end);
-					firstA.set(bufferA.end, bufferA.end + blockA.length() % block_size);
-					
-					// swap the second value of each A block with the value in buffer1
-					int index = 0;
-					for (int indexA = firstA.end + 1; indexA < blockA.end; indexA += block_size) {
-						T swap = array[buffer1.start + index];
-						array[buffer1.start + index] = array[indexA];
-						array[indexA] = swap;
-						index++;
-					}
-					
-					// start rolling the A blocks through the B blocks!
-					// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
-					lastA.set(firstA.start, firstA.end);
-					lastB.set(0, 0);
-					blockB.set(B.start, B.start + Math.min(block_size, B.length() - bufferB.length()));
-					blockA.start += firstA.length();
-					
-					int minA = blockA.start;
-					int indexA = 0;
-					T min_value = array[minA];
-					
-					if (lastA.length() <= cache_size)
-						java.lang.System.arraycopy(array, lastA.start, cache, 0, lastA.length());
-					else
-						BlockSwap(array, lastA.start, buffer2.start, lastA.length());
-					
-					while (true) {
-						// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block
-						if ((lastB.length() > 0 && comp.compare(array[lastB.end - 1], min_value) >= 0) || blockB.length() == 0) {
-							// figure out where to split the previous B block, and rotate it at the split
-							int B_split = BinaryFirst(array, min_value, lastB, comp);
-							int B_remaining = lastB.end - B_split;
-							
-							// swap the minimum A block to the beginning of the rolling A blocks
-							BlockSwap(array, blockA.start, minA, block_size);
-							
-							// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
-							// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
-							T swap = array[blockA.start + 1];
-							array[blockA.start + 1] = array[buffer1.start + indexA];
-							array[buffer1.start + indexA] = swap;
-							indexA++;
-							
-							// locally merge the previous A block with the B values that follow it, using the buffer as swap space
-							Merge(array, buffer2, lastA, new Range(lastA.end, B_split), comp);
-							
-							// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
-							if (block_size <= cache_size)
-								java.lang.System.arraycopy(array, blockA.start, cache, 0, block_size);
-							else
-								BlockSwap(array, blockA.start, buffer2.start, block_size);
-							
-							// this is equivalent to rotating, but faster
-							// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
-							// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
-							BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
-							
-							// now we need to update the ranges and stuff
-							lastA.set(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
-							lastB.set(lastA.end, lastA.end + B_remaining);
-							
-							blockA.start += block_size;
-							if (blockA.length() == 0)
-								break;
-							
-							// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
-							minA = blockA.start + 1;
-							for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
-								if (comp.compare(array[findA], array[minA]) < 0) minA = findA;
-							minA = minA - 1; // decrement once to get back to the start of that A block
-							min_value = array[minA];
-							
-						} else if (blockB.length() < block_size) {
-							// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-							// (using the cache is disabled since we have the contents of the previous A block in it!)
-							Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false);
-							lastB.set(blockA.start, blockA.start + blockB.length());
-							blockA.start += blockB.length();
-							blockA.end += blockB.length();
-							minA += blockB.length();
-							blockB.end = blockB.start;
-						} else {
-							// roll the leftmost A block to the end by swapping it with the next B block
-							BlockSwap(array, blockA.start, blockB.start, block_size);
-							lastB.set(blockA.start, blockA.start + block_size);
-							if (minA == blockA.start)
-								minA = blockA.end;
-							
-							blockA.start += block_size;
-							blockA.end += block_size;
-							blockB.start += block_size;
-							blockB.end += block_size;
-							
-							if (blockB.end > bufferB.start)
-								blockB.end = bufferB.start;
-						}
-					}
-					
-					// merge the last A block with the remaining B blocks
-					Merge(array, buffer2, lastA, new Range(lastA.end, B.end - bufferB.length()), comp);
-				}
-			}
-			
-			if (level1.length() > 0) {
-				// when we're finished with this step we should have b1 b2 left over, where one of the buffers is all jumbled up
-				// insertion sort the jumbled up buffer, then redistribute them back into the array using the opposite process used for creating the buffer
-				InsertionSort(array, level2, comp);
-				
-				// redistribute bufferA back into the array
-				int level_start = levelA.start;
-				for (int index = levelA.end; levelA.length() > 0; index++) {
-					if (index == levelB.start || comp.compare(array[index], array[levelA.start]) >= 0) {
-						int amount = index - levelA.end;
-						Rotate(array, -amount, new Range(levelA.start, index), true);
-						levelA.start += (amount + 1);
-						levelA.end += amount;
-						index--;
+						// merge the last A block with the remaining B blocks
+						Merge(array, buffer2, lastA, new Range(lastA.end, B.end), comp);
 					}
 				}
 				
-				// redistribute bufferB back into the array
-				for (int index = levelB.start; levelB.length() > 0; index--) {
-					if (index == level_start || comp.compare(array[levelB.end - 1], array[index - 1]) >= 0) {
-						int amount = levelB.start - index;
-						Rotate(array, amount, new Range(index, levelB.end), true);
-						levelB.start -= amount;
-						levelB.end -= (amount + 1);
-						index++;
+				// when we're finished with this step we should have the one or two internal buffers left over, where the second buffer is all jumbled up
+				// insertion sort the second buffer, then redistribute the buffers back into the array using the opposite process used for creating the buffer
+				InsertionSort(array, buffer2, comp);
+				
+				for (pull_index = 0; pull_index < 2; pull_index++) {
+					if (pull[pull_index].from > pull[pull_index].to) {
+						// the values were pulled out to the left, so redistribute them back to the right
+						Range buffer = new Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
+						for (index = buffer.end; buffer.length() > 0; index++) {
+							if (index == pull[pull_index].range.end || comp.compare(array[index], array[buffer.start]) >= 0) {
+								int amount = index - buffer.end;
+								Rotate(array, -amount, new Range(buffer.start, index), true);
+								buffer.start += (amount + 1);
+								buffer.end += amount;
+								index--;
+							}
+						}
+					} else if (pull[pull_index].from < pull[pull_index].to) {
+						// the values were pulled out to the right, so redistribute them back to the left
+						Range buffer = new Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
+						for (index = buffer.start; buffer.length() > 0; index--) {
+							if (index == pull[pull_index].range.start || comp.compare(array[buffer.end - 1], array[index - 1]) >= 0) {
+								int amount = buffer.start - index;
+								Rotate(array, amount, new Range(index, buffer.end), true);
+								buffer.start -= amount;
+								buffer.end -= (amount + 1);
+								index++;
+							}
+						}
 					}
 				}
 			}
 			
+			// double the size of each A and B area that will be merged in the next level
 			decimal_step += decimal_step;
 			fractional_step += fractional_step;
 			if (fractional_step >= fractional_base) {
 				fractional_step -= fractional_base;
-				decimal_step += 1;
+				decimal_step++;
 			}
 		}
 	}
@@ -715,6 +827,14 @@ class TestingRandom extends Testing {
 	}
 }
 
+// random distribution of few values was a problem with the last version, but it's better now
+// although the algorithm in the Merge function still isn't the one the paper suggests using!
+class TestingRandomFew extends Testing {
+	int value(int index, int total) {
+		return SortRandom.nextInt(100);
+	}
+}
+
 class TestingMostlyDescending extends Testing {
 	int value(int index, int total) {
 		return total - index + SortRandom.nextInt(5) - 2;
@@ -787,6 +907,7 @@ class WikiSort {
 		Testing[] test_cases = {
 			new TestingPathological(),
 			new TestingRandom(),
+			new TestingRandomFew(),
 			new TestingMostlyDescending(),
 			new TestingMostlyAscending(),
 			new TestingAscending(),
