@@ -1,11 +1,21 @@
 Chapter 3: In-place
-==============
+===================
 
-To reiterate, much of the work presented here is based on a paper called <a href="http://ak.hanyang.ac.kr/papers/tamc2008.pdf">"Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner</a> [PDF]. The main differences are the removal of the movement imitation buffer <i>s1 t s2</i>, interlacing the "block rolling" with the local merges, and adapting it to work efficiently with a bottom-up merge sort.<br/><br/>
+To reiterate, much of the work presented here is based on a paper called
+["Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner]
+(http://ak.hanyang.ac.kr/papers/tamc2008.pdf) [PDF]. The main differences are
+the removal of the movement imitation buffer *s1 t s2*, interlacing the
+"block rolling" with the local merges, and adapting it to work efficiently with
+a bottom-up merge sort.
 
-<b>The basic idea</b>
+* * *
 
-The core of efficient in-place merging relies on the fact that merging two sorted arrays, A and B, is equivalent to breaking A into evenly sized blocks, inserting them into B, then merging each A block with any values from B that follow it. So instead of approaching the problem like this:
+**The basic idea**
+
+The core of efficient in-place merging relies on the fact that merging two
+sorted arrays, A and B, is equivalent to breaking A into evenly sized blocks,
+inserting them into B, then merging each A block with any values from B that
+follow it. So instead of approaching the problem like this:
 
     [              A                  ][                   B               ]
 
@@ -30,16 +40,33 @@ We think of it like this:
 
 That's the general idea, but it raises some questions:
 
-&nbsp;&nbsp;• What size should each A block be?<br/>
-&nbsp;&nbsp;• What does it mean to "break A into blocks"?<br/>
-&nbsp;&nbsp;• How exactly do we "insert" each A block into B without it being an n^2 operation?<br/>
-&nbsp;&nbsp;• Merge each [A][B] combination? <b>Wasn't that what we were <i>already trying to do</i>?</b><br/><br/>
+ - What size should each A block be?
+ - What does it mean to "break A into blocks"?
+ - How exactly do we "insert" each A block into B without it being an n^2 operation?
+ - Merge each [A][B] combination? **Wasn't that what we were *already trying to do*?**
 
-First let's answer the first question, because it's only fitting that we answer them in order. Each A block should be of size √(A.length), which incidentally means there will be √(A.length) <i>number</i> of A blocks as well. You'll see why we use that size at the end of this chapter.<br/><br/>
+* * *
 
-Next up, you don't <i>actually</i> break the array into anything. What you instead do is keep track of the size of each block (sqrt(A.length)), how many A blocks we need (A.length/block_size), and the start and end of the A blocks within the array. Each block is then defined <i>implicitly</i> as A.start + index * block_size, where index is from 0 to (block_count - 1).<br/><br/>
+First let's answer the first question, because it's only fitting that we answer
+them in order. Each A block should be of size √(A.length), which incidentally
+means there will be √(A.length) *number* of A blocks as well. You'll see why
+we use that size at the end of this chapter.
 
-As for how to insert the A blocks into B, the obvious solution (<a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">rotating</a> the blocks to where they belong) is an n^2 operation. So that's no good. What we'll have to do instead is break B into blocks too, then <i>block swap</i> an A block with a B block to roll the A blocks through the array.
+* * *
+
+Next up, you don't *actually* break the array into anything. What you instead
+do is keep track of the size of each block √(A.length), how many A blocks we
+need (A.length/block_size), and the start and end of the A blocks within the
+array. Each block is then defined *implicitly* as A.start + index * block_size,
+where index is from 0 to (block_count - 1).
+
+* * *
+
+As for how to insert the A blocks into B, the obvious solution ([rotating]
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md)
+the blocks to where they belong) is an n^2 operation. So that's no good.
+What we'll have to do instead is break B into blocks too, then *block swap*
+an A block with a B block to roll the A blocks through the array.
 
     1. break B into evenly-sized blocks too (the A blocks are numbered to show order)
     [ 0 ][ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ B ][ B ][ B ][ B ][ B ][ B ][ B ][] <- extra bit of B left over
@@ -70,7 +97,9 @@ As for how to insert the A blocks into B, the obvious solution (<a href="https:/
 
 Note that after the rotation, A[first] is indeed <= the first B value that follows it.
 
-As soon as we've found the exact spot where an A block should be, and have rotated it into place in the array, we should immediately merge the previous A block with any B values that follow it. So, to continue the above example:
+As soon as we've found the exact spot where an A block should be, and have
+rotated it into place in the array, we should immediately merge the previous
+A block with any B values that follow it. So, to continue the above example:
 
     6. find the next A block to move into position
     [ B ][B][ 0 ][][ B ][ 4 ][ 5 ][ 6 ][ 2 ][ 1 ][ 3 ][ B ][ B ][ B ][ B ][]
@@ -93,18 +122,29 @@ As soon as we've found the exact spot where an A block should be, and have rotat
     [ B ][B][ 0 ][B][ 1 ][B ][ 5 ][ 6 ][ 2 ][ 4 ][ 3 ][ B ][ B ][ B ][ B ][]
                   ^
 
-At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ] \(marked with a ^ above).
+At this point we would merge [ 0 ] with the B values between [ 0 ] and [ 1 ]
+\(marked with a ^ above).
 
-Once we merge the previous A block with the B values that follow it, that means that part of the array is <i>completely finished being merged</i> (see the top of this chapter) and we don't need to keep track of it anymore. In fact, we only need to keep track of the starting point of the new A block we just dropped behind, the starting point of the A blocks that are "rolling" along, and how many A blocks are left. This does not change regardless of the number of A blocks that need to be inserted – hence O(1) memory.
+Once we merge the previous A block with the B values that follow it, that means
+that part of the array is *completely finished being merged* (see the top of
+this chapter) and we don't need to keep track of it anymore. In fact, we only
+need to keep track of the starting point of the new A block we just dropped
+behind, the starting point of the A blocks that are "rolling" along, and how
+many A blocks are left. This does not change regardless of the number of A
+blocks that need to be inserted – hence O(1) memory.
 
-Anyway, this process repeats until there are no A blocks left, at which point we merge the last A block with the remainder of the B array.
+Anyway, this process repeats until there are no A blocks left, at which point
+we merge the last A block with the remainder of the B array.
 
-==========================
-<b>But... what was accomplished?</b>
+* * *
 
-We went from needing to merge A and B to needing to merge an A block with <i>some number</i> of B values. Isn't that the same thing?
+**But... what was accomplished?**
 
-Not necessarily. Let's allow ourselves to temporarily modify the array so that the first A block actually contains the first unique values within A. So, for example:
+We went from needing to merge A and B to needing to merge an A block with
+*some number* of B values. Isn't that the same thing?
+
+Not necessarily. Let's allow ourselves to temporarily modify the array so that the
+first A block actually contains the first unique values within A. So, for example:
 
     1. we want to merge these arrays:
     [ 1 1 1 2 2 3 3 4 4 5 5 5 5 5 5 6 ][ 2 2 3 3 3 4 4 5 5 6 7 8 8 9 9 9 10 ]
@@ -119,16 +159,35 @@ Not necessarily. Let's allow ourselves to temporarily modify the array so that t
     4. now we only merge the remaining A blocks – the first one is reserved for other purposes
     [ 1 2 3 4 ]      [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]      [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
 
-The trick now is that since this area is large enough to hold the values of any A block (seeing as how it's the same size), we can use it as the buffer for the <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Merging without overwriting the contents of the half-size buffer</a> algorithm!
+The trick now is that since this area is large enough to hold the values of
+any A block (seeing as how it's the same size), we can use it as the buffer
+for the [Merging without overwriting the contents of the half-size buffer]
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md)
+algorithm!
 
-The merge process causes the items in the buffer to move out of order, but since the values are unique we can just insertion sort them when we're finished merging the A blocks. And then we can just redistribute them back to where they belong in the array, which completes the sorting process.
+The merge process causes the items in the buffer to move out of order, but
+since the values are unique we can just insertion sort them when we're finished
+merging the A blocks. And then we can just redistribute them back to where they
+belong in the array, which completes the sorting process.
 
-==========================
-<b>So close, but...</b>
+* * *
 
-That's essentially all there is to efficient in-place merging, but if you were to try to implement the above directly you'd run into a problem: how are we supposed to know which A block is the smallest, after we've already moved them out of order from rolling them through the B blocks? That information isn't stored anywhere at the moment, and since the A blocks might all have the same values we can't just compare them to each other to find the smallest one. We also can't allocate space to store this information since it'd ruin the point!
+**So close, but...**
 
-The next trick is to use <i>another</i> A block to store <i>another</i> set of unique values. While the first block is used as a buffer for the merging, <i>these</i> unique values will be used to "tag" each A block so we have some way of comparing them to determine their order. Once we pull out the unique values, loop over the remaining A blocks and swap the <i>second</i> value in each block with one of the unique values from this second buffer.
+That's essentially all there is to efficient in-place merging, but if you were
+to try to implement the above directly you'd run into a problem: how are we
+supposed to know which A block is the smallest, after we've already moved them
+out of order from rolling them through the B blocks? That information isn't
+stored anywhere at the moment, and since the A blocks might all have the same
+values we can't just compare them to each other to find the smallest one. We
+also can't allocate space to store this information since it'd ruin the point!
+
+The next trick is to use *another* A block to store *another* set of unique
+values. While the first block is used as a buffer for the merging, *these*
+unique values will be used to "tag" each A block so we have some way of
+comparing them to determine their order. Once we pull out the unique values,
+loop over the remaining A blocks and swap the *second* value in each block
+with one of the unique values from this second buffer.
 
     1. we already pulled out unique values for the first block, but now we need another one
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 7 8 ][ 8 9 9 9 ][ 10 ]
@@ -149,22 +208,37 @@ The next trick is to use <i>another</i> A block to store <i>another</i> set of u
     [ 1 2 3 4 ]  [ 1 7 2 3 ][ 4 8 5 5 ][ 5 9 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 1 5 5 10 ]
                      ^          ^          ^                                                  ^ ^ ^
 
-The reason we tag the second value of each A block, rather than the first or last, is because we use A[first] to decide where to drop the smallest A block. We currently don't use the last value of A for anything, but it could be useful for detecting contiguous A blocks (the last value of one A block equals the first value of the next, meaning B won't break them apart).
+The reason we tag the second value of each A block, rather than the first or
+last, is because we use A[first] to decide where to drop the smallest A block.
+We currently don't use the last value of A for anything, but it could be useful
+for detecting contiguous A blocks (the last value of one A block equals the
+first value of the next, meaning B won't break them apart).
 
-Anyway, when we go to merge an A block with the B values that follow it, just swap the second value in the A block back with its actual value in the buffer, so the original data is restored. Unlike the first buffer, the values in this one will still be in order by the time we're finished, so we never need to sort this section. The values <i>will</i> need to be redistributed into the merged array when we're finished, exactly the same as with the first block.
+Anyway, when we go to merge an A block with the B values that follow it, just
+swap the second value in the A block back with its actual value in the buffer,
+so the original data is restored. Unlike the first buffer, the values in this
+one will still be in order by the time we're finished, so we never need to sort
+this section. The values *will* need to be redistributed into the merged array
+when we're finished, exactly the same as with the first block.
 
-And of course once the smallest A block is dropped behind, you can find the new smallest A block by looping over the second values in the remaining A blocks and find the smallest one.
+And of course once the smallest A block is dropped behind, you can find the
+new smallest A block by looping over the second values in the remaining A
+blocks and find the smallest one.
 
-============================
-<b>Wait, another question: how do we "pull out" these unique values, without it being an n^2 operation?</b>
+* * *
 
-With rotations, of course! The first step is to count out the unique values we've found:
+**Wait, another question: how do we "pull out" these unique values, without
+it being an n^2 operation?**
+
+With rotations, of course! The first step is to count out the unique
+values we've found:
 
     1. let's say we need to find 5 unique values for our buffer
     [0 0 0 1 1 2 3 3 3 4 4 5 6 6 6 6 6 7 7 8 9 ... ]
      1     2   3 4     5
 
-If we find enough values, we would then stop there and start rotating at that index:
+If we find enough values, we would then stop there and start rotating
+at that index:
 
     2. we need to rotate this 4 to be next to the 3
     [0 0 0 1 1 2 3 [3 3 4] 4 5 6 6 6 6 6 7 7 8 9 ... ]
@@ -190,12 +264,17 @@ If we find enough values, we would then stop there and start rotating at that in
     [0 1 2 3 4][0 0 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
         ^
 
-Redistributing the buffers back into [A+B] after merging is the same process, but in reverse.
+Redistributing the buffers back into [A+B] after merging is the same
+process, but in reverse.
 
-============================
-<b>What if we couldn't find enough unique values in A <i>or</i> B?</b>
+* * *
 
-If neither A nor B contain enough unique values to fill up the two required blocks, then obviously we can't do any of the above. Fortunately, merging arrays with similar values is the <i>easy</i> part! We can just binary search into B and rotate A into place, like so:
+**What if we couldn't find enough unique values in A *or* B?**
+
+If neither A nor B contain enough unique values to fill up the two required
+blocks, then obviously we can't do any of the above. Fortunately, merging
+arrays with similar values is the *easy* part! We can just binary search
+into B and rotate A into place, like so:
 
     while (A.length > 0 and B.length > 0)
         find the first place in B where the first item in A needs to be inserted:
@@ -209,27 +288,54 @@ If neither A nor B contain enough unique values to fill up the two required bloc
         B = MakeRange(mid, B.start + B.length)
         A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
 
-<b>Update:</b> Upon closer inspection, this aspect of the algorithm is almost certainly sub-optimal. The paper addresses various methods to deal with failing to find enough unique values. Anyone want to give it a shot?
+**Update:** Upon closer inspection, this aspect of the algorithm is almost
+certainly sub-optimal. The paper addresses various methods to deal with
+failing to find enough unique values. Anyone want to give it a shot?
 
-============================
-<b>And what if A can't be broken up into evenly sized blocks?</b>
+* * *
 
-All of these examples used perfect squares for the size of A (√16 = 4), but what if A has... <i>17</i> items? Not a problem – just have the <i>first</i> A block be unevenly sized, and don't roll it through the B blocks with the rest of the A blocks. Once you drop the first evenly sized A block behind and rotate it into the B block, that uneven A block should be merged with the B values that follow it.
+**And what if A can't be broken up into evenly sized blocks?**
 
-Since this unevenly sized A block won't be rolled along with the rest of the A blocks, you do not need to "tag" it with a unique value from the buffer.
+All of these examples used perfect squares for the size of A (√16 = 4), but
+what if A has... *17* items? Not a problem – just have the *first* A block
+be unevenly sized, and don't roll it through the B blocks with the rest of
+the A blocks. Once you drop the first evenly sized A block behind and rotate
+it into the B block, that uneven A block should be merged with the B values
+that follow it.
 
-============================
-<b>And what about that last unevenly sized B block?</b>
+Since this unevenly sized A block won't be rolled along with the rest of the
+A blocks, you do not need to "tag" it with a unique value from the buffer.
 
-If you get to that point and there are still A blocks left, you'll have to <i>rotate</i> the remaining A blocks with that uneven-sized B block, rather than <i>block swap</i>, so that the unevenly sized B block appears before those A blocks in the array. You'll still need to check every remaining A block to see if it needs to be rotated back into that B block, exactly the same as before.
+* * *
 
-============================
-<b>Aren't there still n^2 operations being used?</b>
+**And what about that last unevenly sized B block?**
 
-Yes, yes there are. When we "drop" the smallest A block behind, we need to use a linear search through the remaining A blocks to find the next smallest one (O(n) operation performed n times = O(n^2)); and when we are finished merging the A and B blocks and we're left with the two reserved blocks, we have to apply an insertion sort to one of them (O(n^2) on its own).<br/><br/>
+If you get to that point and there are still A blocks left, you'll have to
+*rotate* the remaining A blocks with that uneven-sized B block, rather than
+*block swap*, so that the unevenly sized B block appears before those A blocks
+in the array. You'll still need to check every remaining A block to see if it
+needs to be rotated back into that B block, exactly the same as before.
 
-<b>But!</b> keep in mind that since the size of each block is actually √(A.length), performing an n^2 operation on a √n set of data ends up being O(n), or linear! So the linear search checks √(A.length) items, √(A.length) number of times, and the insertion sort is applied one time to a block of size √(A.length). Both of those end up being O(A.length).
+* * *
 
+**Aren't there still n^2 operations being used?**
 
-============================
-You should now have a fully-functional stable sorting algorithm that uses O(1) memory! <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204:%20Faster!.md">However...</a>
+Yes, yes there are. When we "drop" the smallest A block behind, we need to
+use a linear search through the remaining A blocks to find the next smallest
+one (O(n) operation performed n times = O(n^2)); and when we are finished
+merging the A and B blocks and we're left with the two reserved blocks, we
+have to apply an insertion sort to one of them (O(n^2) on its own).
+
+* * *
+
+**But!** keep in mind that since the size of each block is actually √(A.length),
+performing an n^2 operation on a √n set of data ends up being O(n), or linear!
+So the linear search checks √(A.length) items, √(A.length) number of times,
+and the insertion sort is applied one time to a block of size √(A.length).
+Both of those end up being O(A.length).
+
+* * *
+
+You should now have a fully-functional stable sorting algorithm that uses O(1)
+memory! [However...]
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204:%20Faster!.md)
