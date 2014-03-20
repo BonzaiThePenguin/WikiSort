@@ -15,7 +15,7 @@ Dr. Kutzner's and Dr. Kim's paper addresses this, but many of the papers define 
 <b>Head-to-head</b><br/>
 &nbsp;&nbsp;• 80-90% of the speed of libc++'s stable_sort() for highly random input with fewer than ~10 million elements.<br/>
 &nbsp;&nbsp;• Starts to <i>exceed</i> stable_sort()'s performance for larger arrays (not yet sure why – needs more research).<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(**Update**: Apparently this is caused by VRAM kicking in on my system, and it's normally slower)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(**Update**: Apparently this is caused by virtual memory kicking in on my system, and it's normally slower)<br/>
 &nbsp;&nbsp;• Up to 10x faster when the data is already partially sorted or otherwise has a less-than-random distribution.<br/>
 &nbsp;&nbsp;• 3-15x faster than inplace_stable_sort(), which is libc++'s equivalent O(1) sort function.<br/>
 &nbsp;&nbsp;• Can easily be modified to use any amount of memory you give it – including zero.
