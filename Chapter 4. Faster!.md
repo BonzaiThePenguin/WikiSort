@@ -22,7 +22,7 @@ with sizes of 1, 2, 4, 8, etc., we do this:
 
 Keep in mind that those groups of "16" items will need to be [scaled in
 exactly the same way that we scale the ranges as part of the merge sort]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md).
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202.%20Merging.md).
 It should actually end up sorting anywhere from 16 to *31* items at a time.
 
 * * *
@@ -133,7 +133,7 @@ A fits within the cache:
 
 And of course we can go through and write cached versions of the tool functions
 from [Chapter 1]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md):
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201.%20Tools.md):
 
     Rotate(array, range, amount)
     >   if the smaller of the two ranges that will be reversed below fits into the cache
@@ -260,7 +260,7 @@ often it results in a nice speed boost!
 
 * * *
 
-**That's all for now!** The [provided implementation
+**That's all for now!** The [provided implementation]
 (https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp)
 is literally just a direct implementation of these concepts. Hopefully this
 information has proven valuable, and you can use your newfound knowledge to add
