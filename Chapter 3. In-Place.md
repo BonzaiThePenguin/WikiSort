@@ -296,6 +296,8 @@ B and rotate A into place, like so:
         B = MakeRange(mid, B.start + B.length)
         A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
 
+So after dropping an A block behind and rotating it into the previous B block, instead of merging using the cache or the internal buffer, we would run the above algorithm instead. Everything else can remain exactly the same.
+
 * * *
 
 **And what if A can't be broken up into evenly sized blocks?**
