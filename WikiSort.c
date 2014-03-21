@@ -2,9 +2,6 @@
  WikiSort (public domain license)
  https://github.com/BonzaiThePenguin/WikiSort
  
- Reading the documentation on that GitHub page
- is HIGHLY recommended before reading this code!
- 
  to run:
  clang -o WikiSort.x WikiSort.c -O3
  (or replace 'clang' with 'gcc')
@@ -26,9 +23,9 @@ double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 /* various #defines for the C code */
 #ifndef true
-#define true 1
-#define false 0
-typedef uint8_t bool;
+	#define true 1
+	#define false 0
+	typedef uint8_t bool;
 #endif
 
 #define Var(name, value)				__typeof__(value) name = value
@@ -132,7 +129,8 @@ long BinaryLast(const Test array[], const Test value, const Range range, const C
 void InsertionSort(Test array[], const Range range, const Comparison compare) {
 	long i;
 	for (i = range.start + 1; i < range.end; i++) {
-		const Test temp = array[i]; long j;
+		const Test temp = array[i];
+		long j;
 		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
 			array[j] = array[j - 1];
 		array[j] = temp;
@@ -189,75 +187,77 @@ void Rotate(Test array[], const long amount, const Range range, Test cache[], co
 	Reverse(array, range);
 }
 
-/* standard merge operation using an internal or external buffer, */
-/* or if neither are available, use a different in-place merge */
-void WikiMerge(Test array[], const Range buffer, Range A, Range B, const Comparison compare, Test cache[], const long cache_size) {
-	if (Range_length(A) <= cache_size) {
-		/* A fits into the cache, so use that instead of the internal buffer */
-		Test *A_index = &cache[0];
-		Test *B_index = &array[B.start];
-		Test *insert_index = &array[A.start];
-		Test *A_last = &cache[Range_length(A)];
-		Test *B_last = &array[B.end];
-		
-		if (Range_length(B) > 0 && Range_length(A) > 0) {
-			while (true) {
-				if (!compare(*B_index, *A_index)) {
-					*insert_index = *A_index;
-					A_index++;
-					insert_index++;
-					if (A_index == A_last) break;
-				} else {
-					*insert_index = *B_index;
-					B_index++;
-					insert_index++;
-					if (B_index == B_last) break;
-				}
+/* merge operation using an external buffer, */
+void MergeExternal(Test array[], const Range A, const Range B, const Comparison compare, Test cache[], const long cache_size) {
+	/* A fits into the cache, so use that instead of the internal buffer */
+	Test *A_index = &cache[0];
+	Test *B_index = &array[B.start];
+	Test *insert_index = &array[A.start];
+	Test *A_last = &cache[Range_length(A)];
+	Test *B_last = &array[B.end];
+	
+	if (Range_length(B) > 0 && Range_length(A) > 0) {
+		while (true) {
+			if (!compare(*B_index, *A_index)) {
+				*insert_index = *A_index;
+				A_index++;
+				insert_index++;
+				if (A_index == A_last) break;
+			} else {
+				*insert_index = *B_index;
+				B_index++;
+				insert_index++;
+				if (B_index == B_last) break;
 			}
 		}
-		
-		/* copy the remainder of A into the final array */
-		memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
-	} else if (Range_length(buffer) > 0) {
-		/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
-		/* when this algorithm is finished, 'buffer' will contain its original contents, but in a different order */
-		long A_count = 0, B_count = 0, insert = 0;
-		
-		if (Range_length(B) > 0 && Range_length(A) > 0) {
-			while (true) {
-				if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
-					Swap(array[A.start + insert], array[buffer.start + A_count]);
-					A_count++;
-					insert++;
-					if (A_count >= Range_length(A)) break;
-				} else {
-					Swap(array[A.start + insert], array[B.start + B_count]);
-					B_count++;
-					insert++;
-					if (B_count >= Range_length(B)) break;
-				}
+	}
+	
+	/* copy the remainder of A into the final array */
+	memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
+}
+
+/* merge operation using an internal buffer */
+void MergeInternal(Test array[], const Range A, const Range B, const Comparison compare, const Range buffer) {
+	/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
+	/* when this algorithm is finished, 'buffer' will contain its original contents, but in a different order */
+	long A_count = 0, B_count = 0, insert = 0;
+	
+	if (Range_length(B) > 0 && Range_length(A) > 0) {
+		while (true) {
+			if (!compare(array[B.start + B_count], array[buffer.start + A_count])) {
+				Swap(array[A.start + insert], array[buffer.start + A_count]);
+				A_count++;
+				insert++;
+				if (A_count >= Range_length(A)) break;
+			} else {
+				Swap(array[A.start + insert], array[B.start + B_count]);
+				B_count++;
+				insert++;
+				if (B_count >= Range_length(B)) break;
 			}
 		}
+	}
+	
+	/* swap the remainder of A into the final array */
+	BlockSwap(array, buffer.start + A_count, A.start + insert, Range_length(A) - A_count);
+}
+
+/* merge operation without a buffer */
+void MergeInPlace(Test array[], Range A, Range B, const Comparison compare) {
+	/* this just repeatedly binary searches into B and rotates A into position, */
+	/* although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm" */
+	
+	while (Range_length(A) > 0 && Range_length(B) > 0) {
+		/* find the first place in B where the first item in A needs to be inserted */
+		long mid = BinaryFirst(array, array[A.start], B, compare);
 		
-		/* swap the remainder of A into the final array */
-		BlockSwap(array, buffer.start + A_count, A.start + insert, Range_length(A) - A_count);
-	} else {
-		/* A did not fit into the cache, AND there was no internal buffer available, so we'll need to use a different algorithm entirely */
-		/* this one just repeatedly binary searches into B and rotates A into position, */
-		/* although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm" */
+		/* rotate A into place */
+		long amount = mid - A.end;
+		Rotate(array, -amount, MakeRange(A.start, mid), array, 0);
 		
-		while (Range_length(A) > 0 && Range_length(B) > 0) {
-			/* find the first place in B where the first item in A needs to be inserted */
-			long mid = BinaryFirst(array, array[A.start], B, compare);
-			
-			/* rotate A into place */
-			long amount = mid - A.end;
-			Rotate(array, -amount, MakeRange(A.start, mid), cache, 0);
-			
-			/* calculate the new A and B ranges */
-			B.start = mid;
-			A = MakeRange(BinaryLast(array, array[A.start + amount], A, compare), B.start);
-		}
+		/* calculate the new A and B ranges */
+		B.start = mid;
+		A = MakeRange(BinaryLast(array, array[A.start + amount], A, compare), B.start);
 	}
 }
 
@@ -273,7 +273,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	Test cache[CACHE_SIZE];
 	
 	/* also, if you change this to dynamically allocate a full-size buffer, */
-	/* the algorithm seamlessly degenerates into a standard merge sort! */
+	/* the algorithm seamlessly turns into a full-speed standard merge sort! */
 	/* const long cache_size = (size + 1)/2; */
 	/* etc. */
 	
@@ -287,14 +287,16 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 	}
 	
 	/* calculate how to scale the index value to the range within the array */
-	/* (this is essentially fixed-point math, where we manually check for and handle overflow) */
+	/* this is essentially 64.64 fixed-point math, where we manually check for and handle overflow, */
+	/* and where the fractional part is in base "fractional_base", rather than base 10 */
 	power_of_two = FloorPowerOfTwo(size);
 	fractional_base = power_of_two/16;
 	fractional_step = size % fractional_base;
 	decimal_step = size/fractional_base;
 	
 	/* first insertion sort everything the lowest level, which is 16-31 items at a time */
-	decimal = 0; fractional = 0;
+	decimal = 0;
+	fractional = 0;
 	while (decimal < size) {
 		start = decimal;
 		
@@ -310,10 +312,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 		InsertionSort(array, MakeRange(start, end), compare);
 	}
 	
-	/* then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc. */
+	/* then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc. */
 	for (merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
-		/* if every A and B block will fit into the cache (we use < rather than <= since the block might be one more than decimal_step), */
-		/* use a special branch specifically for merging with the cache */
+		/* if every A and B block will fit into the cache, use a special branch specifically for merging with the cache */
+		/* (we use < rather than <= since the block size might be one more than decimal_step) */
 		if (decimal_step < cache_size) {
 			decimal = fractional = 0;
 			while (decimal < size) {
@@ -337,20 +339,16 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				
 				end = decimal;
 				
-				if (compare(array[end - 1], array[start])) {
-					/* the two ranges are in reverse order, so a simple rotation should fix it */
-					Rotate(array, mid - start, MakeRange(start, end), cache, cache_size);
-				} else if (compare(array[mid], array[mid - 1])) {
+				if (compare(array[mid], array[mid - 1])) {
 					/* these two ranges weren't already in order, so we'll need to merge them! */
 					memcpy(&cache[0], &array[start], (mid - start) * sizeof(array[0]));
-					WikiMerge(array, MakeRange(0, 0), MakeRange(start, mid), MakeRange(mid, end), compare, cache, cache_size);
+					MergeExternal(array, MakeRange(start, mid), MakeRange(mid, end), compare, cache, cache_size);
 				}
 			}
 		} else {
 			/* this is where the in-place merge logic starts! */
-			
-			/* as a reminder (you read the documentation, right? :P), here's what it must do: */
-			/* 1. pull out two internal buffers containing √A unique values */
+			/* 1. pull out two internal buffers each containing √A unique values */
+			/*     1a. adjust block_size and buffer_size if we couldn't find enough unique values */
 			/* 2. loop over the A and B areas within this level of the merge sort */
 			/*     3. break A and B into blocks of size 'block_size' */
 			/*     4. "tag" each of the A blocks with values from the first internal buffer */
@@ -376,7 +374,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 			/* OR if we couldn't find that many unique values, we need the largest possible buffer we can get */
 			
 			/* in the case where it couldn't find a single buffer of at least √A unique values, */
-			/* all of the Merge steps must be replaced by a different merge algorithm (check the end of the Merge function above) */
+			/* all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace) */
 			decimal = fractional = 0;
 			while (decimal < size) {
 				start = decimal;
@@ -401,7 +399,8 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				
 				/* check A (from start to mid) for the number of unique values we need to fill an internal buffer */
 				/* these values will be pulled out to the start of A */
-				last = start; count = 1;
+				last = start;
+				count = 1;
 				for (index = start + 1; index < mid; index++) {
 					if (compare(array[index - 1], array[index])) {
 						last = index;
@@ -447,7 +446,8 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 				
 				/* check B (from mid to end) for the number of unique values we need to fill an internal buffer */
 				/* these values will be pulled out to the end of B */
-				last = end - 1; count = 1;
+				last = end - 1;
+				count = 1;
 				for (index = end - 2; index >= mid; index--) {
 					if (compare(array[index], array[index + 1])) {
 						last = index;
@@ -481,7 +481,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						buffer2 = MakeRange(end - count, end);
 						
 						/* buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area, */
-						/* we need to adjust the end point so it knows to stop redistrubing its values before reaching buffer2 */
+						/* we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2 */
 						if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
 						
 						break;
@@ -499,14 +499,16 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 			
 			/* pull out the two ranges so we can use them as internal buffers */
 			for (pull_index = 0; pull_index < 2; pull_index++) {
-				long length = pull[pull_index].count; count = 0;
+				long length = pull[pull_index].count;
+				count = 0;
 				
 				if (pull[pull_index].to < pull[pull_index].from) {
 					/* we're pulling the values out to the left, which means the start of an A area */
 					for (index = pull[pull_index].from; count < length; index--) {
 						if (index == pull[pull_index].to || compare(array[index - 1], array[index])) {
 							Rotate(array, -count, MakeRange(index + 1, pull[pull_index].from + 1), cache, cache_size);
-							pull[pull_index].from = index + count; count++;
+							pull[pull_index].from = index + count;
+							count++;
 						}
 					}
 				} else if (pull[pull_index].to > pull[pull_index].from) {
@@ -514,7 +516,8 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 					for (index = pull[pull_index].from; count < length; index++) {
 						if (index == pull[pull_index].to - 1 || compare(array[index], array[index + 1])) {
 							Rotate(array, count, MakeRange(pull[pull_index].from, index), cache, cache_size);
-							pull[pull_index].from = index - count; count++;
+							pull[pull_index].from = index - count;
+							count++;
 						}
 					}
 				}
@@ -522,7 +525,7 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 			
 			/* adjust block_size and buffer_size based on the values we were able to pull out */
 			buffer_size = Range_length(buffer1);
-			block_size = (decimal_step + 1)/buffer_size + 1;
+			block_size = decimal_step/buffer_size + 1;
 			
 			/* the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks, */
 			/* so this was originally here to test the math for adjusting block_size above */
@@ -615,7 +618,12 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 							Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 							
 							/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
-							WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+							if (Range_length(lastA) <= cache_size)
+								MergeExternal(array, lastA, MakeRange(lastA.end, B_split), compare, cache, cache_size);
+							else if (Range_length(buffer2) > 0)
+								MergeInternal(array, lastA, MakeRange(lastA.end, B_split), compare, buffer2);
+							else
+								MergeInPlace(array, lastA, MakeRange(lastA.end, B_split), compare);
 							
 							if (Range_length(buffer2) > 0 || block_size <= cache_size) {
 								/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
@@ -651,11 +659,8 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 							
 						} else if (Range_length(blockB) < block_size) {
 							/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
-							/* this needs to disable the cache if it determines that the contents of the previous A block are in it */
-							if (Range_length(buffer2) > 0 || block_size <= cache_size)
-								Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, 0); /* cache disabled */
-							else
-								Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, cache_size); /* cache enabled */
+							/* the cache is disabled here since it might contain the contents of the previous A block */
+							Rotate(array, -Range_length(blockB), MakeRange(blockA.start, blockB.end), cache, 0);
 							
 							lastB = MakeRange(blockA.start, blockA.start + Range_length(blockB));
 							blockA.start += Range_length(blockB);
@@ -679,13 +684,21 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						}
 					}
 					
-					/* merge the last A block with the remaining B blocks */
-					WikiMerge(array, buffer2, lastA, MakeRange(lastA.end, B.end), compare, cache, cache_size);
+					/* merge the last A block with the remaining B values */
+					if (Range_length(lastA) <= cache_size)
+						MergeExternal(array, lastA, MakeRange(lastA.end, B.end), compare, cache, cache_size);
+					else if (Range_length(buffer2) > 0)
+						MergeInternal(array, lastA, MakeRange(lastA.end, B.end), compare, buffer2);
+					else
+						MergeInPlace(array, lastA, MakeRange(lastA.end, B.end), compare);
 				}
 			}
 			
-			/* when we're finished with this step we should have the one or two internal buffers left over, where the second buffer is all jumbled up */
+			/* when we're finished with this merge step we should have the one or two internal buffers left over, where the second buffer is all jumbled up */
 			/* insertion sort the second buffer, then redistribute the buffers back into the array using the opposite process used for creating the buffer */
+			
+			/* while an unstable sort like quicksort could be applied here, in benchmarks it was consistently slightly slower than a simple insertion sort, */
+			/* even for tens of millions of items. this may be because insertion sort is quite fast when the data is already somewhat sorted, like it is here */
 			InsertionSort(array, buffer2, compare);
 			
 			for (pull_index = 0; pull_index < 2; pull_index++) {

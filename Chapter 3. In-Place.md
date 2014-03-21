@@ -264,17 +264,25 @@ at that index:
     [0 1 2 3 4][0 0 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
         ^
 
-Redistributing the buffers back into [A+B] after merging is the same
-process, but in reverse.
+Redistributing the buffers back into [A+B] after merging is the same process,
+but in reverse.
 
 * * *
 
 **What if we couldn't find enough unique values in A *or* B?**
 
 If neither A nor B contain enough unique values to fill up the two required
-blocks, then obviously we can't do any of the above. Fortunately, merging
-arrays with similar values is the *easy* part! We can just binary search
-into B and rotate A into place, like so:
+blocks, then find as many unique values as possible and only use one internal
+buffer of that size. We'll need to make the A and B blocks larger (meaning there
+will be fewer blocks overall) so the buffer can still be used to tag the A
+blocks. The new size for the blocks should be:
+
+    block_size = A.length/(number of unique values we found) + 1
+
+Since we won't have a second buffer available for merging the A and B blocks,
+we'll need to use a different in-place merge algorithm. Fortunately, merging
+arrays with similar values is the *easy* part! We can just binary search into
+B and rotate A into place, like so:
 
     while (A.length > 0 and B.length > 0)
         find the first place in B where the first item in A needs to be inserted:
@@ -287,10 +295,6 @@ into B and rotate A into place, like so:
         calculate the new A and B ranges:
         B = MakeRange(mid, B.start + B.length)
         A = MakeRange(BinaryLast(array, A.start + amount, A), B.start)
-
-**Update:** Upon closer inspection, this aspect of the algorithm is almost
-certainly sub-optimal. The paper addresses various methods to deal with
-failing to find enough unique values. Anyone want to give it a shot?
 
 * * *
 

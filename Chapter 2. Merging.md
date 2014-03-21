@@ -179,6 +179,12 @@ flaky to you it's also possible to handle the scaling with integer operations:
                 end = decimal
 
                 Merge(array, MakeRange(start, mid), MakeRange(mid, end))
+            
+            decimal_step = decimal_step * 2
+            fractional_step = fractional_step * 2
+            if (fractional_step >= fractional_base)
+                fractional_step = fractional_step - fractional_base
+                decimal_step = decimal_step + 1
 
 This is considerably more involved than the standard bottom-up design, but it
 guarantees that the two ranges being merged will always have the same size to

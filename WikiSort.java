@@ -2,9 +2,6 @@
  WikiSort (public domain license)
  https://github.com/BonzaiThePenguin/WikiSort
  
- Reading the documentation on that GitHub page
- is HIGHLY recommended before reading this code!
- 
  to run:
  javac WikiSort.java
  java WikiSort
@@ -74,7 +71,7 @@ class WikiSorter<T> {
 	// and making it too large also ruins the point (so much for "low memory"!)
 	
 	// also, if you change this to dynamically allocate a full-size buffer,
-	// the algorithm seamlessly degenerates into a standard merge sort!
+	// the algorithm seamlessly turns into a full-speed standard merge sort!
 	private static int cache_size = 512;
 	private T[] cache;
 	
@@ -134,7 +131,8 @@ class WikiSorter<T> {
 	// n^2 sorting algorithm used to sort tiny chunks of the full array
 	void InsertionSort(T array[], Range range, Comparator<T> comp) {
 		for (int i = range.start + 1; i < range.end; i++) {
-			T temp = array[i]; int j;
+			T temp = array[i];
+			int j;
 			for (j = i; j > range.start && comp.compare(temp, array[j - 1]) < 0; j--)
 				array[j] = array[j - 1];
 			array[j] = temp;
@@ -196,82 +194,83 @@ class WikiSorter<T> {
 		Reverse(array, range);
 	}
 	
-	// standard merge operation using an internal or external buffer,
-	// or if neither are available, use a different in-place merge
-	void Merge(T array[], Range buffer, Range A, Range B, Comparator<T> comp) {
-		if (A.length() <= cache_size) {
-			// A fits into the cache, so use that instead of the internal buffer
-			int A_index = 0;
-			int B_index = B.start;
-			int insert_index = A.start;
-			int A_last = A.length();
-			int B_last = B.end;
-			
-			if (B.length() > 0 && A.length() > 0) {
-				while (true) {
-					if (comp.compare(array[B_index], cache[A_index]) >= 0) {
-						array[insert_index] = cache[A_index];
-						A_index++;
-						insert_index++;
-						if (A_index == A_last) break;
-					} else {
-						array[insert_index] = array[B_index];
-						B_index++;
-						insert_index++;
-						if (B_index == B_last) break;
-					}
+	// merge operation using an external buffer,
+	void MergeExternal(T array[], Range A, Range B, Comparator<T> comp) {
+		// A fits into the cache, so use that instead of the internal buffer
+		int A_index = 0;
+		int B_index = B.start;
+		int insert_index = A.start;
+		int A_last = A.length();
+		int B_last = B.end;
+		
+		if (B.length() > 0 && A.length() > 0) {
+			while (true) {
+				if (comp.compare(array[B_index], cache[A_index]) >= 0) {
+					array[insert_index] = cache[A_index];
+					A_index++;
+					insert_index++;
+					if (A_index == A_last) break;
+				} else {
+					array[insert_index] = array[B_index];
+					B_index++;
+					insert_index++;
+					if (B_index == B_last) break;
 				}
 			}
-			
-			// copy the remainder of A into the final array
-			java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
-			
-		} else if (buffer.length() > 0) {
-			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
-			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-			int A_count = 0, B_count = 0, insert = 0;
-			
-			if (B.length() > 0 && A.length() > 0) {
-				while (true) {
-					if (comp.compare(array[B.start + B_count], array[buffer.start + A_count]) >= 0) {
-						T swap = array[A.start + insert];
-						array[A.start + insert] = array[buffer.start + A_count];
-						array[buffer.start + A_count] = swap;
-						A_count++;
-						insert++;
-						if (A_count >= A.length()) break;
-					} else {
-						T swap = array[A.start + insert];
-						array[A.start + insert] = array[B.start + B_count];
-						array[B.start + B_count] = swap;
-						B_count++;
-						insert++;
-						if (B_count >= B.length()) break;
-					}
+		}
+		
+		// copy the remainder of A into the final array
+		java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
+	}
+	
+	// merge operation using an internal buffer
+	void MergeInternal(T array[], Range A, Range B, Comparator<T> comp, Range buffer) {
+		// whenever we find a value to add to the final array, swap it with the value that's already in that spot
+		// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
+		int A_count = 0, B_count = 0, insert = 0;
+		
+		if (B.length() > 0 && A.length() > 0) {
+			while (true) {
+				if (comp.compare(array[B.start + B_count], array[buffer.start + A_count]) >= 0) {
+					T swap = array[A.start + insert];
+					array[A.start + insert] = array[buffer.start + A_count];
+					array[buffer.start + A_count] = swap;
+					A_count++;
+					insert++;
+					if (A_count >= A.length()) break;
+				} else {
+					T swap = array[A.start + insert];
+					array[A.start + insert] = array[B.start + B_count];
+					array[B.start + B_count] = swap;
+					B_count++;
+					insert++;
+					if (B_count >= B.length()) break;
 				}
 			}
+		}
+		
+		// swap the remainder of A into the final array
+		BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
+	}
+	
+	// merge operation without a buffer
+	void MergeInPlace(T array[], Range A, Range B, Comparator<T> comp) {
+		// this just repeatedly binary searches into B and rotates A into position,
+		// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
+		A = new Range(A.start, A.end);
+		B = new Range(B.start, B.end);
+		
+		while (A.length() > 0 && B.length() > 0) {
+			// find the first place in B where the first item in A needs to be inserted
+			int mid = BinaryFirst(array, array[A.start], B, comp);
 			
-			// swap the remainder of A into the final array
-			BlockSwap(array, buffer.start + A_count, A.start + insert, A.length() - A_count);
-		} else {
-			// A did not fit into the cache, AND there was no internal buffer available, so we'll need to use a different algorithm entirely
-			// this one just repeatedly binary searches into B and rotates A into position,
-			// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
-			A = new Range(A.start, A.end);
-			B = new Range(B.start, B.end);
+			// rotate A into place
+			int amount = mid - A.end;
+			Rotate(array, -amount, new Range(A.start, mid), false);
 			
-			while (A.length() > 0 && B.length() > 0) {
-				// find the first place in B where the first item in A needs to be inserted
-				int mid = BinaryFirst(array, array[A.start], B, comp);
-				
-				// rotate A into place
-				int amount = mid - A.end;
-				Rotate(array, -amount, new Range(A.start, mid), false);
-				
-				// calculate the new A and B ranges
-				B.start = A.end = mid;
-				A.start = BinaryLast(array, array[A.start + amount], A, comp);
-			}
+			// calculate the new A and B ranges
+			B.start = A.end = mid;
+			A.start = BinaryLast(array, array[A.start + amount], A, comp);
 		}
 	}
 	
@@ -286,7 +285,8 @@ class WikiSorter<T> {
 		}
 		
 		// calculate how to scale the index value to the range within the array
-		// (this is essentially fixed-point math, where we manually check for and handle overflow)
+		// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
+		// and where the fractional part is in base "fractional_base", rather than base 10
 		int power_of_two = FloorPowerOfTwo(size);
 		int fractional_base = power_of_two/16;
 		int fractional_step = size % fractional_base;
@@ -320,11 +320,11 @@ class WikiSorter<T> {
 		pull[0] = new Pull();
 		pull[1] = new Pull();
 		
-		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
+		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
 		for (int merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
 			
-			// if every A and B block will fit into the cache (we use < rather than <= since the block might be one more than decimal_step),
-			// use a special branch specifically for merging with the cache
+			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
+			// (we use < rather than <= since the block size might be one more than decimal_step)
 			if (decimal_step < cache_size) {
 				decimal = fractional = 0;
 				while (decimal < size) {
@@ -348,20 +348,16 @@ class WikiSorter<T> {
 					
 					int end = decimal;
 					
-					if (comp.compare(array[end - 1], array[start]) < 0) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, mid - start, new Range(start, end), true);
-					} else if (comp.compare(array[mid], array[mid - 1]) < 0) {
+					if (comp.compare(array[mid], array[mid - 1]) < 0) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						java.lang.System.arraycopy(array, start, cache, 0, mid - start);
-						Merge(array, new Range(0, 0), new Range(start, mid), new Range(mid, end), comp);
+						MergeExternal(array, new Range(start, mid), new Range(mid, end), comp);
 					}
 				}
 			} else {
 				// this is where the in-place merge logic starts!
-				
-				// as a reminder (you read the documentation, right? :P), here's what it must do:
-				// 1. pull out two internal buffers containing √A unique values
+				// 1. pull out two internal buffers each containing √A unique values
+				//     1a. adjust block_size and buffer_size if we couldn't find enough unique values
 				// 2. loop over the A and B areas within this level of the merge sort
 				//     3. break A and B into blocks of size 'block_size'
 				//     4. "tag" each of the A blocks with values from the first internal buffer
@@ -387,7 +383,7 @@ class WikiSorter<T> {
 				// OR if we couldn't find that many unique values, we need the largest possible buffer we can get
 				
 				// in the case where it couldn't find a single buffer of at least √A unique values,
-				// all of the Merge steps must be replaced by a different merge algorithm (check the end of the Merge function above)
+				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
 				decimal = fractional = 0;
 				while (decimal < size) {
 					int start = decimal;
@@ -412,7 +408,8 @@ class WikiSorter<T> {
 					
 					// check A (from start to mid) for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the start of A
-					last = start; count = 1;
+					last = start;
+					count = 1;
 					for (index = start + 1; index < mid; index++) {
 						if (comp.compare(array[index - 1], array[index]) < 0) {
 							last = index;
@@ -458,7 +455,8 @@ class WikiSorter<T> {
 					
 					// check B (from mid to end) for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the end of B
-					last = end - 1; count = 1;
+					last = end - 1;
+					count = 1;
 					for (index = end - 2; index >= mid; index--) {
 						if (comp.compare(array[index], array[index + 1]) < 0) {
 							last = index;
@@ -492,7 +490,7 @@ class WikiSorter<T> {
 							buffer2.set(end - count, end);
 							
 							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
-							// we need to adjust the end point so it knows to stop redistrubing its values before reaching buffer2
+							// we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2
 							if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
 							
 							break;
@@ -510,14 +508,16 @@ class WikiSorter<T> {
 				
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
-					int length = pull[pull_index].count; count = 0;
+					int length = pull[pull_index].count;
+					count = 0;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
 						for (index = pull[pull_index].from; count < length; index--) {
 							if (index == pull[pull_index].to || comp.compare(array[index - 1], array[index]) < 0) {
 								Rotate(array, -count, new Range(index + 1, pull[pull_index].from + 1), true);
-								pull[pull_index].from = index + count; count++;
+								pull[pull_index].from = index + count;
+								count++;
 							}
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
@@ -525,7 +525,8 @@ class WikiSorter<T> {
 						for (index = pull[pull_index].from; count < length; index++) {
 							if (index == pull[pull_index].to - 1 || comp.compare(array[index], array[index + 1]) < 0) {
 								Rotate(array, count, new Range(pull[pull_index].from, index), true);
-								pull[pull_index].from = index - count; count++;
+								pull[pull_index].from = index - count;
+								count++;
 							}
 						}
 					}
@@ -533,7 +534,11 @@ class WikiSorter<T> {
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = (decimal_step + 1)/buffer_size + 1;
+				block_size = decimal_step/buffer_size + 1;
+				
+				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
+				// so this was originally here to test the math for adjusting block_size above
+				//if ((decimal_step + 1)/block_size > buffer_size) throw new RuntimeException();
 				
 				// now that the two internal buffers have been created, it's time to merge each A+B combination at this level of the merge sort!
 				decimal = fractional = 0;
@@ -627,7 +632,12 @@ class WikiSorter<T> {
 								indexA++;
 								
 								// locally merge the previous A block with the B values that follow it, using the buffer as swap space
-								Merge(array, buffer2, lastA, new Range(lastA.end, B_split), comp);
+								if (lastA.length() <= cache_size)
+									MergeExternal(array, lastA, new Range(lastA.end, B_split), comp);
+								else if (buffer2.length() > 0)
+									MergeInternal(array, lastA, new Range(lastA.end, B_split), comp, buffer2);
+								else
+									MergeInPlace(array, lastA, new Range(lastA.end, B_split), comp);
 								
 								if (buffer2.length() > 0 || block_size <= cache_size) {
 									// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
@@ -663,11 +673,8 @@ class WikiSorter<T> {
 								
 							} else if (blockB.length() < block_size) {
 								// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-								// this needs to disable the cache if it determines that the contents of the previous A block are in it
-								if (buffer2.length() > 0 || block_size <= cache_size)
-									Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false); // cache disabled
-								else
-									Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), true); // cache enabled
+								// the cache is disabled here since it might contain the contents of the previous A block
+								Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false);
 								
 								lastB.set(blockA.start, blockA.start + blockB.length());
 								blockA.start += blockB.length();
@@ -691,13 +698,21 @@ class WikiSorter<T> {
 							}
 						}
 						
-						// merge the last A block with the remaining B blocks
-						Merge(array, buffer2, lastA, new Range(lastA.end, B.end), comp);
+						// merge the last A block with the remaining B values
+						if (lastA.length() <= cache_size)
+							MergeExternal(array, lastA, new Range(lastA.end, B.end), comp);
+						else if (buffer2.length() > 0)
+							MergeInternal(array, lastA, new Range(lastA.end, B.end), comp, buffer2);
+						else
+							MergeInPlace(array, lastA, new Range(lastA.end, B.end), comp);
 					}
 				}
 				
-				// when we're finished with this step we should have the one or two internal buffers left over, where the second buffer is all jumbled up
+				// when we're finished with this merge step we should have the one or two internal buffers left over, where the second buffer is all jumbled up
 				// insertion sort the second buffer, then redistribute the buffers back into the array using the opposite process used for creating the buffer
+				
+				// while an unstable sort like quick sort could be applied here, in benchmarks it was consistently slightly slower than a simple insertion sort,
+				// even for tens of millions of items. this may be because insertion sort is quite fast when the data is already somewhat sorted, like it is here
 				InsertionSort(array, buffer2, comp);
 				
 				for (pull_index = 0; pull_index < 2; pull_index++) {
@@ -744,7 +759,8 @@ class MergeSorter<T> {
 	// n^2 sorting algorithm used to sort tiny chunks of the full array
 	void InsertionSort(T array[], Range range, Comparator<T> comp) {
 		for (int i = range.start + 1; i < range.end; i++) {
-			T temp = array[i]; int j;
+			T temp = array[i];
+			int j;
 			for (j = i; j > range.start && comp.compare(temp, array[j - 1]) < 0; j--)
 				array[j] = array[j - 1];
 			array[j] = temp;
@@ -975,7 +991,7 @@ class WikiSort {
 			time2 = Seconds() - time2;
 			total_time2 += time2;
 			
-			System.out.println("[" + total + "] wiki: " + time1 + ", merge: " + time2 + " (" + time2/time1 * 100 + "%)");
+			System.out.println("[" + total + "] WikiSort: " + time1 + " seconds, MergeSort: " + time2 + " seconds (" + time2/time1 * 100 + "%)");
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
 			System.out.println("verifying...");
@@ -991,6 +1007,6 @@ class WikiSort {
 		
 		total_time = Seconds() - total_time;
 		System.out.println("tests completed in " + total_time + " seconds");
-		System.out.println("wiki: " + total_time1 + ", merge: " + total_time2 + " (" + total_time2/total_time1 * 100 + "%)");
+		System.out.println("WikiSort: " + total_time1 + " seconds, MergeSort: " + total_time2 + " seconds (" + total_time2/total_time1 * 100 + "%)");
 	}
 }

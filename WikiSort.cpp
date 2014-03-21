@@ -1,15 +1,12 @@
 /***********************************************************
- WikiSort (public domain license)
+ WikiSort: a public domain implementation of "Block Sort"
  https://github.com/BonzaiThePenguin/WikiSort
- 
- Reading the documentation on that GitHub page
- is HIGHLY recommended before reading this code!
  
  to run:
  clang++ -o WikiSort.x WikiSort.cpp -O3
  (or replace 'clang++' with 'g++')
  ./WikiSort.x
- ***********************************************************/
+***********************************************************/
 
 #include <iostream>
 #include <algorithm>
@@ -94,16 +91,16 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 	// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
 	if (range1.length() <= range2.length()) {
 		if (range1.length() <= cache_size) {
-			std::memcpy(&cache[0], &array[range1.start], range1.length() * sizeof(array[0]));
-			std::memmove(&array[range1.start], &array[range2.start], range2.length() * sizeof(array[0]));
-			std::memcpy(&array[range1.start + range2.length()], &cache[0], range1.length() * sizeof(array[0]));
+			std::copy(&array[range1.start], &array[range1.end], cache);
+			std::copy(&array[range2.start], &array[range2.end], &array[range1.start]);
+			std::copy(cache, &cache[range1.length()], &array[range1.start + range2.length()]);
 			return;
 		}
 	} else {
 		if (range2.length() <= cache_size) {
-			std::memcpy(&cache[0], &array[range2.start], range2.length() * sizeof(array[0]));
-			std::memmove(&array[range2.end - range1.length()], &array[range1.start], range1.length() * sizeof(array[0]));
-			std::memcpy(&array[range1.start], &cache[0], range2.length() * sizeof(array[0]));
+			std::copy(&array[range2.start], &array[range2.end], cache);
+			std::copy_backward(&array[range1.start], &array[range1.end], &array[range2.end]);
+			std::copy(cache, &cache[range2.length()], &array[range1.start]);
 			return;
 		}
 	}
@@ -112,75 +109,80 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 }
 
 namespace Wiki {
-	// standard merge operation using an internal or external buffer,
-	// or if neither are available, use a different in-place merge
+	// merge operation using an external buffer
 	template <typename T, typename Comparison>
-	void Merge(T array[], const Range buffer, Range A, Range B, const Comparison compare, T cache[], const long cache_size) {
-		if (A.length() <= cache_size) {
-			// A fits into the cache, so use that instead of the internal buffer
-			T *A_index = &cache[0], *B_index = &array[B.start];
-			T *A_last = &cache[A.length()], *B_last = &array[B.end];
-			T *insert_index = &array[A.start];
-			
-			if (B.length() > 0 && A.length() > 0) {
-				while (true) {
-					if (!compare(*B_index, *A_index)) {
-						*insert_index = *A_index;
-						A_index++;
-						insert_index++;
-						if (A_index == A_last) break;
-					} else {
-						*insert_index = *B_index;
-						B_index++;
-						insert_index++;
-						if (B_index == B_last) break;
-					}
+	void MergeExternal(T array[], const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) {
+		// A fits into the cache, so use that instead of the internal buffer
+		T *A_index = &cache[0], *B_index = &array[B.start];
+		T *A_last = &cache[A.length()], *B_last = &array[B.end];
+		T *insert_index = &array[A.start];
+		
+		if (B.length() > 0 && A.length() > 0) {
+			while (true) {
+				if (!compare(*B_index, *A_index)) {
+					*insert_index = *A_index;
+					A_index++;
+					insert_index++;
+					if (A_index == A_last) break;
+				} else {
+					*insert_index = *B_index;
+					B_index++;
+					insert_index++;
+					if (B_index == B_last) break;
 				}
 			}
-			
-			// copy the remainder of A into the final array
-			std::copy(A_index, A_last, insert_index);
-		} else if (buffer.length() > 0) {
-			// whenever we find a value to add to the final array, swap it with the value that's already in that spot
-			// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-			T *A_index = &array[buffer.start], *B_index = &array[B.start];
-			T *A_last = &array[buffer.start + A.length()], *B_last = &array[B.end];
-			T *insert_index = &array[A.start];
-			
-			if (B.length() > 0 && A.length() > 0) {
-				while (true) {
-					if (!compare(*B_index, *A_index)) {
-						std::swap(*insert_index, *A_index);
-						A_index++;
-						insert_index++;
-						if (A_index == A_last) break;
-					} else {
-						std::swap(*insert_index, *B_index);
-						B_index++;
-						insert_index++;
-						if (B_index == B_last) break;
-					}
+		}
+		
+		// copy the remainder of A into the final array
+		std::copy(A_index, A_last, insert_index);
+	}
+	
+	// merge operation using an internal buffer
+	template <typename T, typename Comparison>
+	void MergeInternal(T array[], const Range A, const Range B, const Comparison compare, const Range buffer) {
+		// whenever we find a value to add to the final array, swap it with the value that's already in that spot
+		// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
+		T *A_index = &array[buffer.start], *B_index = &array[B.start];
+		T *A_last = &array[buffer.start + A.length()], *B_last = &array[B.end];
+		T *insert_index = &array[A.start];
+		
+		if (B.length() > 0 && A.length() > 0) {
+			while (true) {
+				if (!compare(*B_index, *A_index)) {
+					std::swap(*insert_index, *A_index);
+					A_index++;
+					insert_index++;
+					if (A_index == A_last) break;
+				} else {
+					std::swap(*insert_index, *B_index);
+					B_index++;
+					insert_index++;
+					if (B_index == B_last) break;
 				}
 			}
+		}
+		
+		// BlockSwap
+		std::swap_ranges(A_index, A_last, insert_index);
+	}
+	
+	// merge operation without a buffer
+	template <typename T, typename Comparison>
+	void MergeInPlace(T array[], Range A, Range B, const Comparison compare) {
+		// this just repeatedly binary searches into B and rotates A into position,
+		// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
+		
+		while (A.length() > 0 && B.length() > 0) {
+			// find the first place in B where the first item in A needs to be inserted
+			long mid = BinaryFirst(array, array[A.start], B, compare);
 			
-			std::swap_ranges(A_index, A_last, insert_index);
-		} else {
-			// A did not fit into the cache, AND there was no internal buffer available, so we'll need to use a different algorithm entirely
-			// this one just repeatedly binary searches into B and rotates A into position,
-			// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
+			// rotate A into place
+			long amount = mid - A.end;
+			Rotate(array, -amount, Range(A.start, mid), array, 0);
 			
-			while (A.length() > 0 && B.length() > 0) {
-				// find the first place in B where the first item in A needs to be inserted
-				long mid = BinaryFirst(array, array[A.start], B, compare);
-				
-				// rotate A into place
-				long amount = mid - A.end;
-				Rotate(array, -amount, Range(A.start, mid), cache, 0);
-				
-				// calculate the new A and B ranges
-				B.start = mid;
-				A = Range(BinaryLast(array, array[A.start + amount], A, compare), B.start);
-			}
+			// calculate the new A and B ranges
+			B.start = mid;
+			A = Range(BinaryLast(array, array[A.start + amount], A, compare), B.start);
 		}
 	}
 	
@@ -211,8 +213,10 @@ namespace Wiki {
 		// const long cache_size = (size + 1)/2;
 		// etc.
 		
+		
 		// calculate how to scale the index value to the range within the array
-		// (this is essentially fixed-point math, where we manually check for and handle overflow)
+		// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
+		// and where the fractional part is in base "fractional_base", rather than base 10
 		const long power_of_two = FloorPowerOfTwo(size);
 		const long fractional_base = power_of_two/16;
 		long fractional_step = size % fractional_base;
@@ -237,11 +241,11 @@ namespace Wiki {
 		}
 		
 		
-		// then merge sort the higher levels, which can be 32-63, 64-127, 128-255, etc.
+		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
 		for (long merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
 			
-			// if every A and B block will fit into the cache (we use < rather than <= since the block might be one more than decimal_step),
-			// use a special branch specifically for merging with the cache
+			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
+			// (we use < rather than <= since the block size might be one more than decimal_step)
 			if (decimal_step < cache_size) {
 				decimal = fractional = 0;
 				while (decimal < size) {
@@ -265,20 +269,16 @@ namespace Wiki {
 					
 					end = decimal;
 					
-					if (compare(array[end - 1], array[start])) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, mid - start, Range(start, end), cache, cache_size);
-					} else if (compare(array[mid], array[mid - 1])) {
+					if (compare(array[mid], array[mid - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						std::copy(&array[start], &array[mid], &cache[0]);
-						Merge(array, Range(0, 0), Range(start, mid), Range(mid, end), compare, cache, cache_size);
+						MergeExternal(array, Range(start, mid), Range(mid, end), compare, cache, cache_size);
 					}
 				}
 			} else {
 				// this is where the in-place merge logic starts!
-				
-				// as a reminder (you read the documentation, right? :P), here's what it must do:
-				// 1. pull out two internal buffers containing √A unique values
+				// 1. pull out two internal buffers each containing √A unique values
+				//     1a. adjust block_size and buffer_size if we couldn't find enough unique values
 				// 2. loop over the A and B areas within this level of the merge sort
 				//     3. break A and B into blocks of size 'block_size'
 				//     4. "tag" each of the A blocks with values from the first internal buffer
@@ -301,7 +301,7 @@ namespace Wiki {
 				// OR if we couldn't find that many unique values, we need the largest possible buffer we can get
 				
 				// in the case where it couldn't find a single buffer of at least √A unique values,
-				// all of the Merge steps must be replaced by a different merge algorithm (check the end of the Merge function above)
+				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
 				decimal = fractional = 0;
 				while (decimal < size) {
 					start = decimal;
@@ -326,7 +326,8 @@ namespace Wiki {
 					
 					// check A (from start to mid) for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the start of A
-					last = start; count = 1;
+					last = start;
+					count = 1;
 					for (index = start + 1; index < mid; index++) {
 						if (compare(array[index - 1], array[index])) {
 							last = index;
@@ -372,7 +373,8 @@ namespace Wiki {
 					
 					// check B (from mid to end) for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the end of B
-					last = end - 1; count = 1;
+					last = end - 1;
+					count = 1;
 					for (index = end - 2; index >= mid; index--) {
 						if (compare(array[index], array[index + 1])) {
 							last = index;
@@ -402,11 +404,11 @@ namespace Wiki {
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
 						} else {
-							// we found a second buffer in an 'B' area containing √A unique values, so we're done!
+							// we found a second buffer in a 'B' area containing √A unique values, so we're done!
 							buffer2 = Range(end - count, end);
 							
 							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
-							// we need to adjust the end point so it knows to stop redistrubing its values before reaching buffer2
+							// we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2
 							if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
 							
 							break;
@@ -424,14 +426,16 @@ namespace Wiki {
 				
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
-					long length = pull[pull_index].count; count = 0;
+					long length = pull[pull_index].count;
+					count = 0;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
 						for (index = pull[pull_index].from; count < length; index--) {
 							if (index == pull[pull_index].to || compare(array[index - 1], array[index])) {
 								Rotate(array, -count, Range(index + 1, pull[pull_index].from + 1), cache, cache_size);
-								pull[pull_index].from = index + count; count++;
+								pull[pull_index].from = index + count;
+								count++;
 							}
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
@@ -439,7 +443,8 @@ namespace Wiki {
 						for (index = pull[pull_index].from; count < length; index++) {
 							if (index == pull[pull_index].to - 1 || compare(array[index], array[index + 1])) {
 								Rotate(array, count, Range(pull[pull_index].from, index), cache, cache_size);
-								pull[pull_index].from = index - count; count++;
+								pull[pull_index].from = index - count;
+								count++;
 							}
 						}
 					}
@@ -447,7 +452,7 @@ namespace Wiki {
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = (decimal_step + 1)/buffer_size + 1;
+				block_size = decimal_step/buffer_size + 1;
 				
 				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
 				// so this was originally here to test the math for adjusting block_size above
@@ -535,7 +540,12 @@ namespace Wiki {
 								std::swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 								
 								// locally merge the previous A block with the B values that follow it, using the buffer as swap space
-								Merge(array, buffer2, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
+								if (lastA.length() <= cache_size)
+									MergeExternal(array, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
+								else if (buffer2.length() > 0)
+									MergeInternal(array, lastA, Range(lastA.end, B_split), compare, buffer2);
+								else
+									MergeInPlace(array, lastA, Range(lastA.end, B_split), compare);
 								
 								if (buffer2.length() > 0 || block_size <= cache_size) {
 									// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
@@ -546,7 +556,7 @@ namespace Wiki {
 									
 									// this is equivalent to rotating, but faster
 									// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
-									// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
+									// either way we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
 									BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
 								} else {
 									// we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation
@@ -557,6 +567,7 @@ namespace Wiki {
 								lastA = Range(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
 								lastB = Range(lastA.end, lastA.end + B_remaining);
 								
+								// if we finished dropping all of the A blocks behind, we're done!
 								blockA.start += block_size;
 								if (blockA.length() == 0)
 									break;
@@ -571,11 +582,8 @@ namespace Wiki {
 								
 							} else if (blockB.length() < block_size) {
 								// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-								// this needs to disable the cache if it determines that the contents of the previous A block are in it
-								if (buffer2.length() > 0 || block_size <= cache_size)
-									Rotate(array, -blockB.length(), Range(blockA.start, blockB.end), cache, 0); // cache disabled
-								else
-									Rotate(array, -blockB.length(), Range(blockA.start, blockB.end), cache, cache_size); // cache enabled
+								// the cache is disabled here since it might contain the contents of the previous A block
+								Rotate(array, -blockB.length(), Range(blockA.start, blockB.end), cache, 0);
 								
 								lastB = Range(blockA.start, blockA.start + blockB.length());
 								blockA.start += blockB.length();
@@ -599,13 +607,21 @@ namespace Wiki {
 							}
 						}
 						
-						// merge the last A block with the remaining B blocks
-						Merge(array, buffer2, lastA, Range(lastA.end, B.end), compare, cache, cache_size);
+						// merge the last A block with the remaining B values
+						if (lastA.length() <= cache_size)
+							MergeExternal(array, lastA, Range(lastA.end, B.end), compare, cache, cache_size);
+						else if (buffer2.length() > 0)
+							MergeInternal(array, lastA, Range(lastA.end, B.end), compare, buffer2);
+						else
+							MergeInPlace(array, lastA, Range(lastA.end, B.end), compare);
 					}
 				}
 				
-				// when we're finished with this step we should have the one or two internal buffers left over, where the second buffer is all jumbled up
+				// when we're finished with this merge step we should have the one or two internal buffers left over, where the second buffer is all jumbled up
 				// insertion sort the second buffer, then redistribute the buffers back into the array using the opposite process used for creating the buffer
+				
+				// while an unstable sort like std::sort could be applied here, in benchmarks it was consistently slightly slower than a simple insertion sort,
+				// even for tens of millions of items. this may be because insertion sort is quite fast when the data is already somewhat sorted, like it is here
 				InsertionSort(array, buffer2, compare);
 				
 				for (pull_index = 0; pull_index < 2; pull_index++) {
@@ -650,15 +666,17 @@ namespace Wiki {
 
 
 
-
-
 // structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
 typedef struct {
 	int value;
 	int index;
 } Test;
 
-bool TestCompare(Test item1, Test item2) { return (item1.value < item2.value); }
+bool TestCompare(Test item1, Test item2) {
+	// test slow comparison functions
+	//double time = Seconds(); while (Seconds() - time < 0.001);
+	return (item1.value < item2.value);
+}
 
 
 using namespace std;
@@ -786,16 +804,16 @@ int main() {
 		for (long index = 0; index < total; index++) {
 			Test item;
 			
-			//Testing::Pathological,
-			//Testing::Random,
-			//Testing::RandomFew,
-			//Testing::MostlyDescending,
-			//Testing::MostlyAscending,
-			//Testing::Ascending,
-			//Testing::Descending,
-			//Testing::Equal,
-			//Testing::Jittered,
-			//Testing::MostlyEqual
+			// Testing::Pathological
+			// Testing::Random
+			// Testing::RandomFew
+			// Testing::MostlyDescending
+			// Testing::MostlyAscending
+			// Testing::Ascending
+			// Testing::Descending
+			// Testing::Equal
+			// Testing::Jittered
+			// Testing::MostlyEqual
 			
 			item.value = Testing::Random(index, total);
 			item.index = index;
