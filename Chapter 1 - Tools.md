@@ -161,4 +161,4 @@ therefore useful as part of a larger sorting algorithm.
 * * *
 
 Speaking of larger sorting algorithms, [here's how merge sort works]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md)!
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202.%20Merging.md)!
