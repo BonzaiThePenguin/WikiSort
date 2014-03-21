@@ -21,10 +21,10 @@ Dr. Kutzner's and Dr. Kim's paper addresses this, but many of the papers define 
 &nbsp;&nbsp;• Can easily be modified to use any amount of memory you give it – including zero.
 
 <b>If you want to know how it works, check out the documentation:</b><br/>
-&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md">Chapter 1: Tools</a><br/>
-&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202:%20Merging.md">Chapter 2: Merging</a><br/>
-&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md">Chapter 3: In-Place</a><br/>
-&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204:%20Faster!.md">Chapter 4: Faster!</a><br/><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201.%20Tools.md">Chapter 1: Tools</a><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%202.%20Merging.md">Chapter 2: Merging</a><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203.%20In-Place.md">Chapter 3: In-Place</a><br/>
+&nbsp;&nbsp;• <a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204.%20Faster!.md">Chapter 4: Faster!</a><br/><br/>
 
 WikiSort is fast, stable, uses O(1) memory, and <b><a href="https://github.com/BonzaiThePenguin/WikiSort/blob/master/LICENSE">public domain</a></b>! It will also change as superior techniques become known – if you see something in the algorithm that could be improved, please flag the issue!<br/><br/>
 
