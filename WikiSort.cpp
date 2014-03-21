@@ -208,11 +208,13 @@ namespace Wiki {
 		const long cache_size = 512;
 		__typeof__(array[0]) cache[cache_size];
 		
-		// also, if you change this to dynamically allocate a full-size buffer,
-		// the algorithm seamlessly turns into a full-speed standard merge sort!
-		// const long cache_size = (size + 1)/2;
-		// etc.
-		
+		// note that you can easily modify the above to allocate a dynamically sized cache
+		// good choices for the cache size are:
+		// (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
+		// sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
+		// so a buffer of this size would allow it to skip using internal or in-place merges for anything
+		// 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
+		// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
 		
 		// calculate how to scale the index value to the range within the array
 		// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
@@ -293,8 +295,12 @@ namespace Wiki {
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
 				Range buffer1 = Range(0, 0), buffer2 = Range(0, 0);
-				long index, last, count, pull_index = 0, find = buffer_size + buffer_size;
+				long index, last, count, pull_index = 0;
 				struct { long from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
+				
+				// if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values
+				long find = buffer_size + buffer_size;
+				if (block_size <= cache_size) find = buffer_size;
 				
 				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
 				// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
@@ -356,6 +362,10 @@ namespace Wiki {
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
+						} else if (block_size <= cache_size) {
+							// we found the first and only internal buffer that we need, so we're done!
+							buffer1 = Range(start, start + count);
+							break;
 						} else {
 							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
 							buffer2 = Range(start, start + count);
@@ -403,6 +413,10 @@ namespace Wiki {
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
+						} else if (block_size <= cache_size) {
+							// we found the first and only internal buffer that we need, so we're done!
+							buffer1 = Range(end - count, end);
+							break;
 						} else {
 							// we found a second buffer in a 'B' area containing √A unique values, so we're done!
 							buffer2 = Range(end - count, end);
@@ -672,9 +686,11 @@ typedef struct {
 	int index;
 } Test;
 
+// global for testing how many comparisons are performed for each sorting algorithm
+long comparisons;
+
 bool TestCompare(Test item1, Test item2) {
-	// test slow comparison functions
-	//double time = Seconds(); while (Seconds() - time < 0.001);
+	comparisons++;
 	return (item1.value < item2.value);
 }
 
@@ -752,6 +768,7 @@ int main() {
 	const long max_size = 1500000;
 	__typeof__(&TestCompare) compare = &TestCompare;
 	vector<Test> array1, array2;
+	long compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 	
 	__typeof__(&Testing::Pathological) test_cases[] = {
 		Testing::Pathological,
@@ -822,17 +839,24 @@ int main() {
 		}
 		
 		double time1 = Seconds();
+		comparisons = 0;
 		Wiki::Sort(array1.begin(), array1.end(), compare);
 		time1 = Seconds() - time1;
 		total_time1 += time1;
+		compares1 = comparisons;
+		total_compares1 += compares1;
 		
 		double time2 = Seconds();
+		comparisons = 0;
 		//__inplace_stable_sort(array2.begin(), array2.end(), compare);
 		stable_sort(array2.begin(), array2.end(), compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
+		compares2 = comparisons;
+		total_compares2 += compares2;
 		
 		cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "%)" << endl;
+		cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "%)" << endl;
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		cout << "verifying... " << flush;
@@ -847,6 +871,7 @@ int main() {
 	total_time = Seconds() - total_time;
 	cout << "Tests completed in " << total_time << " seconds" << endl;
 	cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 << "%)" << endl;
+	cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 << "%)" << endl;
 	
 	return 0;
 }

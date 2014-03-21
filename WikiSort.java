@@ -20,8 +20,10 @@ class Test {
 }
 
 class TestComparator implements Comparator<Test> {
-    public int compare(Test a, Test b) {
-    	if (a.value < b.value) return -1;
+    static int comparisons = 0;
+	public int compare(Test a, Test b) {
+    	comparisons++;
+		if (a.value < b.value) return -1;
 		if (a.value > b.value) return 1;
 		return 0;
     }
@@ -371,12 +373,16 @@ class WikiSorter<T> {
 				
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
-				int index, last, count, pull_index = 0, find = buffer_size + buffer_size;
+				int index, last, count, pull_index = 0;
 				buffer1.set(0, 0);
 				buffer2.set(0, 0);
 				
 				pull[0].reset();
 				pull[1].reset();
+				
+				// if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values
+				long find = buffer_size + buffer_size;
+				if (block_size <= cache_size) find = buffer_size;
 				
 				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
 				// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
@@ -438,6 +444,10 @@ class WikiSorter<T> {
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
+						} else if (block_size <= cache_size) {
+							// we found the first and only internal buffer that we need, so we're done!
+							buffer1.set(start, start + count);
+							break;
 						} else {
 							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
 							buffer2.set(start, start + count);
@@ -485,6 +495,10 @@ class WikiSorter<T> {
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
+						} else if (block_size <= cache_size) {
+							// we found the first and only internal buffer that we need, so we're done!
+							buffer1.set(end - count, end);
+							break;
 						} else {
 							// we found a second buffer in an 'B' area containing √A unique values, so we're done!
 							buffer2.set(end - count, end);
@@ -919,6 +933,7 @@ class WikiSort {
 		TestComparator comp = new TestComparator();
 		Test[] array1;
 		Test[] array2;
+		int compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 		
 		Testing[] test_cases = {
 			new TestingPathological(),
@@ -982,16 +997,23 @@ class WikiSort {
 			}
 			
 			double time1 = Seconds();
+			TestComparator.comparisons = 0;
 			Wiki.Sort(array1, comp);
 			time1 = Seconds() - time1;
 			total_time1 += time1;
+			compares1 = TestComparator.comparisons;
+			total_compares1 += compares1;
 			
 			double time2 = Seconds();
+			TestComparator.comparisons = 0;
 			Merge.Sort(array2, comp);
 			time2 = Seconds() - time2;
 			total_time2 += time2;
+			compares2 = TestComparator.comparisons;
+			total_compares2 += compares2;
 			
 			System.out.println("[" + total + "] WikiSort: " + time1 + " seconds, MergeSort: " + time2 + " seconds (" + time2/time1 * 100 + "%)");
+			System.out.println("[" + total + "] WikiSort: " + compares1 + " compares, MergeSort: " + compares2 + " compares (" + compares1 * 100.0/compares2 + "%)");
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
 			System.out.println("verifying...");
@@ -1008,5 +1030,6 @@ class WikiSort {
 		total_time = Seconds() - total_time;
 		System.out.println("tests completed in " + total_time + " seconds");
 		System.out.println("WikiSort: " + total_time1 + " seconds, MergeSort: " + total_time2 + " seconds (" + total_time2/total_time1 * 100 + "%)");
+		System.out.println("WikiSort: " + total_compares1 + " compares, MergeSort: " + total_compares2 + " compares (" + total_compares1 * 100.0/total_compares2 + "%)");
 	}
 }

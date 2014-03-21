@@ -48,7 +48,13 @@ typedef struct {
 	int index;
 } Test;
 
-bool TestCompare(Test item1, Test item2) { return (item1.value < item2.value); }
+/* global for testing how many comparisons are performed for each sorting algorithm */
+long comparisons;
+
+bool TestCompare(Test item1, Test item2) {
+	comparisons++;
+	return (item1.value < item2.value);
+}
 
 typedef bool (*Comparison)(Test, Test);
 
@@ -363,11 +369,15 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 			/* as an optimization, we really only need to pull out the internal buffers once for each level of merges */
 			/* after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level */
 			Range buffer1, buffer2, A, B;
-			long index, last, count, pull_index = 0, find = buffer_size + buffer_size;
+			long index, last, count, find, pull_index = 0;
 			struct { long from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
 			
 			buffer1 = MakeRange(0, 0);
 			buffer2 = MakeRange(0, 0);
+			
+			/* if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values */
+			find = buffer_size + buffer_size;
+			if (block_size <= cache_size) find = buffer_size;
 			
 			/* we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each), */
 			/* or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values, */
@@ -429,6 +439,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						/* we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values, */
 						/* so we still need to find a second separate buffer of at least √A unique values */
 						find = buffer_size;
+					} else if (block_size <= cache_size) {
+						/* we found the first and only internal buffer that we need, so we're done! */
+						buffer1 = MakeRange(start, start + count);
+						break;
 					} else {
 						/* we found a second buffer in an 'A' area containing √A unique values, so we're done! */
 						buffer2 = MakeRange(start, start + count);
@@ -476,6 +490,10 @@ void WikiSort(Test array[], const long size, const Comparison compare) {
 						/* we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values, */
 						/* so we still need to find a second separate buffer of at least √A unique values */
 						find = buffer_size;
+					} else if (block_size <= cache_size) {
+						/* we found the first and only internal buffer that we need, so we're done! */
+						buffer1 = MakeRange(end - count, end);
+						break;
 					} else {
 						/* we found a second buffer in an 'B' area containing √A unique values, so we're done! */
 						buffer2 = MakeRange(end - count, end);
@@ -860,6 +878,7 @@ int main() {
 	Var(array1, Allocate(Test, max_size));
 	Var(array2, Allocate(Test, max_size));
 	Comparison compare = TestCompare;
+	long compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 	
 	__typeof__(&TestingPathological) test_cases[] = {
 		TestingPathological,
@@ -930,16 +949,23 @@ int main() {
 		}
 		
 		time1 = Seconds();
+		comparisons = 0;
 		WikiSort(array1, total, compare);
 		time1 = Seconds() - time1;
 		total_time1 += time1;
+		compares1 = comparisons;
+		total_compares1 += compares1;
 		
 		time2 = Seconds();
+		comparisons = 0;
 		MergeSort(array2, total, compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
+		compares2 = comparisons;
+		total_compares2 += compares2;
 		
 		printf("[%ld] WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
+		printf("[%ld] WikiSort: %ld compares, MergeSort: %ld compares (%f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
@@ -955,6 +981,7 @@ int main() {
 	total_time = Seconds() - total_time;
 	printf("tests completed in %f seconds\n", total_time);
 	printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+	printf("WikiSort: %ld compares, MergeSort: %ld compares (%f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
 	
 	free(array1); free(array2);
 	return 0;
