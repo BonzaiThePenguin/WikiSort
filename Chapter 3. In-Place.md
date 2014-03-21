@@ -63,7 +63,7 @@ where index is from 0 to (block_count - 1).
 * * *
 
 As for how to insert the A blocks into B, the obvious solution ([rotating]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201:%20Tools.md)
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201.%20Tools.md)
 the blocks to where they belong) is an n^2 operation. So that's no good.
 What we'll have to do instead is break B into blocks too, then *block swap*
 an A block with a B block to roll the A blocks through the array.
@@ -338,4 +338,4 @@ Both of those end up being O(A.length).
 
 You should now have a fully-functional stable sorting algorithm that uses O(1)
 memory! [However...]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204:%20Faster!.md)
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%204.%20Faster!.md)
