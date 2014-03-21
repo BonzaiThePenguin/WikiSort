@@ -241,4 +241,4 @@ we still need that additional buffer to exist. There isn't much we can do about
 that... but what if this extra buffer *was part of the original array*?
 
 That's the idea behind [in-place merging]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203:%20In-Place.md)!
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203.%20In-Place.md)!
