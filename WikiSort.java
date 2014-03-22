@@ -66,16 +66,87 @@ class Pull {
 	}
 }
 
+// calculate how to scale the index value to the range within the array
+// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
+// and where the fractional part is in base "fractional_base", rather than base 10
+class Iterator {
+	public int size, power_of_two;
+	public int fractional, decimal;
+	public int fractional_base, decimal_step, fractional_step;
+	
+	// 63 -> 32, 64 -> 64, etc.
+	// apparently this comes from Hacker's Delight?
+	static int FloorPowerOfTwo(int value) {
+		int x = value;
+		x = x | (x >> 1);
+		x = x | (x >> 2);
+		x = x | (x >> 4);
+		x = x | (x >> 8);
+		x = x | (x >> 16);
+		return x - (x >> 1);
+	}
+	
+	Iterator(int size2, int min_level) {
+		size = size2;
+		power_of_two = FloorPowerOfTwo(size);
+		fractional_base = power_of_two/min_level;
+		fractional_step = size % fractional_base;
+		decimal_step = size/fractional_base;
+		begin();
+	}
+	
+	void begin() {
+		fractional = decimal = 0;
+	}
+	
+	Range nextRange() {
+		int start = decimal;
+		
+		decimal += decimal_step;
+		fractional += fractional_step;
+		if (fractional >= fractional_base) {
+			fractional -= fractional_base;
+			decimal++;
+		}
+		
+		return new Range(start, decimal);
+	}
+	
+	boolean finished() {
+		return (decimal >= size);
+	}
+	
+	boolean nextLevel() {
+		decimal_step += decimal_step;
+		fractional_step += fractional_step;
+		if (fractional_step >= fractional_base) {
+			fractional_step -= fractional_base;
+			decimal_step++;
+		}
+		
+		return (decimal_step < size);
+	}
+	
+	int length() {
+		return decimal_step;
+	}
+}
+
 class WikiSorter<T> {
 	// use a small cache to speed up some of the operations
 	// since the cache size is fixed, it's still O(1) memory!
 	// just keep in mind that making it too small ruins the point (nothing will fit into it),
 	// and making it too large also ruins the point (so much for "low memory"!)
-	
-	// also, if you change this to dynamically allocate a full-size buffer,
-	// the algorithm seamlessly turns into a full-speed standard merge sort!
 	private static int cache_size = 512;
 	private T[] cache;
+	
+	// note that you can easily modify the above to allocate a dynamically sized cache
+	// good choices for the cache size are:
+	// (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
+	// sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
+	// so a buffer of this size would allow it to skip using internal or in-place merges for anything
+	// 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
+	// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
 	
 	public WikiSorter() {
 		@SuppressWarnings("unchecked")
@@ -89,18 +160,6 @@ class WikiSorter<T> {
 	}
 	
 	// toolbox functions used by the sorter
-	
-	// 63 -> 32, 64 -> 64, etc.
-	// apparently this comes from Hacker's Delight?
-	static int FloorPowerOfTwo(int value) {
-		int x = value;
-		x = x | (x >> 1);
-		x = x | (x >> 2);
-		x = x | (x >> 4);
-		x = x | (x >> 8);
-		x = x | (x >> 16);
-		return x - (x >> 1);
-	}
 	
 	// find the index of the first value within the range that is equal to array[index]
 	int BinaryFirst(T array[], T value, Range range, Comparator<T> comp) {
@@ -286,30 +345,11 @@ class WikiSorter<T> {
 			return;
 		}
 		
-		// calculate how to scale the index value to the range within the array
-		// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
-		// and where the fractional part is in base "fractional_base", rather than base 10
-		int power_of_two = FloorPowerOfTwo(size);
-		int fractional_base = power_of_two/16;
-		int fractional_step = size % fractional_base;
-		int decimal_step = size/fractional_base;
-		
 		// first insertion sort everything the lowest level, which is 16-31 items at a time
-		int decimal = 0, fractional = 0;
-		while (decimal < size) {
-			int start = decimal;
-			
-			decimal += decimal_step;
-			fractional += fractional_step;
-			if (fractional >= fractional_base) {
-				fractional -= fractional_base;
-				decimal++;
-			}
-			
-			int end = decimal;
-			
-			InsertionSort(array, new Range(start, end), comp);
-		}
+		Iterator iterator = new Iterator(size, 16);
+		iterator.begin();
+		while (!iterator.finished())
+			InsertionSort(array, iterator.nextRange(), comp);
 		
 		// we need to keep track of a lot of ranges during this sort!
 		Range buffer1 = new Range(), buffer2 = new Range();
@@ -323,37 +363,20 @@ class WikiSorter<T> {
 		pull[1] = new Pull();
 		
 		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
-		for (int merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
+		while (true) {
 			
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
 			// (we use < rather than <= since the block size might be one more than decimal_step)
-			if (decimal_step < cache_size) {
-				decimal = fractional = 0;
-				while (decimal < size) {
-					int start = decimal;
+			if (iterator.length() < cache_size) {
+				iterator.begin();
+				while (!iterator.finished()) {
+					A = iterator.nextRange();
+					B = iterator.nextRange();
 					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					int mid = decimal;
-					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					int end = decimal;
-					
-					if (comp.compare(array[mid], array[mid - 1]) < 0) {
+					if (comp.compare(array[B.start], array[A.end - 1]) < 0) {
 						// these two ranges weren't already in order, so we'll need to merge them!
-						java.lang.System.arraycopy(array, start, cache, 0, mid - start);
-						MergeExternal(array, new Range(start, mid), new Range(mid, end), comp);
+						java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
+						MergeExternal(array, A, B, comp);
 					}
 				}
 			} else {
@@ -368,8 +391,8 @@ class WikiSorter<T> {
 				// 7. sort the second internal buffer if it exists
 				// 8. redistribute the two internal buffers back into the array
 				
-				int block_size = (int)Math.sqrt(decimal_step);
-				int buffer_size = decimal_step/block_size + 1;
+				int block_size = (int)Math.sqrt(iterator.length());
+				int buffer_size = iterator.length()/block_size + 1;
 				
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
@@ -390,33 +413,16 @@ class WikiSorter<T> {
 				
 				// in the case where it couldn't find a single buffer of at least √A unique values,
 				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
-				decimal = fractional = 0;
-				while (decimal < size) {
-					int start = decimal;
+				iterator.begin();
+				while (!iterator.finished()) {
+					A = iterator.nextRange();
+					B = iterator.nextRange();
 					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					int mid = decimal;
-					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					int end = decimal;
-					
-					// check A (from start to mid) for the number of unique values we need to fill an internal buffer
+					// check A for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the start of A
-					last = start;
+					last = A.start;
 					count = 1;
-					for (index = start + 1; index < mid; index++) {
+					for (index = A.start + 1; index < A.end; index++) {
 						if (comp.compare(array[index - 1], array[index]) < 0) {
 							last = index;
 							if (++count >= find) break;
@@ -426,48 +432,48 @@ class WikiSorter<T> {
 					
 					if (count >= buffer_size) {
 						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						pull[pull_index].range.set(start, end);
+						pull[pull_index].range.set(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = start;
+						pull[pull_index].to = A.start;
 						pull_index = 1;
 						
 						if (count == buffer_size + buffer_size) {
 							// we were able to find a single contiguous section containing 2√A unique values,
 							// so this section can be used to contain both of the internal buffers we'll need
-							buffer1.set(start, start + buffer_size);
-							buffer2.set(start + buffer_size, start + count);
+							buffer1.set(A.start, A.start + buffer_size);
+							buffer2.set(A.start + buffer_size, A.start + count);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1.set(start, start + count);
+							buffer1.set(A.start, A.start + count);
 							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
-							buffer1.set(start, start + count);
+							buffer1.set(A.start, A.start + count);
 							break;
 						} else {
 							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
-							buffer2.set(start, start + count);
+							buffer2.set(A.start, A.start + count);
 							break;
 						}
 					} else if (pull_index == 0 && count > buffer1.length()) {
 						// keep track of the largest buffer we were able to find
-						buffer1.set(start, start + count);
+						buffer1.set(A.start, A.start + count);
 						
-						pull[pull_index].range.set(start, end);
+						pull[pull_index].range.set(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = start;
+						pull[pull_index].to = A.start;
 					}
 					
-					// check B (from mid to end) for the number of unique values we need to fill an internal buffer
+					// check B for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the end of B
-					last = end - 1;
+					last = B.end - 1;
 					count = 1;
-					for (index = end - 2; index >= mid; index--) {
+					for (index = B.end - 2; index >= B.start; index--) {
 						if (comp.compare(array[index], array[index + 1]) < 0) {
 							last = index;
 							if (++count >= find) break;
@@ -477,46 +483,46 @@ class WikiSorter<T> {
 					
 					if (count >= buffer_size) {
 						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						pull[pull_index].range.set(start, end);
+						pull[pull_index].range.set(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = end;
+						pull[pull_index].to = B.end;
 						pull_index = 1;
 						
 						if (count == buffer_size + buffer_size) {
 							// we were able to find a single contiguous section containing 2√A unique values,
 							// so this section can be used to contain both of the internal buffers we'll need
-							buffer1.set(end - count, end - buffer_size);
-							buffer2.set(end - buffer_size, end);
+							buffer1.set(B.end - count, B.end - buffer_size);
+							buffer2.set(B.end - buffer_size, B.end);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1.set(end - count, end);
+							buffer1.set(B.end - count, B.end);
 							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
-							buffer1.set(end - count, end);
+							buffer1.set(B.end - count, B.end);
 							break;
 						} else {
 							// we found a second buffer in an 'B' area containing √A unique values, so we're done!
-							buffer2.set(end - count, end);
+							buffer2.set(B.end - count, B.end);
 							
 							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
 							// we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2
-							if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
+							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 							
 							break;
 						}
 					} else if (pull_index == 0 && count > buffer1.length()) {
 						// keep track of the largest buffer we were able to find
-						buffer1.set(end - count, end);
+						buffer1.set(B.end - count, B.end);
 						
-						pull[pull_index].range.set(start, end);
+						pull[pull_index].range.set(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = end;
+						pull[pull_index].to = B.end;
 					}
 				}
 				
@@ -548,39 +554,20 @@ class WikiSorter<T> {
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = decimal_step/buffer_size + 1;
+				block_size = iterator.length()/buffer_size + 1;
 				
 				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
 				// so this was originally here to test the math for adjusting block_size above
-				//if ((decimal_step + 1)/block_size > buffer_size) throw new RuntimeException();
+				//if ((iterator.length() + 1)/block_size > buffer_size) throw new RuntimeException();
 				
 				// now that the two internal buffers have been created, it's time to merge each A+B combination at this level of the merge sort!
-				decimal = fractional = 0;
-				while (decimal < size) {
-					int start = decimal;
+				iterator.begin();
+				while (!iterator.finished()) {
+					A = iterator.nextRange();
+					B = iterator.nextRange();
 					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					int mid = decimal;
-					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					int end = decimal;
-					
-					// calculate the ranges for A and B, and make sure to remove any portions that are being used by the internal buffers
-					A.set(start, mid);
-					B.set(mid, end);
-					
+					// remove any parts of A or B that are being used by the internal buffers
+					int start = A.start;
 					for (pull_index = 0; pull_index < 2; pull_index++) {
 						if (start == pull[pull_index].range.start) {
 							if (pull[pull_index].from > pull[pull_index].to)
@@ -759,12 +746,7 @@ class WikiSorter<T> {
 			}
 			
 			// double the size of each A and B area that will be merged in the next level
-			decimal_step += decimal_step;
-			fractional_step += fractional_step;
-			if (fractional_step >= fractional_base) {
-				fractional_step -= fractional_base;
-				decimal_step++;
-			}
+			if (!iterator.nextLevel()) break;
 		}
 	}
 }
@@ -781,7 +763,7 @@ class MergeSorter<T> {
 		}
 	}
 	
-	// standard merge sort, so we have a baseline for how well the in-place merge works
+	// standard merge sort, so we have a baseline for how well WikiSort works
 	void SortR(T array[], Range range, Comparator<T> comp, T buffer[]) {
 		if (range.length() < 32) {
 			// insertion sort
@@ -857,8 +839,6 @@ class TestingRandom extends Testing {
 	}
 }
 
-// random distribution of few values was a problem with the last version, but it's better now
-// although the algorithm in the Merge function still isn't the one the paper suggests using!
 class TestingRandomFew extends Testing {
 	int value(int index, int total) {
 		return SortRandom.nextInt(100);

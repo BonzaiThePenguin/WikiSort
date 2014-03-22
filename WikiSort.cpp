@@ -21,20 +21,20 @@ double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 // structure to represent ranges within the array
 class Range {
 public:
-	long start;
-	long end;
+	size_t start;
+	size_t end;
 	
 	Range() {}
-	Range(long start, long end) : start(start), end(end) {}
-	inline long length() const { return end - start; }
+	Range(size_t start, size_t end) : start(start), end(end) {}
+	inline size_t length() const { return end - start; }
 };
 
 // toolbox functions used by the sorter
 
 // 63 -> 32, 64 -> 64, etc.
 // apparently this comes from Hacker's Delight?
-long FloorPowerOfTwo (const long value) {
-	long x = value;
+size_t FloorPowerOfTwo (const size_t value) {
+	size_t x = value;
 	x = x | (x >> 1);
 	x = x | (x >> 2);
 	x = x | (x >> 4);
@@ -48,13 +48,13 @@ long FloorPowerOfTwo (const long value) {
 
 // find the index of the first value within the range that is equal to array[index]
 template <typename T, typename Comparison>
-long BinaryFirst(const T array[], const T &value, const Range range, const Comparison compare) {
+size_t BinaryFirst(const T array[], const T &value, const Range range, const Comparison compare) {
 	return std::lower_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
 template <typename T, typename Comparison>
-long BinaryLast(const T array[], const T &value, const Range range, const Comparison compare) {
+size_t BinaryLast(const T array[], const T &value, const Range range, const Comparison compare) {
 	return std::upper_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
 }
 
@@ -72,19 +72,16 @@ void Reverse(T array[], const Range range) {
 
 // swap a series of values in the array
 template <typename T>
-void BlockSwap(T array[], const long start1, const long start2, const long block_size) {
+void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t block_size) {
 	std::swap_ranges(&array[start1], &array[start1 + block_size], &array[start2]);
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 template <typename T>
-void Rotate(T array[], const long amount, const Range range, T cache[], const long cache_size) {
+void Rotate(T array[], const size_t amount, const Range range, T cache[], const size_t cache_size) {
 	if (range.length() == 0) return;
 	
-	long split;
-	if (amount >= 0) split = range.start + amount;
-	else split = range.end + amount;
-	
+	size_t split = range.start + amount;
 	Range range1 = Range(range.start, split);
 	Range range2 = Range(split, range.end);
 	
@@ -111,7 +108,7 @@ void Rotate(T array[], const long amount, const Range range, T cache[], const lo
 namespace Wiki {
 	// merge operation using an external buffer
 	template <typename T, typename Comparison>
-	void MergeExternal(T array[], const Range A, const Range B, const Comparison compare, T cache[], const long cache_size) {
+	void MergeExternal(T array[], const Range A, const Range B, const Comparison compare, T cache[], const size_t cache_size) {
 		// A fits into the cache, so use that instead of the internal buffer
 		T *A_index = &cache[0], *B_index = &array[B.start];
 		T *A_last = &cache[A.length()], *B_last = &array[B.end];
@@ -169,16 +166,19 @@ namespace Wiki {
 	// merge operation without a buffer
 	template <typename T, typename Comparison>
 	void MergeInPlace(T array[], Range A, Range B, const Comparison compare) {
+		// this was found to be no faster for comparisons or assignments, at least in the specific situations where this is called!
+		//std::__merge_without_buffer(array + A.start, array + A.end, array + B.end, A.end - A.start, B.end - B.start, compare);
+		//return;
+		
 		// this just repeatedly binary searches into B and rotates A into position,
 		// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
-		
 		while (A.length() > 0 && B.length() > 0) {
 			// find the first place in B where the first item in A needs to be inserted
-			long mid = BinaryFirst(array, array[A.start], B, compare);
+			size_t mid = BinaryFirst(array, array[A.start], B, compare);
 			
 			// rotate A into place
-			long amount = mid - A.end;
-			Rotate(array, -amount, Range(A.start, mid), array, 0);
+			size_t amount = mid - A.end;
+			Rotate(array, A.length(), Range(A.start, mid), array, 0);
 			
 			// calculate the new A and B ranges
 			B.start = mid;
@@ -186,12 +186,67 @@ namespace Wiki {
 		}
 	}
 	
+	// calculate how to scale the index value to the range within the array
+	// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
+	// and where the fractional part is in base "fractional_base", rather than base 10
+	class Iterator {
+		size_t size, power_of_two;
+		size_t fractional, decimal;
+		size_t fractional_base, decimal_step, fractional_step;
+		
+	public:
+		Iterator(size_t size2, size_t min_level) {
+			size = size2;
+			power_of_two = FloorPowerOfTwo(size);
+			fractional_base = power_of_two/min_level;
+			fractional_step = size % fractional_base;
+			decimal_step = size/fractional_base;
+			begin();
+		}
+		
+		void begin() {
+			fractional = decimal = 0;
+		}
+		
+		Range nextRange() {
+			size_t start = decimal;
+			
+			decimal += decimal_step;
+			fractional += fractional_step;
+			if (fractional >= fractional_base) {
+				fractional -= fractional_base;
+				decimal++;
+			}
+			
+			return Range(start, decimal);
+		}
+		
+		bool finished() {
+			return (decimal >= size);
+		}
+		
+		bool nextLevel() {
+			decimal_step += decimal_step;
+			fractional_step += fractional_step;
+			if (fractional_step >= fractional_base) {
+				fractional_step -= fractional_base;
+				decimal_step++;
+			}
+			
+			return (decimal_step < size);
+		}
+		
+		size_t length() {
+			return decimal_step;
+		}
+	};
+	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	template <typename Iterator, typename Comparison>
 	void Sort(Iterator first, Iterator last, const Comparison compare) {
 		// map first and last to a C-style array, so we don't have to change the rest of the code
 		// (bit of a nasty hack, but it's good enough for now...)
-		const long size = last - first;
+		const size_t size = last - first;
 		__typeof__(&first[0]) array = &first[0];
 		
 		// if there are 32 or fewer items, just insertion sort the entire array
@@ -205,7 +260,7 @@ namespace Wiki {
 		// just keep in mind that making it too small ruins the point (nothing will fit into it),
 		// and making it too large also ruins the point (so much for "low memory"!)
 		// removing the cache entirely still gives 70% of the performance of a standard merge
-		const long cache_size = 512;
+		const size_t cache_size = 512;
 		__typeof__(array[0]) cache[cache_size];
 		
 		// note that you can easily modify the above to allocate a dynamically sized cache
@@ -216,65 +271,28 @@ namespace Wiki {
 		// 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
 		// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
 		
-		// calculate how to scale the index value to the range within the array
-		// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
-		// and where the fractional part is in base "fractional_base", rather than base 10
-		const long power_of_two = FloorPowerOfTwo(size);
-		const long fractional_base = power_of_two/16;
-		long fractional_step = size % fractional_base;
-		long decimal_step = size/fractional_base;
-		
 		
 		// first insertion sort everything the lowest level, which is 16-31 items at a time
-		long start, mid, end, decimal = 0, fractional = 0;
-		while (decimal < size) {
-			start = decimal;
-			
-			decimal += decimal_step;
-			fractional += fractional_step;
-			if (fractional >= fractional_base) {
-				fractional -= fractional_base;
-				decimal++;
-			}
-			
-			end = decimal;
-			
-			InsertionSort(array, Range(start, end), compare);
-		}
-		
+		Wiki::Iterator iterator (size, 16);
+		iterator.begin();
+		while (!iterator.finished())
+			InsertionSort(array, iterator.nextRange(), compare);
 		
 		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
-		for (long merge_size = 16; merge_size < power_of_two; merge_size += merge_size) {
+		while (true) {
 			
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
 			// (we use < rather than <= since the block size might be one more than decimal_step)
-			if (decimal_step < cache_size) {
-				decimal = fractional = 0;
-				while (decimal < size) {
-					start = decimal;
+			if (iterator.length() < cache_size) {
+				iterator.begin();
+				while (!iterator.finished()) {
+					Range A = iterator.nextRange();
+					Range B = iterator.nextRange();
 					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					mid = decimal;
-					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					end = decimal;
-					
-					if (compare(array[mid], array[mid - 1])) {
+					if (compare(array[B.start], array[A.end - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
-						std::copy(&array[start], &array[mid], &cache[0]);
-						MergeExternal(array, Range(start, mid), Range(mid, end), compare, cache, cache_size);
+						std::copy(&array[A.start], &array[A.end], &cache[0]);
+						MergeExternal(array, A, B, compare, cache, cache_size);
 					}
 				}
 			} else {
@@ -289,17 +307,17 @@ namespace Wiki {
 				// 7. sort the second internal buffer if it exists
 				// 8. redistribute the two internal buffers back into the array
 				
-				long block_size = sqrt(decimal_step);
-				long buffer_size = decimal_step/block_size + 1;
+				size_t block_size = sqrt(iterator.length());
+				size_t buffer_size = iterator.length()/block_size + 1;
 				
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
 				Range buffer1 = Range(0, 0), buffer2 = Range(0, 0);
-				long index, last, count, pull_index = 0;
-				struct { long from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
+				size_t index, last, count, pull_index = 0;
+				struct { size_t from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
 				
 				// if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values
-				long find = buffer_size + buffer_size;
+				size_t find = buffer_size + buffer_size;
 				if (block_size <= cache_size) find = buffer_size;
 				
 				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
@@ -308,33 +326,16 @@ namespace Wiki {
 				
 				// in the case where it couldn't find a single buffer of at least √A unique values,
 				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
-				decimal = fractional = 0;
-				while (decimal < size) {
-					start = decimal;
+				iterator.begin();
+				while (!iterator.finished()) {
+					Range A = iterator.nextRange();
+					Range B = iterator.nextRange();
 					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					mid = decimal;
-					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					end = decimal;
-					
-					// check A (from start to mid) for the number of unique values we need to fill an internal buffer
+					// check A for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the start of A
-					last = start;
+					last = A.start;
 					count = 1;
-					for (index = start + 1; index < mid; index++) {
+					for (index = A.start + 1; index < A.end; index++) {
 						if (compare(array[index - 1], array[index])) {
 							last = index;
 							if (++count >= find) break;
@@ -344,48 +345,48 @@ namespace Wiki {
 					
 					if (count >= buffer_size) {
 						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						pull[pull_index].range = Range(start, end);
+						pull[pull_index].range = Range(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = start;
+						pull[pull_index].to = A.start;
 						pull_index = 1;
 						
 						if (count == buffer_size + buffer_size) {
 							// we were able to find a single contiguous section containing 2√A unique values,
 							// so this section can be used to contain both of the internal buffers we'll need
-							buffer1 = Range(start, start + buffer_size);
-							buffer2 = Range(start + buffer_size, start + count);
+							buffer1 = Range(A.start, A.start + buffer_size);
+							buffer2 = Range(A.start + buffer_size, A.start + count);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1 = Range(start, start + count);
+							buffer1 = Range(A.start, A.start + count);
 							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
-							buffer1 = Range(start, start + count);
+							buffer1 = Range(A.start, A.start + count);
 							break;
 						} else {
 							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
-							buffer2 = Range(start, start + count);
+							buffer2 = Range(A.start, A.start + count);
 							break;
 						}
 					} else if (pull_index == 0 && count > buffer1.length()) {
 						// keep track of the largest buffer we were able to find
-						buffer1 = Range(start, start + count);
+						buffer1 = Range(A.start, A.start + count);
 						
-						pull[pull_index].range = Range(start, end);
+						pull[pull_index].range = Range(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = start;
+						pull[pull_index].to = A.start;
 					}
 					
-					// check B (from mid to end) for the number of unique values we need to fill an internal buffer
+					// check B for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the end of B
-					last = end - 1;
+					last = B.end - 1;
 					count = 1;
-					for (index = end - 2; index >= mid; index--) {
+					for (index = B.end - 2; index >= B.start; index--) {
 						if (compare(array[index], array[index + 1])) {
 							last = index;
 							if (++count >= find) break;
@@ -395,59 +396,60 @@ namespace Wiki {
 					
 					if (count >= buffer_size) {
 						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						pull[pull_index].range = Range(start, end);
+						pull[pull_index].range = Range(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = end;
+						pull[pull_index].to = B.end;
 						pull_index = 1;
 						
 						if (count == buffer_size + buffer_size) {
 							// we were able to find a single contiguous section containing 2√A unique values,
 							// so this section can be used to contain both of the internal buffers we'll need
-							buffer1 = Range(end - count, end - buffer_size);
-							buffer2 = Range(end - buffer_size, end);
+							buffer1 = Range(B.end - count, B.end - buffer_size);
+							buffer2 = Range(B.end - buffer_size, B.end);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1 = Range(end - count, end);
+							buffer1 = Range(B.end - count, B.end);
 							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
-							buffer1 = Range(end - count, end);
+							buffer1 = Range(B.end - count, B.end);
 							break;
 						} else {
 							// we found a second buffer in a 'B' area containing √A unique values, so we're done!
-							buffer2 = Range(end - count, end);
+							buffer2 = Range(B.end - count, B.end);
 							
 							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
 							// we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2
-							if (pull[0].range.start == start) pull[0].range.end -= pull[1].count;
+							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 							
 							break;
 						}
 					} else if (pull_index == 0 && count > buffer1.length()) {
 						// keep track of the largest buffer we were able to find
-						buffer1 = Range(end - count, end);
+						buffer1 = Range(B.end - count, B.end);
 						
-						pull[pull_index].range = Range(start, end);
+						pull[pull_index].range = Range(A.start, B.end);
 						pull[pull_index].count = count;
 						pull[pull_index].from = index;
-						pull[pull_index].to = end;
+						pull[pull_index].to = B.end;
 					}
 				}
 				
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
-					long length = pull[pull_index].count;
+					size_t length = pull[pull_index].count;
 					count = 0;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
 						for (index = pull[pull_index].from; count < length; index--) {
 							if (index == pull[pull_index].to || compare(array[index - 1], array[index])) {
-								Rotate(array, -count, Range(index + 1, pull[pull_index].from + 1), cache, cache_size);
+								Range range = Range(index + 1, pull[pull_index].from + 1);
+								Rotate(array, range.length() - count, range, cache, cache_size);
 								pull[pull_index].from = index + count;
 								count++;
 							}
@@ -466,38 +468,20 @@ namespace Wiki {
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = decimal_step/buffer_size + 1;
+				block_size = iterator.length()/buffer_size + 1;
 				
 				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
 				// so this was originally here to test the math for adjusting block_size above
-				//assert((decimal_step + 1)/block_size <= buffer_size);
+				//assert((iterator.length() + 1)/block_size <= buffer_size);
 				
 				// now that the two internal buffers have been created, it's time to merge each A+B combination at this level of the merge sort!
-				decimal = fractional = 0;
-				while (decimal < size) {
-					start = decimal;
+				iterator.begin();
+				while (!iterator.finished()) {
+					Range A = iterator.nextRange();
+					Range B = iterator.nextRange();
 					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					mid = decimal;
-					
-					decimal += decimal_step;
-					fractional += fractional_step;
-					if (fractional >= fractional_base) {
-						fractional -= fractional_base;
-						decimal++;
-					}
-					
-					end = decimal;
-					
-					// calculate the ranges for A and B, and make sure to remove any portions that are being used by the internal buffers
-					Range A = Range(start, mid), B = Range(mid, end);
-					
+					// remove any parts of A or B that are being used by the internal buffers
+					size_t start = A.start;
 					for (pull_index = 0; pull_index < 2; pull_index++) {
 						if (start == pull[pull_index].range.start) {
 							if (pull[pull_index].from > pull[pull_index].to)
@@ -518,7 +502,7 @@ namespace Wiki {
 						Range firstA = Range(A.start, A.start + blockA.length() % block_size);
 						
 						// swap the second value of each A block with the value in buffer1
-						for (long index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
+						for (size_t index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
 							std::swap(array[buffer1.start + index], array[indexA]);
 						
 						// start rolling the A blocks through the B blocks!
@@ -528,7 +512,7 @@ namespace Wiki {
 						Range blockB = Range(B.start, B.start + std::min(block_size, B.length()));
 						blockA.start += firstA.length();
 						
-						long minA = blockA.start, indexA = 0;
+						size_t minA = blockA.start, indexA = 0;
 						__typeof__(*array) min_value = array[minA];
 						
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
@@ -543,8 +527,8 @@ namespace Wiki {
 							// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
 							if ((lastB.length() > 0 && !compare(array[lastB.end - 1], min_value)) || blockB.length() == 0) {
 								// figure out where to split the previous B block, and rotate it at the split
-								long B_split = BinaryFirst(array, min_value, lastB, compare);
-								long B_remaining = lastB.end - B_split;
+								size_t B_split = BinaryFirst(array, min_value, lastB, compare);
+								size_t B_remaining = lastB.end - B_split;
 								
 								// swap the minimum A block to the beginning of the rolling A blocks
 								BlockSwap(array, blockA.start, minA, block_size);
@@ -587,17 +571,16 @@ namespace Wiki {
 									break;
 								
 								// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
-								minA = blockA.start + 1;
-								for (long findA = minA + block_size; findA < blockA.end; findA += block_size)
-									if (compare(array[findA], array[minA]))
+								minA = blockA.start;
+								for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
+									if (compare(array[findA + 1], array[minA + 1]))
 										minA = findA;
-								minA = minA - 1; // decrement once to get back to the start of that A block
 								min_value = array[minA];
 								
 							} else if (blockB.length() < block_size) {
 								// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
 								// the cache is disabled here since it might contain the contents of the previous A block
-								Rotate(array, -blockB.length(), Range(blockA.start, blockB.end), cache, 0);
+								Rotate(array, blockB.start - blockA.start, Range(blockA.start, blockB.end), cache, 0);
 								
 								lastB = Range(blockA.start, blockA.start + blockB.length());
 								blockA.start += blockB.length();
@@ -614,10 +597,9 @@ namespace Wiki {
 								blockA.start += block_size;
 								blockA.end += block_size;
 								blockB.start += block_size;
-								blockB.end += block_size;
 								
-								if (blockB.end > B.end)
-									blockB.end = B.end;
+								if (blockB.end > B.end - block_size) blockB.end = B.end;
+								else blockB.end += block_size;
 							}
 						}
 						
@@ -644,8 +626,8 @@ namespace Wiki {
 						Range buffer = Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
 						for (index = buffer.end; buffer.length() > 0; index++) {
 							if (index == pull[pull_index].range.end || !compare(array[index], array[buffer.start])) {
-								long amount = index - buffer.end;
-								Rotate(array, -amount, Range(buffer.start, index), cache, cache_size);
+								size_t amount = index - buffer.end;
+								Rotate(array, buffer.length(), Range(buffer.start, index), cache, cache_size);
 								buffer.start += (amount + 1);
 								buffer.end += amount;
 								index--;
@@ -656,7 +638,7 @@ namespace Wiki {
 						Range buffer = Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
 						for (index = buffer.start; buffer.length() > 0; index--) {
 							if (index == pull[pull_index].range.start || !compare(array[buffer.end - 1], array[index - 1])) {
-								long amount = buffer.start - index;
+								size_t amount = buffer.start - index;
 								Rotate(array, amount, Range(index, buffer.end), cache, cache_size);
 								buffer.start -= amount;
 								buffer.end -= (amount + 1);
@@ -668,12 +650,7 @@ namespace Wiki {
 			}
 			
 			// double the size of each A and B area that will be merged in the next level
-			decimal_step += decimal_step;
-			fractional_step += fractional_step;
-			if (fractional_step >= fractional_base) {
-				fractional_step -= fractional_base;
-				decimal_step++;
-			}
+			if (!iterator.nextLevel()) break;
 		}
 	}
 }
@@ -682,8 +659,8 @@ namespace Wiki {
 
 // structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
 typedef struct {
-	int value;
-	int index;
+	size_t value;
+	size_t index;
 } Test;
 
 // global for testing how many comparisons are performed for each sorting algorithm
@@ -700,13 +677,13 @@ using namespace std;
 // make sure the items within the given range are in a stable order
 template <typename Comparison>
 void Verify(const Test array[], const Range range, const Comparison compare, const string msg) {
-	for (long index = range.start + 1; index < range.end; index++) {
+	for (size_t index = range.start + 1; index < range.end; index++) {
 		// if it's in ascending order then we're good
 		// if both values are equal, we need to make sure the index values are ascending
 		if (!(compare(array[index - 1], array[index]) ||
 			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 			
-			for (long index2 = range.start; index2 < range.end; index2++)
+			for (size_t index2 = range.start; index2 < range.end; index2++)
 				cout << array[index2].value << " (" << array[index2].index << ") ";
 			
 			cout << endl << "failed with message: " << msg << endl;
@@ -716,59 +693,55 @@ void Verify(const Test array[], const Range range, const Comparison compare, con
 }
 
 namespace Testing {
-	long Pathological(long index, long total) {
+	size_t Pathological(size_t index, size_t total) {
 		if (index == 0) return 10;
 		else if (index < total/2) return 11;
 		else if (index == total - 1) return 10;
 		return 9;
 	}
 	
-	// purely random data is one of the few cases where it is slower than stable_sort(),
-	// although it does end up only running at about 86% as fast in that situation
-	long Random(long index, long total) {
+	size_t Random(size_t index, size_t total) {
 		return rand();
 	}
 	
-	// random distribution of few values was a problem with the last version, but it's better now
-	// although the algorithm in the Merge function still isn't the one the paper suggests using!
-	long RandomFew(long index, long total) {
-		return rand() * 100.0/RAND_MAX;
+	size_t RandomFew(size_t index, size_t total) {
+		return rand() * (100.0/RAND_MAX);
 	}
 	
-	long MostlyDescending(long index, long total) {
+	size_t MostlyDescending(size_t index, size_t total) {
 		return total - index + rand() * 1.0/RAND_MAX * 5 - 2.5;
 	}
 	
-	long MostlyAscending(long index, long total) {
+	size_t MostlyAscending(size_t index, size_t total) {
 		return index + rand() * 1.0/RAND_MAX * 5 - 2.5;
 	}
 	
-	long Ascending(long index, long total) {
+	size_t Ascending(size_t index, size_t total) {
 		return index;
 	}
 	
-	long Descending(long index, long total) {
+	size_t Descending(size_t index, size_t total) {
 		return total - index;
 	}
 	
-	long Equal(long index, long total) {
+	size_t Equal(size_t index, size_t total) {
 		return 1000;
 	}
 	
-	long Jittered(long index, long total) {
+	size_t Jittered(size_t index, size_t total) {
 		return (rand() * 1.0/RAND_MAX <= 0.9) ? index : (index - 2);
 	}
 	
-	long MostlyEqual(long index, long total) {
+	size_t MostlyEqual(size_t index, size_t total) {
 		return 1000 + rand() * 1.0/RAND_MAX * 4;
 	}
 }
 
 int main() {
-	const long max_size = 1500000;
+	const size_t max_size = 1500000;
 	__typeof__(&TestCompare) compare = &TestCompare;
 	vector<Test> array1, array2;
-	long compares1, compares2, total_compares1 = 0, total_compares2 = 0;
+	size_t compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 	
 	__typeof__(&Testing::Pathological) test_cases[] = {
 		Testing::Pathological,
@@ -788,11 +761,11 @@ int main() {
 	//srand(10141985); // in case you want the same random numbers
 	
 	cout << "running test cases... " << flush;
-	long total = max_size;
+	size_t total = max_size;
 	array1.resize(total);
 	array2.resize(total);
 	for (int test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
-		for (long index = 0; index < total; index++) {
+		for (size_t index = 0; index < total; index++) {
 			Test item;
 			
 			item.value = test_cases[test_case](index, total);
@@ -806,7 +779,7 @@ int main() {
 		stable_sort(array2.begin(), array2.end(), compare);
 		
 		Verify(&array1[0], Range(0, total), compare, "test case failed");
-		for (long index = 0; index < total; index++)
+		for (size_t index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 	}
 	cout << "passed!" << endl;
@@ -818,7 +791,7 @@ int main() {
 		array1.resize(total);
 		array2.resize(total);
 		
-		for (long index = 0; index < total; index++) {
+		for (size_t index = 0; index < total; index++) {
 			Test item;
 			
 			// Testing::Pathological
@@ -862,7 +835,7 @@ int main() {
 		cout << "verifying... " << flush;
 		
 		Verify(&array1[0], Range(0, total), compare, "testing the final array");
-		for (long index = 0; index < total; index++)
+		for (size_t index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 		
 		cout << "correct!" << endl;
