@@ -891,22 +891,22 @@ class WikiSort {
 	static double Seconds() {
 		return System.currentTimeMillis()/1000.0;
 	}
-	
-	static void Verify(Test array[], Range range, TestComparator comp, String msg) {
-		for (int index = range.start + 1; index < range.end; index++) {
-			// if it's in ascending order then we're good
-			// if both values are equal, we need to make sure the index values are ascending
-			if (!(comp.compare(array[index - 1], array[index]) < 0 ||
-				  (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
-				
-				//for (int index2 = range.start; index2 < range.end; index2++)
-				//	System.out.println(array[index2].value + " (" + array[index2].index + ")");
-				
-				System.out.println("failed with message: " + msg);
-				throw new RuntimeException();
-			}
-		}
-	}
+
+    static void Verify(Test array[], Range range, TestComparator comp, String msg) {
+        for (int index = range.start + 1; index < range.end; index++) {
+            // if it's in ascending order then we're good
+            // if both values are equal, we need to make sure the index values are ascending
+            if (!(comp.compare(array[index - 1], array[index]) < 0 ||
+                    (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
+
+                //for (int index2 = range.start; index2 < range.end; index2++)
+                //	System.out.println(array[index2].value + " (" + array[index2].index + ")");
+
+                System.out.println("failed with message: " + msg);
+                throw new RuntimeException();
+            }
+        }
+    }
 	
 	public static void main (String[] args) throws java.lang.Exception {
 		int max_size = 1500000;
@@ -952,10 +952,10 @@ class WikiSort {
 			Merge.Sort(array2, comp);
 			
 			Verify(array1, new Range(0, total), comp, "test case failed");
-			for (int index = 0; index < total; index++) {
-				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
-				if (array2[index].index != array1[index].index) throw new Exception();
-			}
+            for (int index = 0; index < total; index++) {
+                if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
+                if (array2[index].index != array1[index].index) throw new Exception();
+            }
 		}
 		System.out.println("passed!");
 		
@@ -992,24 +992,23 @@ class WikiSort {
 			compares2 = TestComparator.comparisons;
 			total_compares2 += compares2;
 			
-			System.out.println("[" + total + "] WikiSort: " + time1 + " seconds, MergeSort: " + time2 + " seconds (" + time2/time1 * 100 + "%)");
-			System.out.println("[" + total + "] WikiSort: " + compares1 + " compares, MergeSort: " + compares2 + " compares (" + compares1 * 100.0/compares2 + "%)");
+			System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total, time1, time2, time2/time1 * 100);
+			System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
-			System.out.println("verifying...");
-			
+			System.out.print("verifying... ");
+
 			Verify(array1, new Range(0, total), comp, "testing the final array");
-			for (int index = 0; index < total; index++) {
-				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
-				if (array2[index].index != array1[index].index) throw new Exception();
-			}
-			
+            for (int index = 0; index < total; index++) {
+                if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
+                if (array2[index].index != array1[index].index) throw new Exception();
+            }
 			System.out.println("correct!");
 		}
 		
 		total_time = Seconds() - total_time;
-		System.out.println("tests completed in " + total_time + " seconds");
-		System.out.println("WikiSort: " + total_time1 + " seconds, MergeSort: " + total_time2 + " seconds (" + total_time2/total_time1 * 100 + "%)");
-		System.out.println("WikiSort: " + total_compares1 + " compares, MergeSort: " + total_compares2 + " compares (" + total_compares1 * 100.0/total_compares2 + "%)");
+		System.out.format("tests completed in %.2f seconds\n", total_time);
+		System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total_time1, total_time2, total_time2 / total_time1 * 100);
+		System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0 / total_compares2);
 	}
 }
