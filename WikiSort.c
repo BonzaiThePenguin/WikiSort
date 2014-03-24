@@ -939,8 +939,8 @@ int main() {
 		compares2 = comparisons;
 		total_compares2 += compares2;
 		
-		printf("[%zu] WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
-		printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+		printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total, time1, time2, time2/time1 * 100.0);
+		printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
@@ -954,9 +954,9 @@ int main() {
 	}
 	
 	total_time = Seconds() - total_time;
-	printf("tests completed in %f seconds\n", total_time);
-	printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
-	printf("WikiSort: %zu compares, MergeSort: %zu compares (%f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+	printf("tests completed in %.2f seconds\n", total_time);
+	printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+	printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
 	
 	free(array1); free(array2);
 	return 0;
