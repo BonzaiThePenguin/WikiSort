@@ -838,7 +838,7 @@ void WikiVerify(const Test array[], const Range range, const Comparison compare,
 			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 			
 			for (index2 = range.start; index2 < range.end; index2++)
-				printf("%lu (%lu) ", array[index2].value, array[index2].index);
+				printf("%zu (%zu) ", array[index2].value, array[index2].index);
 			
 			printf("failed with message: %s\n", msg);
 			assert(false);
@@ -939,8 +939,8 @@ int main() {
 		compares2 = comparisons;
 		total_compares2 += compares2;
 		
-		printf("[%ld] WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
-		printf("[%ld] WikiSort: %ld compares, MergeSort: %ld compares (%f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+		printf("[%zu] WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total, time1, time2, time2/time1 * 100.0);
+		printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
@@ -956,7 +956,7 @@ int main() {
 	total_time = Seconds() - total_time;
 	printf("tests completed in %f seconds\n", total_time);
 	printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
-	printf("WikiSort: %ld compares, MergeSort: %ld compares (%f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+	printf("WikiSort: %zu compares, MergeSort: %zu compares (%f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
 	
 	free(array1); free(array2);
 	return 0;
