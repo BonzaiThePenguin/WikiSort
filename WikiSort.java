@@ -992,11 +992,11 @@ class WikiSort {
 			compares2 = TestComparator.comparisons;
 			total_compares2 += compares2;
 			
-			System.out.println("[" + total + "] WikiSort: " + time1 + " seconds, MergeSort: " + time2 + " seconds (" + time2/time1 * 100 + "%)");
-			System.out.println("[" + total + "] WikiSort: " + compares1 + " compares, MergeSort: " + compares2 + " compares (" + compares1 * 100.0/compares2 + "%)");
+			System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total, time1, time2, time2/time1 * 100);
+			System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
-			System.out.println("verifying...");
+			System.out.print("verifying... ");
 			
 			Verify(array1, new Range(0, total), comp, "testing the final array");
 			for (int index = 0; index < total; index++) {
@@ -1008,8 +1008,8 @@ class WikiSort {
 		}
 		
 		total_time = Seconds() - total_time;
-		System.out.println("tests completed in " + total_time + " seconds");
-		System.out.println("WikiSort: " + total_time1 + " seconds, MergeSort: " + total_time2 + " seconds (" + total_time2/total_time1 * 100 + "%)");
-		System.out.println("WikiSort: " + total_compares1 + " compares, MergeSort: " + total_compares2 + " compares (" + total_compares1 * 100.0/total_compares2 + "%)");
+		System.out.format("tests completed in %.2f seconds\n", total_time);
+		System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100);
+		System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
 	}
 }
