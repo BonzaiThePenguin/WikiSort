@@ -24,6 +24,6 @@ Dr. Kutzner's and Dr. Kim's paper addresses this, but many of the papers define 
 
 WikiSort is fast, stable, uses O(1) memory, and **[public domain](https://github.com/BonzaiThePenguin/WikiSort/blob/master/LICENSE)**! It will also change as superior techniques become known – if you see something in the algorithm that could be improved, please flag the issue!<br/><br/>
 
-[C](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c), [C++](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp), and [Java](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.java) versions are currently available. Please note that while it is already highly practical, it is not yet a 100% implementation of their work – more like [99%](https://github.com/BonzaiThePenguin/WikiSort/issues/10).<br/><br/>
+[C](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c), [C++](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp), and [Java](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.java) versions are currently available. Enjoy!
 
 **Quick extra note**: If you're wondering what to call this type of sort, the authors suggested "block merge-sort" (possibly "block sort" for short), as it would fit the existing pattern of "heap sort" and "weak heap sort". I guess KimSort is a no-go.
