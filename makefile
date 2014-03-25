@@ -16,7 +16,7 @@ JAVAX = WikiSort
 
 CPPFLAGS = -o $(CPPX)
 CFLAGS = -lm -o $(CX)
-JAVACFLAGS = -d gen
+JAVACFLAGS = -d $(GEN)
 JAVAFLAGS = -classpath $(GEN)
 
 all: wiki
