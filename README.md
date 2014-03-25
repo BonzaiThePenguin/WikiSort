@@ -26,4 +26,13 @@ WikiSort is fast, stable, uses O(1) memory, and **[public domain](https://github
 
 [C](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c), [C++](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp), and [Java](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.java) versions are currently available. Enjoy!
 
+Install and Run
+===============
+```
+git clone https://github.com/BonzaiThePenguin/WikiSort.git
+cd WikiSort
+make {java, c, cpp}
+```
+`make {lang}` runs the built in sorting tests in the specified language.
+
 **Quick extra note**: If you're wondering what to call this type of sort, the authors suggested "block merge-sort" (possibly "block sort" for short), as it would fit the existing pattern of "heap sort" and "weak heap sort". I guess KimSort is a no-go.
