@@ -1,27 +1,48 @@
+CPP = g++
+GCC = gcc
+JAVAC = javac
+JAVA = java
+
+GEN = gen
+
+CPPFILE = WikiSort.cpp
+CFILE = WikiSort.c
+JAVAFILE = WikiSort.java
+JAVACLASS = WikiSort.class
+
+CPPX = $(GEN)/WikiSort_cpp.x
+CX = $(GEN)/WikiSort_c.x
+JAVAX = WikiSort
+
+CPPFLAGS = -o $(CPPX)
+CFLAGS = -lm -o $(CX)
+JAVACFLAGS = -d gen
+JAVAFLAGS = -classpath $(GEN)
+
 all: wiki
 
-wiki: WikiSort.cpp WikiSort.c WikiSort.java
-	g++ WikiSort.cpp -o gen/WikiSort_cpp.x
-	gcc WikiSort.c -lm -o gen/WikiSort_c.x
-	javac -d gen WikiSort.java 
+wiki: $(CPPFILE) $(CFILE) $(JAVAFILE)
+	$(CPP) $(CPPFLAGS) $(CPPFILE)
+	$(GCC) $(CFLAGS) $(CFILE)
+	$(JAVAC) $(JAVACFLAGS) $(JAVAFILE)
 
-java: gen/WikiSort.class
-	java -classpath gen WikiSort
+java: $(JAVACLASS)
+	$(JAVA) $(JAVAFLAGS) $(JAVAX)
 
-gen/WikiSort.class:
-	javac -d gen WikiSort.java
+$(JAVACLASS): $(JAVAFILE)
+	$(JAVAC) $(JAVACFLAGS) $(JAVAFILE)
 
-c: gen/WikiSort_c.x
-	gen/WikiSort_c.x
+c: $(CX)
+	$(CX)
 
-gen/WikiSort_c.x: WikiSort.c
-	gcc WikiSort.c -lm -o gen/WikiSort_c.x
+$(CX): $(CFILE)
+	$(GCC) $(CFILE) $(CFLAGS)
 
-cpp: gen/WikiSort_cpp.x
-	gen/WikiSort_cpp.x
+cpp: $(CPPX)
+	$(CPPX)
 
-gen/WikiSort_cpp.x: WikiSort.cpp
-	g++ WikiSort.cpp -o gen/WikiSort_cpp.x
+$(CPPX): $(CPPFILE)
+	$(CPP) $(CPPFLAGS) $(CPPFILE)
 
 clean:
-	rm -rf gen/*
+	rm -rf $(GEN)/*
