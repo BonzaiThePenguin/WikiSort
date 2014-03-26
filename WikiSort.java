@@ -7,9 +7,6 @@
  java WikiSort
 ***********************************************************/
 
-// this version is over 4x slower on my system than the C++ version
-// if you can make it faster/better, please do :)
-
 import java.util.*;
 import java.lang.*;
 import java.io.*;
@@ -75,7 +72,7 @@ class Iterator {
 	public int fractional_base, decimal_step, fractional_step;
 	
 	// 63 -> 32, 64 -> 64, etc.
-	// apparently this comes from Hacker's Delight?
+	// this comes from Hacker's Delight
 	static int FloorPowerOfTwo(int value) {
 		int x = value;
 		x = x | (x >> 1);
@@ -219,6 +216,7 @@ class WikiSorter<T> {
 	}
 	
 	// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
+	// (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
 	void Rotate(T array[], int amount, Range range, boolean use_cache) {
 		if (range.length() == 0) return;
 		
@@ -316,8 +314,23 @@ class WikiSorter<T> {
 	
 	// merge operation without a buffer
 	void MergeInPlace(T array[], Range A, Range B, Comparator<T> comp) {
-		// this just repeatedly binary searches into B and rotates A into position,
-		// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
+		/*
+		 this just repeatedly binary searches into B and rotates A into position.
+		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
+		 but I decided to stick with this because it had better situational performance
+		 
+		 normally this is incredibly suboptimal, but this function is only called
+		 when none of the A or B blocks in any subarray contained 2√A unique values,
+		 which places a hard limit on the number of times this will ACTUALLY need
+		 to binary search and rotate.
+		 
+		 according to my analysis the worst case is √A rotations performed on √A items
+		 once the constant factors are removed, which ends up being O(n)
+		 
+		 again, this is NOT a general-purpose solution – it only works well in this case!
+		 kind of like how the O(n^2) insertion sort is used in some places
+		 */
+		
 		A = new Range(A.start, A.end);
 		B = new Range(B.start, B.end);
 		
@@ -626,13 +639,15 @@ class WikiSorter<T> {
 								BlockSwap(array, blockA.start, minA, block_size);
 								
 								// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
-								// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
 								T swap = array[blockA.start + 1];
 								array[blockA.start + 1] = array[buffer1.start + indexA];
 								array[buffer1.start + indexA] = swap;
 								indexA++;
 								
-								// locally merge the previous A block with the B values that follow it, using the buffer as swap space
+								// locally merge the previous A block with the B values that follow it
+								// if lastA fits into the external cache we'll use that (with MergeExternal),
+								// or if the second internal buffer exists we'll use that (with MergeInternal),
+								// or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
 								if (lastA.length() <= cache_size)
 									MergeExternal(array, lastA, new Range(lastA.end, B_split), comp);
 								else if (buffer2.length() > 0)
@@ -656,15 +671,16 @@ class WikiSorter<T> {
 									Rotate(array, blockA.start - B_split, new Range(B_split, blockA.start + block_size), true);
 								}
 								
-								// now we need to update the ranges and stuff
+								// update the range for the remaining A blocks, and the range remaining from the B block after it was split
 								lastA.set(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
 								lastB.set(lastA.end, lastA.end + B_remaining);
 								
+								// if there are no more A blocks remaining, this step is finished!
 								blockA.start += block_size;
 								if (blockA.length() == 0)
 									break;
 								
-								// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
+								// search the second value of the remaining A blocks to find the new minimum A block
 								minA = blockA.start + 1;
 								for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
 									if (comp.compare(array[findA], array[minA]) < 0)
@@ -891,22 +907,25 @@ class WikiSort {
 	static double Seconds() {
 		return System.currentTimeMillis()/1000.0;
 	}
-
-    static void Verify(Test array[], Range range, TestComparator comp, String msg) {
-        for (int index = range.start + 1; index < range.end; index++) {
-            // if it's in ascending order then we're good
-            // if both values are equal, we need to make sure the index values are ascending
-            if (!(comp.compare(array[index - 1], array[index]) < 0 ||
-                    (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
-
-                //for (int index2 = range.start; index2 < range.end; index2++)
-                //	System.out.println(array[index2].value + " (" + array[index2].index + ")");
-
-                System.out.println("failed with message: " + msg);
-                throw new RuntimeException();
-            }
-        }
-    }
+	
+	// make sure the items within the given range are in a stable order
+	// if you want to test the correctness of any changes you make to the main WikiSort function,
+	// call it from within WikiSort after each step
+	static void Verify(Test array[], Range range, TestComparator comp, String msg) {
+		for (int index = range.start + 1; index < range.end; index++) {
+			// if it's in ascending order then we're good
+			// if both values are equal, we need to make sure the index values are ascending
+			if (!(comp.compare(array[index - 1], array[index]) < 0 ||
+				  (comp.compare(array[index], array[index - 1]) == 0 && array[index].index > array[index - 1].index))) {
+				
+				//for (int index2 = range.start; index2 < range.end; index2++)
+				//	System.out.println(array[index2].value + " (" + array[index2].index + ")");
+				
+				System.out.println("failed with message: " + msg);
+				throw new RuntimeException();
+			}
+		}
+	}
 	
 	public static void main (String[] args) throws java.lang.Exception {
 		int max_size = 1500000;
@@ -952,10 +971,10 @@ class WikiSort {
 			Merge.Sort(array2, comp);
 			
 			Verify(array1, new Range(0, total), comp, "test case failed");
-            for (int index = 0; index < total; index++) {
-                if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
-                if (array2[index].index != array1[index].index) throw new Exception();
-            }
+			for (int index = 0; index < total; index++) {
+				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
+				if (array2[index].index != array1[index].index) throw new Exception();
+			}
 		}
 		System.out.println("passed!");
 		
@@ -992,23 +1011,38 @@ class WikiSort {
 			compares2 = TestComparator.comparisons;
 			total_compares2 += compares2;
 			
-			System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total, time1, time2, time2/time1 * 100);
-			System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+			if (time1 >= time2)
+				System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total, time1, time2, time2/time1 * 100.0);
+			else
+				System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total, time1, time2, time2/time1 * 100.0 - 100.0);
+			
+			if (compares1 <= compares2)
+				System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%% as many)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+			else
+				System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%% more)\n", total, compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
-			System.out.print("verifying... ");
-
+			System.out.println("verifying...");
+			
 			Verify(array1, new Range(0, total), comp, "testing the final array");
-            for (int index = 0; index < total; index++) {
-                if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
-                if (array2[index].index != array1[index].index) throw new Exception();
-            }
+			for (int index = 0; index < total; index++) {
+				if (comp.compare(array1[index], array2[index]) != 0) throw new Exception();
+				if (array2[index].index != array1[index].index) throw new Exception();
+			}
+			
 			System.out.println("correct!");
 		}
 		
 		total_time = Seconds() - total_time;
 		System.out.format("tests completed in %.2f seconds\n", total_time);
-		System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total_time1, total_time2, total_time2 / total_time1 * 100);
-		System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0 / total_compares2);
+		if (total_time1 >= total_time2)
+			System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+		else
+			System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
+		
+		if (total_compares1 <= total_compares2)
+			System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+		else
+			System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
 	}
 }

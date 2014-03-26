@@ -32,7 +32,7 @@ public:
 // toolbox functions used by the sorter
 
 // 63 -> 32, 64 -> 64, etc.
-// apparently this comes from Hacker's Delight?
+// this comes from Hacker's Delight
 size_t FloorPowerOfTwo (const size_t value) {
 	size_t x = value;
 	x = x | (x >> 1);
@@ -77,6 +77,7 @@ void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
+// (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
 template <typename T>
 void Rotate(T array[], const size_t amount, const Range range, T cache[], const size_t cache_size) {
 	if (range.length() == 0) return;
@@ -170,8 +171,22 @@ namespace Wiki {
 		//std::__merge_without_buffer(array + A.start, array + A.end, array + B.end, A.end - A.start, B.end - B.start, compare);
 		//return;
 		
-		// this just repeatedly binary searches into B and rotates A into position,
-		// although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm"
+		/*
+		 this just repeatedly binary searches into B and rotates A into position.
+		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
+		 but I decided to stick with this because it had better situational performance
+		 
+		 normally this is incredibly suboptimal, but this function is only called
+		 when none of the A or B blocks in any subarray contained 2√A unique values,
+		 which places a hard limit on the number of times this will ACTUALLY need
+		 to binary search and rotate.
+		 
+		 according to my analysis the worst case is √A rotations performed on √A items
+		 once the constant factors are removed, which ends up being O(n)
+		 
+		 again, this is NOT a general-purpose solution – it only works well in this case!
+		 kind of like how the O(n^2) insertion sort is used in some places
+		 */
 		while (A.length() > 0 && B.length() > 0) {
 			// find the first place in B where the first item in A needs to be inserted
 			size_t mid = BinaryFirst(array, array[A.start], B, compare);
@@ -534,10 +549,12 @@ namespace Wiki {
 								BlockSwap(array, blockA.start, minA, block_size);
 								
 								// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
-								// since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized
 								std::swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 								
-								// locally merge the previous A block with the B values that follow it, using the buffer as swap space
+								// locally merge the previous A block with the B values that follow it
+								// if lastA fits into the external cache we'll use that (with MergeExternal),
+								// or if the second internal buffer exists we'll use that (with MergeInternal),
+								// or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
 								if (lastA.length() <= cache_size)
 									MergeExternal(array, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
 								else if (buffer2.length() > 0)
@@ -561,16 +578,16 @@ namespace Wiki {
 									Rotate(array, blockA.start - B_split, Range(B_split, blockA.start + block_size), cache, cache_size);
 								}
 								
-								// now we need to update the ranges and stuff
+								// update the range for the remaining A blocks, and the range remaining from the B block after it was split
 								lastA = Range(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
 								lastB = Range(lastA.end, lastA.end + B_remaining);
 								
-								// if we finished dropping all of the A blocks behind, we're done!
+								// if there are no more A blocks remaining, this step is finished!
 								blockA.start += block_size;
 								if (blockA.length() == 0)
 									break;
 								
-								// search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!)
+								// search the second value of the remaining A blocks to find the new minimum A block
 								minA = blockA.start;
 								for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
 									if (compare(array[findA + 1], array[minA + 1]))
@@ -675,6 +692,8 @@ bool TestCompare(Test item1, Test item2) {
 using namespace std;
 
 // make sure the items within the given range are in a stable order
+// if you want to test the correctness of any changes you make to the main WikiSort function,
+// move this function to the top of the file and call it from within WikiSort after each step
 template <typename Comparison>
 void Verify(const Test array[], const Range range, const Comparison compare, const string msg) {
 	for (size_t index = range.start + 1; index < range.end; index++) {
@@ -828,8 +847,15 @@ int main() {
 		compares2 = comparisons;
 		total_compares2 += compares2;
 		
-		cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "%)" << endl;
-		cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "%)" << endl;
+		if (time1 >= time2)
+			cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "% as fast)" << endl;
+		else
+			cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 - 100.0 << "% faster)" << endl;
+		
+		if (compares1 <= compares2)
+			cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "% as many)" << endl;
+		else
+			cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 - 100.0 << "% more)" << endl;
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		cout << "verifying... " << flush;
@@ -843,8 +869,15 @@ int main() {
 	
 	total_time = Seconds() - total_time;
 	cout << "Tests completed in " << total_time << " seconds" << endl;
-	cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 << "%)" << endl;
-	cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 << "%)" << endl;
+	if (total_time1 >= total_time2)
+		cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 << "% as fast)" << endl;
+	else
+		cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 - 100.0 << "% faster)" << endl;
+	
+	if (total_compares1 <= total_compares2)
+		cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 << "% as many)" << endl;
+	else
+		cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 - 100.0 << "% more)" << endl;
 	
 	return 0;
 }

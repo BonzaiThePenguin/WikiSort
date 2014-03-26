@@ -89,7 +89,7 @@ Range Range_new(const size_t start, const size_t end) {
 }
 
 /* 63 -> 32, 64 -> 64, etc. */
-/* apparently this comes from Hacker's Delight? */
+/* this comes from Hacker's Delight */
 size_t FloorPowerOfTwo (const size_t value) {
 	size_t x = value;
 	x = x | (x >> 1);
@@ -160,6 +160,7 @@ void BlockSwap(Test array[], const size_t start1, const size_t start2, const siz
 }
 
 /* rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1) */
+/* (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!) */
 void Rotate(Test array[], const size_t amount, const Range range, Test cache[], const size_t cache_size) {
 	size_t split; Range range1, range2;
 	if (Range_length(range) == 0) return;
@@ -303,8 +304,22 @@ void MergeInternal(Test array[], const Range A, const Range B, const Comparison 
 
 /* merge operation without a buffer */
 void MergeInPlace(Test array[], Range A, Range B, const Comparison compare) {
-	/* this just repeatedly binary searches into B and rotates A into position, */
-	/* although the paper suggests using the "rotation-based variant of the Hwang and Lin algorithm" */
+	/*
+	 this just repeatedly binary searches into B and rotates A into position.
+	 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
+	 but I decided to stick with this because it had better situational performance
+	 
+	 normally this is incredibly suboptimal, but this function is only called
+	 when none of the A or B blocks in any subarray contained 2√A unique values,
+	 which places a hard limit on the number of times this will ACTUALLY need
+	 to binary search and rotate.
+	 
+	 according to my analysis the worst case is √A rotations performed on √A items
+	 once the constant factors are removed, which ends up being O(n)
+	 
+	 again, this is NOT a general-purpose solution – it only works well in this case!
+	 kind of like how the O(n^2) insertion sort is used in some places
+	 */
 	
 	while (Range_length(A) > 0 && Range_length(B) > 0) {
 		/* find the first place in B where the first item in A needs to be inserted */
@@ -322,22 +337,23 @@ void MergeInPlace(Test array[], Range A, Range B, const Comparison compare) {
 
 /* bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use */
 void WikiSort(Test array[], const size_t size, const Comparison compare) {
-	/* use a small cache to speed up some of the operations */
-	/* since the cache size is fixed, it's still O(1) memory! */
-	/* just keep in mind that making it too small ruins the point (nothing will fit into it), */
-	/* and making it too large also ruins the point (so much for "low memory"!) */
-	/* removing the cache entirely still gives 70% of the performance of a standard merge */
+	/* use a small cache to speed up some of the operations.
+	 since the cache size is fixed, it's still O(1) memory!
+	 just keep in mind that making it too small ruins the point (nothing will fit into it)
+	 and making it too large also ruins the point (so much for "low memory"!)
+	 removing the cache entirely still gives 70% of the performance of a standard merge */
+	
 	#define CACHE_SIZE 512
 	const size_t cache_size = CACHE_SIZE;
 	Test cache[CACHE_SIZE];
 	
-	/* note that you can easily modify the above to allocate a dynamically sized cache */
-	/* good choices for the cache size are: */
-	/* (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache */
-	/* sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges, */
-	/* so a buffer of this size would allow it to skip using internal or in-place merges for anything */
-	/* 512 – chosen from careful testing as a good balance between fixed-size memory use and run time */
-	/* 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
+	/* note that you can easily modify the above to allocate a dynamically sized cache
+	 good choices for the cache size are:
+	 (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
+	 sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
+	 so a buffer of this size would allow it to skip using internal or in-place merges for anything
+	 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
+	 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
 	
 	WikiIterator iterator;
 	
@@ -371,16 +387,16 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				}
 			}
 		} else {
-			/* this is where the in-place merge logic starts! */
-			/* 1. pull out two internal buffers each containing √A unique values */
-			/*     1a. adjust block_size and buffer_size if we couldn't find enough unique values */
-			/* 2. loop over the A and B areas within this level of the merge sort */
-			/*     3. break A and B into blocks of size 'block_size' */
-			/*     4. "tag" each of the A blocks with values from the first internal buffer */
-			/*     5. roll the A blocks through the B blocks and drop/rotate them where they belong */
-			/*     6. merge each A block with any B values that follow, using the cache or second the internal buffer */
-			/* 7. sort the second internal buffer if it exists */
-			/* 8. redistribute the two internal buffers back into the array */
+			/* this is where the in-place merge logic starts!
+			 1. pull out two internal buffers each containing √A unique values
+				1a. adjust block_size and buffer_size if we couldn't find enough unique values
+			 2. loop over the A and B areas within this level of the merge sort
+			 3. break A and B into blocks of size 'block_size'
+			 4. "tag" each of the A blocks with values from the first internal buffer
+			 5. roll the A blocks through the B blocks and drop/rotate them where they belong
+			 6. merge each A block with any B values that follow, using the cache or second the internal buffer
+			 7. sort the second internal buffer if it exists
+			 8. redistribute the two internal buffers back into the array */
 			
 			size_t block_size = sqrt(WikiIterator_length(&iterator));
 			size_t buffer_size = WikiIterator_length(&iterator)/block_size + 1;
@@ -615,11 +631,15 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 							/* swap the minimum A block to the beginning of the rolling A blocks */
 							BlockSwap(array, blockA.start, minA, block_size);
 							
-							/* we need to swap the second item of the previous A block back with its original value, which is stored in buffer1 */
-							/* since the firstA block did not have its value swapped out, we need to make sure the previous A block is not unevenly sized */
+							/* swap the second item of the previous A block back with its original value, which is stored in buffer1 */
 							Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
 							
-							/* locally merge the previous A block with the B values that follow it, using the buffer as swap space */
+							/*
+							 locally merge the previous A block with the B values that follow it
+							 if lastA fits into the external cache we'll use that (with MergeExternal),
+							 or if the second internal buffer exists we'll use that (with MergeInternal),
+							 or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
+							 */
 							if (Range_length(lastA) <= cache_size)
 								MergeExternal(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
 							else if (Range_length(buffer2) > 0)
@@ -643,15 +663,16 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 								Rotate(array, blockA.start - B_split, Range_new(B_split, blockA.start + block_size), cache, cache_size);
 							}
 							
-							/* now we need to update the ranges and stuff */
+							/* update the range for the remaining A blocks, and the range remaining from the B block after it was split */
 							lastA = Range_new(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
 							lastB = Range_new(lastA.end, lastA.end + B_remaining);
 							
+							/* if there are no more A blocks remaining, this step is finished! */
 							blockA.start += block_size;
 							if (Range_length(blockA) == 0)
 								break;
 							
-							/* search the second value of the remaining A blocks to find the new minimum A block (that's why we wrote unique values to them!) */
+							/* search the second value of the remaining A blocks to find the new minimum A block */
 							minA = blockA.start;
 							for (findA = minA + block_size; findA < blockA.end; findA += block_size)
 								if (compare(array[findA + 1], array[minA + 1]))
@@ -829,6 +850,8 @@ size_t TestingMostlyEqual(size_t index, size_t total) {
 
 
 /* make sure the items within the given range are in a stable order */
+/* if you want to test the correctness of any changes you make to the main WikiSort function,
+ move this function to the top of the file and call it from within WikiSort after each step */
 void WikiVerify(const Test array[], const Range range, const Comparison compare, const char *msg) {
 	size_t index, index2;
 	for (index = range.start + 1; index < range.end; index++) {
@@ -838,7 +861,7 @@ void WikiVerify(const Test array[], const Range range, const Comparison compare,
 			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 			
 			for (index2 = range.start; index2 < range.end; index2++)
-				printf("%zu (%zu) ", array[index2].value, array[index2].index);
+				printf("%lu (%lu) ", array[index2].value, array[index2].index);
 			
 			printf("failed with message: %s\n", msg);
 			assert(false);
@@ -939,8 +962,15 @@ int main() {
 		compares2 = comparisons;
 		total_compares2 += compares2;
 		
-		printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total, time1, time2, time2/time1 * 100.0);
-		printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%%)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+		if (time1 >= time2)
+			printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total, time1, time2, time2/time1 * 100.0);
+		else
+			printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total, time1, time2, time2/time1 * 100.0 - 100.0);
+		
+		if (compares1 <= compares2)
+			printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+		else
+			printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total, compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
@@ -955,8 +985,15 @@ int main() {
 	
 	total_time = Seconds() - total_time;
 	printf("tests completed in %.2f seconds\n", total_time);
-	printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%%)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
-	printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%%)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+	if (total_time1 >= total_time2)
+		printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+	else
+		printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
+	
+	if (total_compares1 <= total_compares2)
+		printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+	else
+		printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
 	
 	free(array1); free(array2);
 	return 0;
