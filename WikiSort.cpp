@@ -16,7 +16,18 @@
 #include <cstring>
 #include <ctime>
 
+// record the number of comparisons and assignments
+#define PROFILE true
+
+// simulate comparisons that have a bit more overhead than just an inlined (int < int)
+#define SLOW_COMPARISONS true
+
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
+
+#if PROFILE
+	// global for testing how many comparisons are performed for each sorting algorithm
+	long comparisons, assignments;
+#endif
 
 // structure to represent ranges within the array
 class Range {
@@ -26,7 +37,7 @@ public:
 	
 	Range() {}
 	Range(size_t start, size_t end) : start(start), end(end) {}
-	inline size_t length() const { return end - start; }
+	size_t length() const { return end - start; }
 };
 
 // toolbox functions used by the sorter
@@ -48,25 +59,106 @@ size_t FloorPowerOfTwo (const size_t value) {
 
 // find the index of the first value within the range that is equal to array[index]
 template <typename T, typename Comparison>
-size_t BinaryFirst(const T array[], const T &value, const Range range, const Comparison compare) {
+size_t BinaryFirst(const T array[], const T & value, const Range & range, const Comparison compare) {
 	return std::lower_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
 template <typename T, typename Comparison>
-size_t BinaryLast(const T array[], const T &value, const Range range, const Comparison compare) {
+size_t BinaryLast(const T array[], const T & value, const Range & range, const Comparison compare) {
 	return std::upper_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
+}
+
+// combine a linear search with a binary search to reduce the number of comparisons in situations
+// where have some idea as to how many unique values there are and where the next value might be
+template <typename T, typename Comparison>
+size_t FindFirstForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+	size_t skip = range.length()/unique, index = range.start + skip;
+	while (compare(array[index - 1], value)) {
+		if (index >= range.end - skip) {
+			skip = range.end - index;
+			index = range.end;
+			break;
+		}
+		index += skip;
+	}
+	
+	return BinaryFirst(array, value, Range(index - skip, index), compare);
+}
+
+template <typename T, typename Comparison>
+size_t FindLastForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+	size_t skip = range.length()/unique, index = range.start + skip;
+	while (!compare(value, array[index - 1])) {
+		if (index >= range.end - skip) {
+			skip = range.end - index;
+			index = range.end;
+			break;
+		}
+		index += skip;
+	}
+	
+	return BinaryLast(array, value, Range(index - skip, index), compare);
+}
+
+template <typename T, typename Comparison>
+size_t FindFirstBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+	size_t skip = range.length()/unique, index = range.end - skip;
+	while (index > range.start && !compare(array[index - 1], value)) {
+		if (index < range.start + skip) {
+			skip = index - range.start;
+			index = range.start;
+			break;
+		}
+		index -= skip;
+	}
+	
+	return BinaryFirst(array, value, Range(index, index + skip), compare);
+}
+
+template <typename T, typename Comparison>
+size_t FindLastBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+	size_t skip = range.length()/unique, index = range.end - skip;
+	while (index > range.start && compare(value, array[index - 1])) {
+		if (index < range.start + skip) {
+			skip = index - range.start;
+			index = range.start;
+			break;
+		}
+		index -= skip;
+	}
+	
+	return BinaryLast(array, value, Range(index, index + skip), compare);
 }
 
 // n^2 sorting algorithm used to sort tiny chunks of the full array
 template <typename T, typename Comparison>
-void InsertionSort(T array[], const Range range, const Comparison compare) {
-	std::__insertion_sort(&array[range.start], &array[range.end], compare);
+void InsertionSort(T array[], const Range & range, const Comparison compare) {
+	for (size_t i = range.start + 1; i < range.end; i++) {
+		const T temp = array[i];
+		size_t j;
+		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
+			array[j] = array[j - 1];
+		array[j] = temp;
+	}
+}
+
+// binary search variant of insertion sort,
+// which reduces the number of comparisons at the cost of some speed
+template <typename T, typename Comparison>
+void InsertionSortBinary(T array[], const Range & range, const Comparison compare) {
+	for (size_t i = range.start + 1; i < range.end; i++) {
+		T temp = array[i];
+		size_t insert = BinaryLast(array, temp, Range(range.start, i), compare);
+		for (size_t j = i; j > insert; j--)
+			array[j] = array[j - 1];
+		array[insert] = temp;
+	}
 }
 
 // reverse a range within the array
 template <typename T>
-void Reverse(T array[], const Range range) {
+void Reverse(T array[], const Range & range) {
 	std::reverse(&array[range.start], &array[range.end]);
 }
 
@@ -79,7 +171,7 @@ void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 // (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
 template <typename T>
-void Rotate(T array[], const size_t amount, const Range range, T cache[], const size_t cache_size) {
+void Rotate(T array[], const size_t & amount, const Range & range, T cache[], const size_t cache_size) {
 	if (range.length() == 0) return;
 	
 	size_t split = range.start + amount;
@@ -109,7 +201,7 @@ void Rotate(T array[], const size_t amount, const Range range, T cache[], const 
 namespace Wiki {
 	// merge operation using an external buffer
 	template <typename T, typename Comparison>
-	void MergeExternal(T array[], const Range A, const Range B, const Comparison compare, T cache[], const size_t cache_size) {
+	void MergeExternal(T array[], const Range & A, const Range & B, const Comparison compare, T cache[], const size_t cache_size) {
 		// A fits into the cache, so use that instead of the internal buffer
 		T *A_index = &cache[0], *B_index = &array[B.start];
 		T *A_last = &cache[A.length()], *B_last = &array[B.end];
@@ -137,7 +229,7 @@ namespace Wiki {
 	
 	// merge operation using an internal buffer
 	template <typename T, typename Comparison>
-	void MergeInternal(T array[], const Range A, const Range B, const Comparison compare, const Range buffer) {
+	void MergeInternal(T array[], const Range & A, const Range & B, const Comparison compare, const Range & buffer) {
 		// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 		// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
 		T *A_index = &array[buffer.start], *B_index = &array[B.start];
@@ -166,11 +258,7 @@ namespace Wiki {
 	
 	// merge operation without a buffer
 	template <typename T, typename Comparison>
-	void MergeInPlace(T array[], Range A, Range B, const Comparison compare) {
-		// this was found to be no faster for comparisons or assignments, at least in the specific situations where this is called!
-		//std::__merge_without_buffer(array + A.start, array + A.end, array + B.end, A.end - A.start, B.end - B.start, compare);
-		//return;
-		
+	void MergeInPlace(T array[], Range A, Range B, const Comparison compare, T cache[], const size_t cache_size) {
 		/*
 		 this just repeatedly binary searches into B and rotates A into position.
 		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
@@ -187,17 +275,19 @@ namespace Wiki {
 		 again, this is NOT a general-purpose solution – it only works well in this case!
 		 kind of like how the O(n^2) insertion sort is used in some places
 		 */
+		
 		while (A.length() > 0 && B.length() > 0) {
 			// find the first place in B where the first item in A needs to be inserted
 			size_t mid = BinaryFirst(array, array[A.start], B, compare);
 			
 			// rotate A into place
 			size_t amount = mid - A.end;
-			Rotate(array, A.length(), Range(A.start, mid), array, 0);
+			Rotate(array, A.length(), Range(A.start, mid), cache, cache_size);
 			
 			// calculate the new A and B ranges
 			B.start = mid;
-			A = Range(BinaryLast(array, array[A.start + amount], A, compare), B.start);
+			A = Range(A.start + amount, B.start);
+			A.start = BinaryLast(array, array[A.start], A, compare);
 		}
 	}
 	
@@ -287,11 +377,11 @@ namespace Wiki {
 		// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
 		
 		
-		// first insertion sort everything the lowest level, which is 16-31 items at a time
-		Wiki::Iterator iterator (size, 16);
+		// first insertion sort everything the lowest level, which is 8-15 items at a time
+		Wiki::Iterator iterator (size, 8);
 		iterator.begin();
 		while (!iterator.finished())
-			InsertionSort(array, iterator.nextRange(), compare);
+			InsertionSortBinary(array, iterator.nextRange(), compare);
 		
 		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
 		while (true) {
@@ -341,6 +431,7 @@ namespace Wiki {
 				
 				// in the case where it couldn't find a single buffer of at least √A unique values,
 				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
+				
 				iterator.begin();
 				while (!iterator.finished()) {
 					Range A = iterator.nextRange();
@@ -350,11 +441,12 @@ namespace Wiki {
 					// these values will be pulled out to the start of A
 					last = A.start;
 					count = 1;
-					for (index = A.start + 1; index < A.end; index++) {
-						if (compare(array[index - 1], array[index])) {
-							last = index;
-							if (++count >= find) break;
-						}
+					// assume find is > 1
+					while (true) {
+						index = FindLastForward(array, array[last], Range(last + 1, A.end), compare, find - count);
+						if (index == A.end) break;
+						last = index;
+						if (++count >= find) break;
 					}
 					index = last;
 					
@@ -401,11 +493,11 @@ namespace Wiki {
 					// these values will be pulled out to the end of B
 					last = B.end - 1;
 					count = 1;
-					for (index = B.end - 2; index >= B.start; index--) {
-						if (compare(array[index], array[index + 1])) {
-							last = index;
-							if (++count >= find) break;
-						}
+					while (true) {
+						index = FindFirstBackward(array, array[last], Range(B.start, last), compare, find - count);
+						if (index == B.start) break;
+						last = index - 1;
+						if (++count >= find) break;
 					}
 					index = last;
 					
@@ -461,22 +553,25 @@ namespace Wiki {
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
-						for (index = pull[pull_index].from; count < length; index--) {
-							if (index == pull[pull_index].to || compare(array[index - 1], array[index])) {
-								Range range = Range(index + 1, pull[pull_index].from + 1);
-								Rotate(array, range.length() - count, range, cache, cache_size);
-								pull[pull_index].from = index + count;
-								count++;
-							}
+						count = 1;
+						index = pull[pull_index].from;
+						while (count < length) {
+							index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
+							Range range = Range(index + 1, pull[pull_index].from + 1);
+							Rotate(array, range.length() - count, range, cache, cache_size);
+							pull[pull_index].from = index + count;
+							count++;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
 						// we're pulling values out to the right, which means the end of a B area
-						for (index = pull[pull_index].from; count < length; index++) {
-							if (index == pull[pull_index].to - 1 || compare(array[index], array[index + 1])) {
-								Rotate(array, count, Range(pull[pull_index].from, index), cache, cache_size);
-								pull[pull_index].from = index - count;
-								count++;
-							}
+						count = 1;
+						index = pull[pull_index].from + count;
+						while (count < length) {
+							index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
+							Range range = Range(pull[pull_index].from, index - 1);
+							Rotate(array, count, range, cache, cache_size);
+							pull[pull_index].from = index - 1 - count;
+							count++;
 						}
 					}
 				}
@@ -506,10 +601,7 @@ namespace Wiki {
 						}
 					}
 					
-					if (compare(array[B.end - 1], array[A.start])) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
-					} else if (compare(array[A.end], array[A.end - 1])) {
+					if (compare(array[A.end], array[A.end - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						
 						// break the remainder of A into blocks. firstA is the uneven-sized first A block
@@ -560,7 +652,7 @@ namespace Wiki {
 								else if (buffer2.length() > 0)
 									MergeInternal(array, lastA, Range(lastA.end, B_split), compare, buffer2);
 								else
-									MergeInPlace(array, lastA, Range(lastA.end, B_split), compare);
+									MergeInPlace(array, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
 								
 								if (buffer2.length() > 0 || block_size <= cache_size) {
 									// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
@@ -626,7 +718,10 @@ namespace Wiki {
 						else if (buffer2.length() > 0)
 							MergeInternal(array, lastA, Range(lastA.end, B.end), compare, buffer2);
 						else
-							MergeInPlace(array, lastA, Range(lastA.end, B.end), compare);
+							MergeInPlace(array, lastA, Range(lastA.end, B.end), compare, cache, cache_size);
+					} else if (compare(array[B.end - 1], array[A.start])) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
 					}
 				}
 				
@@ -641,26 +736,28 @@ namespace Wiki {
 					if (pull[pull_index].from > pull[pull_index].to) {
 						// the values were pulled out to the left, so redistribute them back to the right
 						Range buffer = Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
-						for (index = buffer.end; buffer.length() > 0; index++) {
-							if (index == pull[pull_index].range.end || !compare(array[index], array[buffer.start])) {
-								size_t amount = index - buffer.end;
-								Rotate(array, buffer.length(), Range(buffer.start, index), cache, cache_size);
-								buffer.start += (amount + 1);
-								buffer.end += amount;
-								index--;
-							}
+						
+						size_t unique = buffer.length() * 2;
+						while (buffer.length() > 0) {
+							index = FindFirstForward(array, array[buffer.start], Range(buffer.end, pull[pull_index].range.end), compare, unique);
+							size_t amount = index - buffer.end;
+							Rotate(array, buffer.length(), Range(buffer.start, index), cache, cache_size);
+							buffer.start += (amount + 1);
+							buffer.end += amount;
+							unique -= 2;
 						}
 					} else if (pull[pull_index].from < pull[pull_index].to) {
 						// the values were pulled out to the right, so redistribute them back to the left
 						Range buffer = Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
-						for (index = buffer.start; buffer.length() > 0; index--) {
-							if (index == pull[pull_index].range.start || !compare(array[buffer.end - 1], array[index - 1])) {
-								size_t amount = buffer.start - index;
-								Rotate(array, amount, Range(index, buffer.end), cache, cache_size);
-								buffer.start -= amount;
-								buffer.end -= (amount + 1);
-								index++;
-							}
+						
+						size_t unique = buffer.length() * 2;
+						while (buffer.length() > 0) {
+							index = FindLastBackward(array, array[buffer.end - 1], Range(pull[pull_index].range.start, buffer.start), compare, unique);
+							size_t amount = buffer.start - index;
+							Rotate(array, amount, Range(index, buffer.end), cache, cache_size);
+							buffer.start -= amount;
+							buffer.end -= (amount + 1);
+							unique -= 2;
 						}
 					}
 				}
@@ -674,17 +771,40 @@ namespace Wiki {
 
 
 
-// structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
-typedef struct {
+
+// class to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
+class Test {
+public:
 	size_t value;
 	size_t index;
-} Test;
+	
+#if PROFILE
+	Test& operator=(const Test & rhs) {
+		assignments++;
+		value = rhs.value;
+		index = rhs.index;
+		return *this;
+	}
+#endif
+};
 
-// global for testing how many comparisons are performed for each sorting algorithm
-long comparisons;
+#if SLOW_COMPARISONS
+	#define NOOP_SIZE 100
+	size_t noop1[NOOP_SIZE], noop2[NOOP_SIZE];
+#endif
 
 bool TestCompare(Test item1, Test item2) {
-	comparisons++;
+	#if PROFILE
+		comparisons++;
+	#endif
+	
+	#if SLOW_COMPARISONS
+		// test slow comparisons by adding some fake overhead
+		// (in real-world use this might be string comparisons, etc.)
+		for (size_t index = 0; index < NOOP_SIZE; index++)
+			noop1[index] = noop2[index];
+	#endif
+	
 	return (item1.value < item2.value);
 }
 
@@ -702,8 +822,8 @@ void Verify(const Test array[], const Range range, const Comparison compare, con
 		if (!(compare(array[index - 1], array[index]) ||
 			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 			
-			for (size_t index2 = range.start; index2 < range.end; index2++)
-				cout << array[index2].value << " (" << array[index2].index << ") ";
+			//for (size_t index2 = range.start; index2 < range.end; index2++)
+			//	cout << array[index2].value << " (" << array[index2].index << ") ";
 			
 			cout << endl << "failed with message: " << msg << endl;
 			assert(false);
@@ -712,13 +832,6 @@ void Verify(const Test array[], const Range range, const Comparison compare, con
 }
 
 namespace Testing {
-	size_t Pathological(size_t index, size_t total) {
-		if (index == 0) return 10;
-		else if (index < total/2) return 11;
-		else if (index == total - 1) return 10;
-		return 9;
-	}
-	
 	size_t Random(size_t index, size_t total) {
 		return rand();
 	}
@@ -760,10 +873,20 @@ int main() {
 	const size_t max_size = 1500000;
 	__typeof__(&TestCompare) compare = &TestCompare;
 	vector<Test> array1, array2;
-	size_t compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 	
-	__typeof__(&Testing::Pathological) test_cases[] = {
-		Testing::Pathological,
+	#if PROFILE
+		size_t compares1, compares2, total_compares1 = 0, total_compares2 = 0;
+		size_t assigns1, assigns2, total_assigns1 = 0, total_assigns2 = 0;
+	#endif
+	
+	// initialize the random-number generator
+	srand(time(NULL));
+	//srand(10141985); // in case you want the same random numbers
+	
+	size_t total = max_size;
+	
+#if !SLOW_COMPARISONS
+	__typeof__(&Testing::Random) test_cases[] = {
 		Testing::Random,
 		Testing::RandomFew,
 		Testing::MostlyDescending,
@@ -775,26 +898,18 @@ int main() {
 		Testing::MostlyEqual
 	};
 	
-	// initialize the random-number generator
-	srand(time(NULL));
-	//srand(10141985); // in case you want the same random numbers
-	
 	cout << "running test cases... " << flush;
-	size_t total = max_size;
 	array1.resize(total);
 	array2.resize(total);
 	for (int test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
 		for (size_t index = 0; index < total; index++) {
-			Test item;
-			
+			Test item = Test();
 			item.value = test_cases[test_case](index, total);
 			item.index = index;
 			
 			array1[index] = array2[index] = item;
 		}
-		
 		Wiki::Sort(array1.begin(), array1.end(), compare);
-		
 		stable_sort(array2.begin(), array2.end(), compare);
 		
 		Verify(&array1[0], Range(0, total), compare, "test case failed");
@@ -802,6 +917,7 @@ int main() {
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 	}
 	cout << "passed!" << endl;
+#endif
 	
 	double total_time = Seconds();
 	double total_time1 = 0, total_time2 = 0;
@@ -811,9 +927,8 @@ int main() {
 		array2.resize(total);
 		
 		for (size_t index = 0; index < total; index++) {
-			Test item;
+			Test item = Test();
 			
-			// Testing::Pathological
 			// Testing::Random
 			// Testing::RandomFew
 			// Testing::MostlyDescending
@@ -831,31 +946,46 @@ int main() {
 		}
 		
 		double time1 = Seconds();
-		comparisons = 0;
+		#if PROFILE
+			comparisons = assignments = 0;
+		#endif
 		Wiki::Sort(array1.begin(), array1.end(), compare);
 		time1 = Seconds() - time1;
 		total_time1 += time1;
-		compares1 = comparisons;
-		total_compares1 += compares1;
+		
+		#if PROFILE
+			compares1 = comparisons;
+			total_compares1 += compares1;
+			assigns1 = assignments;
+			total_assigns1 += assigns1;
+		#endif
 		
 		double time2 = Seconds();
-		comparisons = 0;
+		#if PROFILE
+			comparisons = assignments = 0;
+		#endif
 		//__inplace_stable_sort(array2.begin(), array2.end(), compare);
 		stable_sort(array2.begin(), array2.end(), compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
-		compares2 = comparisons;
-		total_compares2 += compares2;
 		
-		if (time1 >= time2)
-			cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "% as fast)" << endl;
-		else
-			cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 - 100.0 << "% faster)" << endl;
+		#if PROFILE
+			compares2 = comparisons;
+			total_compares2 += compares2;
+			assigns2 = assignments;
+			total_assigns2 += assigns2;
+		#endif
 		
-		if (compares1 <= compares2)
-			cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "% as many)" << endl;
-		else
-			cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 - 100.0 << "% more)" << endl;
+		if (time1 >= time2) cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "% as fast)" << endl;
+		else cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 - 100.0 << "% faster)" << endl;
+		
+		#if PROFILE
+			if (compares1 <= compares2) cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "% as many)" << endl;
+			else cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 - 100.0 << "% more)" << endl;
+			
+			if (assigns1 <= assigns2) cout << "[" << total << "] WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 << "% as many)" << endl;
+			else cout << "[" << total << "] WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 - 100.0 << "% more)" << endl;
+		#endif
 		
 		// make sure the arrays are sorted correctly, and that the results were stable
 		cout << "verifying... " << flush;
@@ -869,15 +999,16 @@ int main() {
 	
 	total_time = Seconds() - total_time;
 	cout << "Tests completed in " << total_time << " seconds" << endl;
-	if (total_time1 >= total_time2)
-		cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 << "% as fast)" << endl;
-	else
-		cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 - 100.0 << "% faster)" << endl;
+	if (total_time1 >= total_time2) cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 << "% as fast)" << endl;
+	else cout << "WikiSort: " << total_time1 << " seconds, stable_sort: " << total_time2 << " seconds (" << total_time2/total_time1 * 100.0 - 100.0 << "% faster)" << endl;
 	
-	if (total_compares1 <= total_compares2)
-		cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 << "% as many)" << endl;
-	else
-		cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 - 100.0 << "% more)" << endl;
+	#if PROFILE
+		if (total_compares1 <= total_compares2) cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 << "% as many)" << endl;
+		else cout << "WikiSort: " << total_compares1 << " compares, stable_sort: " << total_compares2 << " compares (" << total_compares1 * 100.0/total_compares2 - 100.0 << "% more)" << endl;
+		
+		if (total_assigns1 <= total_assigns2) cout << "WikiSort: " << total_assigns1 << " assigns, stable_sort: " << total_assigns2 << " assigns (" << total_assigns1 * 100.0/total_assigns2 << "% as many)" << endl;
+		else cout << "WikiSort: " << total_assigns1 << " assigns, stable_sort: " << total_assigns2 << " assigns (" << total_assigns1 * 100.0/total_assigns2 - 100.0 << "% more)" << endl;
+	#endif
 	
 	return 0;
 }

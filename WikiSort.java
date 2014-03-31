@@ -7,6 +7,9 @@
  java WikiSort
 ***********************************************************/
 
+// the performance of WikiSort here seems to be completely at the mercy of the JIT compiler
+// sometimes it's 40% as fast, sometimes 80%, and either way it's a lot slower than the C code
+
 import java.util.*;
 import java.lang.*;
 import java.io.*;
@@ -186,6 +189,64 @@ class WikiSorter<T> {
 		return start;
 	}
 	
+	// combine a linear search with a binary search to reduce the number of comparisons in situations
+	// where have some idea as to how many unique values there are and where the next value might be
+	int FindFirstForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
+		int skip = range.length()/unique, index = range.start + skip;
+		while (comp.compare(array[index - 1], value) < 0) {
+			if (index >= range.end - skip) {
+				skip = range.end - index;
+				index = range.end;
+				break;
+			}
+			index += skip;
+		}
+		
+		return BinaryFirst(array, value, new Range(index - skip, index), comp);
+	}
+	
+	int FindLastForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
+		int skip = range.length()/unique, index = range.start + skip;
+		while (comp.compare(value, array[index - 1]) >= 0) {
+			if (index >= range.end - skip) {
+				skip = range.end - index;
+				index = range.end;
+				break;
+			}
+			index += skip;
+		}
+		
+		return BinaryLast(array, value, new Range(index - skip, index), comp);
+	}
+	
+	int FindFirstBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
+		int skip = range.length()/unique, index = range.end - skip;
+		while (index > range.start && comp.compare(array[index - 1], value) >= 0) {
+			if (index < range.start + skip) {
+				skip = index - range.start;
+				index = range.start;
+				break;
+			}
+			index -= skip;
+		}
+		
+		return BinaryFirst(array, value, new Range(index, index + skip), comp);
+	}
+	
+	int FindLastBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
+		int skip = range.length()/unique, index = range.end - skip;
+		while (index > range.start && comp.compare(value, array[index - 1]) < 0) {
+			if (index < range.start + skip) {
+				skip = index - range.start;
+				index = range.start;
+				break;
+			}
+			index -= skip;
+		}
+		
+		return BinaryLast(array, value, new Range(index, index + skip), comp);
+	}
+	
 	// n^2 sorting algorithm used to sort tiny chunks of the full array
 	void InsertionSort(T array[], Range range, Comparator<T> comp) {
 		for (int i = range.start + 1; i < range.end; i++) {
@@ -194,6 +255,18 @@ class WikiSorter<T> {
 			for (j = i; j > range.start && comp.compare(temp, array[j - 1]) < 0; j--)
 				array[j] = array[j - 1];
 			array[j] = temp;
+		}
+	}
+	
+	// binary search variant of insertion sort,
+	// which reduces the number of comparisons at the cost of some speed
+	void InsertionSortBinary(T array[], Range range, Comparator<T> comp) {
+		for (int i = range.start + 1; i < range.end; i++) {
+			T temp = array[i];
+			int insert = BinaryLast(array, temp, new Range(range.start, i), comp);
+			for (int j = i; j > insert; j--)
+				array[j] = array[j - 1];
+			array[insert] = temp;
 		}
 	}
 	
@@ -340,7 +413,7 @@ class WikiSorter<T> {
 			
 			// rotate A into place
 			int amount = mid - A.end;
-			Rotate(array, -amount, new Range(A.start, mid), false);
+			Rotate(array, -amount, new Range(A.start, mid), true);
 			
 			// calculate the new A and B ranges
 			B.start = A.end = mid;
@@ -358,11 +431,11 @@ class WikiSorter<T> {
 			return;
 		}
 		
-		// first insertion sort everything the lowest level, which is 16-31 items at a time
-		Iterator iterator = new Iterator(size, 16);
+		// first insertion sort everything the lowest level, which is 8-15 items at a time
+		Iterator iterator = new Iterator(size, 8);
 		iterator.begin();
 		while (!iterator.finished())
-			InsertionSort(array, iterator.nextRange(), comp);
+			InsertionSortBinary(array, iterator.nextRange(), comp);
 		
 		// we need to keep track of a lot of ranges during this sort!
 		Range buffer1 = new Range(), buffer2 = new Range();
@@ -417,7 +490,7 @@ class WikiSorter<T> {
 				pull[1].reset();
 				
 				// if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values
-				long find = buffer_size + buffer_size;
+				int find = buffer_size + buffer_size;
 				if (block_size <= cache_size) find = buffer_size;
 				
 				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
@@ -435,11 +508,12 @@ class WikiSorter<T> {
 					// these values will be pulled out to the start of A
 					last = A.start;
 					count = 1;
-					for (index = A.start + 1; index < A.end; index++) {
-						if (comp.compare(array[index - 1], array[index]) < 0) {
-							last = index;
-							if (++count >= find) break;
-						}
+					// assume find is > 1
+					while (true) {
+						index = FindLastForward(array, array[last], new Range(last + 1, A.end), comp, find - count);
+						if (index == A.end) break;
+						last = index;
+						if (++count >= find) break;
 					}
 					index = last;
 					
@@ -486,11 +560,11 @@ class WikiSorter<T> {
 					// these values will be pulled out to the end of B
 					last = B.end - 1;
 					count = 1;
-					for (index = B.end - 2; index >= B.start; index--) {
-						if (comp.compare(array[index], array[index + 1]) < 0) {
-							last = index;
-							if (++count >= find) break;
-						}
+					while (true) {
+						index = FindFirstBackward(array, array[last], new Range(B.start, last), comp, find - count);
+						if (index == B.start) break;
+						last = index - 1;
+						if (++count >= find) break;
 					}
 					index = last;
 					
@@ -546,21 +620,25 @@ class WikiSorter<T> {
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
-						for (index = pull[pull_index].from; count < length; index--) {
-							if (index == pull[pull_index].to || comp.compare(array[index - 1], array[index]) < 0) {
-								Rotate(array, -count, new Range(index + 1, pull[pull_index].from + 1), true);
-								pull[pull_index].from = index + count;
-								count++;
-							}
+						count = 1;
+						index = pull[pull_index].from;
+						while (count < length) {
+							index = FindFirstBackward(array, array[index - 1], new Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), comp, length - count);
+							Range range = new Range(index + 1, pull[pull_index].from + 1);
+							Rotate(array, range.length() - count, range, true);
+							pull[pull_index].from = index + count;
+							count++;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
 						// we're pulling values out to the right, which means the end of a B area
-						for (index = pull[pull_index].from; count < length; index++) {
-							if (index == pull[pull_index].to - 1 || comp.compare(array[index], array[index + 1]) < 0) {
-								Rotate(array, count, new Range(pull[pull_index].from, index), true);
-								pull[pull_index].from = index - count;
-								count++;
-							}
+						count = 1;
+						index = pull[pull_index].from + count;
+						while (count < length) {
+							index = FindLastForward(array, array[index], new Range(index, pull[pull_index].to), comp, length - count);
+							Range range = new Range(pull[pull_index].from, index - 1);
+							Rotate(array, count, range, true);
+							pull[pull_index].from = index - 1 - count;
+							count++;
 						}
 					}
 				}
@@ -590,10 +668,7 @@ class WikiSorter<T> {
 						}
 					}
 					
-					if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
-					} else if (comp.compare(array[A.end], array[A.end - 1]) < 0) {
+					if (comp.compare(array[A.end], array[A.end - 1]) < 0) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						
 						// break the remainder of A into blocks. firstA is the uneven-sized first A block
@@ -722,6 +797,9 @@ class WikiSorter<T> {
 							MergeInternal(array, lastA, new Range(lastA.end, B.end), comp, buffer2);
 						else
 							MergeInPlace(array, lastA, new Range(lastA.end, B.end), comp);
+					} else if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
 					}
 				}
 				
@@ -736,26 +814,28 @@ class WikiSorter<T> {
 					if (pull[pull_index].from > pull[pull_index].to) {
 						// the values were pulled out to the left, so redistribute them back to the right
 						Range buffer = new Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
-						for (index = buffer.end; buffer.length() > 0; index++) {
-							if (index == pull[pull_index].range.end || comp.compare(array[index], array[buffer.start]) >= 0) {
-								int amount = index - buffer.end;
-								Rotate(array, -amount, new Range(buffer.start, index), true);
-								buffer.start += (amount + 1);
-								buffer.end += amount;
-								index--;
-							}
+						
+						int unique = buffer.length() * 2;
+						while (buffer.length() > 0) {
+							index = FindFirstForward(array, array[buffer.start], new Range(buffer.end, pull[pull_index].range.end), comp, unique);
+							int amount = index - buffer.end;
+							Rotate(array, buffer.length(), new Range(buffer.start, index), true);
+							buffer.start += (amount + 1);
+							buffer.end += amount;
+							unique -= 2;
 						}
 					} else if (pull[pull_index].from < pull[pull_index].to) {
 						// the values were pulled out to the right, so redistribute them back to the left
 						Range buffer = new Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
-						for (index = buffer.start; buffer.length() > 0; index--) {
-							if (index == pull[pull_index].range.start || comp.compare(array[buffer.end - 1], array[index - 1]) >= 0) {
-								int amount = buffer.start - index;
-								Rotate(array, amount, new Range(index, buffer.end), true);
-								buffer.start -= amount;
-								buffer.end -= (amount + 1);
-								index++;
-							}
+						
+						int unique = buffer.length() * 2;
+						while (buffer.length() > 0) {
+							index = FindLastBackward(array, array[buffer.end - 1], new Range(pull[pull_index].range.start, buffer.start), comp, unique);
+							int amount = buffer.start - index;
+							Rotate(array, amount, new Range(index, buffer.end), true);
+							buffer.start -= amount;
+							buffer.end -= (amount + 1);
+							unique -= 2;
 						}
 					}
 				}
@@ -837,15 +917,6 @@ class SortRandom {
 class Testing {
 	int value(int index, int total) {
 		return index;
-	}
-}
-
-class TestingPathological extends Testing {
-	int value(int index, int total) {
-		if (index == 0) return 10;
-		else if (index < total/2) return 11;
-		else if (index == total - 1) return 10;
-		return 9;
 	}
 }
 
@@ -935,7 +1006,6 @@ class WikiSort {
 		int compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 		
 		Testing[] test_cases = {
-			new TestingPathological(),
 			new TestingRandom(),
 			new TestingRandomFew(),
 			new TestingMostlyDescending(),

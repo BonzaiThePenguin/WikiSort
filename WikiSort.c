@@ -18,6 +18,12 @@
 #include <time.h>
 #include <limits.h>
 
+/* record the number of comparisons */
+#define PROFILE true
+
+/* simulate comparisons that have a bit more overhead than just an inlined (int < int) */
+#define SLOW_COMPARISONS true
+
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 
@@ -48,11 +54,29 @@ typedef struct {
 	size_t index;
 } Test;
 
-/* global for testing how many comparisons are performed for each sorting algorithm */
-size_t comparisons;
+#if PROFILE
+	/* global for testing how many comparisons are performed for each sorting algorithm */
+	size_t comparisons;
+#endif
+
+#if SLOW_COMPARISONS
+	#define NOOP_SIZE 100
+	size_t noop1[NOOP_SIZE], noop2[NOOP_SIZE];
+#endif
 
 bool TestCompare(Test item1, Test item2) {
-	comparisons++;
+	#if SLOW_COMPARISONS
+		/* test slow comparisons by adding some fake overhead */
+		/* (in real-world use this might be string comparisons, etc.) */
+		size_t index;
+		for (index = 0; index < NOOP_SIZE; index++)
+			noop1[index] = noop2[index];
+	#endif
+	
+	#if PROFILE
+		comparisons++;
+	#endif
+	
 	return (item1.value < item2.value);
 }
 
@@ -133,15 +157,85 @@ size_t BinaryLast(const Test array[], const Test value, const Range range, const
 	return start;
 }
 
+/* combine a linear search with a binary search to reduce the number of comparisons in situations */
+/* where have some idea as to how many unique values there are and where the next value might be */
+size_t FindFirstForward(const Test array[], const Test value, const Range range, const Comparison compare, const size_t unique) {
+	size_t skip = Range_length(range)/unique, index = range.start + skip;
+	while (compare(array[index - 1], value)) {
+		if (index >= range.end - skip) {
+			skip = range.end - index;
+			index = range.end;
+			break;
+		}
+		index += skip;
+	}
+	
+	return BinaryFirst(array, value, Range_new(index - skip, index), compare);
+}
+
+size_t FindLastForward(const Test array[], const Test value, const Range range, const Comparison compare, const size_t unique) {
+	size_t skip = Range_length(range)/unique, index = range.start + skip;
+	while (!compare(value, array[index - 1])) {
+		if (index >= range.end - skip) {
+			skip = range.end - index;
+			index = range.end;
+			break;
+		}
+		index += skip;
+	}
+	
+	return BinaryLast(array, value, Range_new(index - skip, index), compare);
+}
+
+size_t FindFirstBackward(const Test array[], const Test value, const Range range, const Comparison compare, const size_t unique) {
+	size_t skip = Range_length(range)/unique, index = range.end - skip;
+	while (index > range.start && !compare(array[index - 1], value)) {
+		if (index < range.start + skip) {
+			skip = index - range.start;
+			index = range.start;
+			break;
+		}
+		index -= skip;
+	}
+	
+	return BinaryFirst(array, value, Range_new(index, index + skip), compare);
+}
+
+size_t FindLastBackward(const Test array[], const Test value, const Range range, const Comparison compare, const size_t unique) {
+	size_t skip = Range_length(range)/unique, index = range.end - skip;
+	while (index > range.start && compare(value, array[index - 1])) {
+		if (index < range.start + skip) {
+			skip = index - range.start;
+			index = range.start;
+			break;
+		}
+		index -= skip;
+	}
+	
+	return BinaryLast(array, value, Range_new(index, index + skip), compare);
+}
+
 /* n^2 sorting algorithm used to sort tiny chunks of the full array */
 void InsertionSort(Test array[], const Range range, const Comparison compare) {
-	size_t i;
+	size_t i, j;
 	for (i = range.start + 1; i < range.end; i++) {
 		const Test temp = array[i];
-		size_t j;
 		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
 			array[j] = array[j - 1];
 		array[j] = temp;
+	}
+}
+
+/* binary search variant of insertion sort, */
+/* which reduces the number of comparisons at the cost of some speed */
+void InsertionSortBinary(Test array[], const Range range, const Comparison compare) {
+	size_t i, j, insert;
+	for (i = range.start + 1; i < range.end; i++) {
+		const Test temp = array[i];
+		insert = BinaryLast(array, temp, Range_new(range.start, i), compare);
+		for (j = i; j > insert; j--)
+			array[j] = array[j - 1];
+		array[insert] = temp;
 	}
 }
 
@@ -303,7 +397,7 @@ void MergeInternal(Test array[], const Range A, const Range B, const Comparison 
 }
 
 /* merge operation without a buffer */
-void MergeInPlace(Test array[], Range A, Range B, const Comparison compare) {
+void MergeInPlace(Test array[], Range A, Range B, const Comparison compare, Test cache[], const size_t cache_size) {
 	/*
 	 this just repeatedly binary searches into B and rotates A into position.
 	 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
@@ -327,7 +421,7 @@ void MergeInPlace(Test array[], Range A, Range B, const Comparison compare) {
 		
 		/* rotate A into place */
 		size_t amount = mid - A.end;
-		Rotate(array, Range_length(A), Range_new(A.start, mid), array, 0);
+		Rotate(array, Range_length(A), Range_new(A.start, mid), cache, cache_size);
 		
 		/* calculate the new A and B ranges */
 		B.start = mid;
@@ -363,11 +457,11 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 		return;
 	}
 	
-	/* first insertion sort everything the lowest level, which is 16-31 items at a time */
-	iterator = WikiIterator_new(size, 16);
+	/* first insertion sort everything the lowest level, which is 8-15 items at a time */
+	iterator = WikiIterator_new(size, 8);
 	WikiIterator_begin(&iterator);
 	while (!WikiIterator_finished(&iterator))
-		InsertionSort(array, WikiIterator_nextRange(&iterator), compare);
+		InsertionSortBinary(array, WikiIterator_nextRange(&iterator), compare);
 	
 	/* then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc. */
 	while (true) {
@@ -429,11 +523,12 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				/* these values will be pulled out to the start of A */
 				last = A.start;
 				count = 1;
-				for (index = A.start + 1; index < A.end; index++) {
-					if (compare(array[index - 1], array[index])) {
-						last = index;
-						if (++count >= find) break;
-					}
+				/* assume find is > 1 */
+				while (true) {
+					index = FindLastForward(array, array[last], Range_new(last + 1, A.end), compare, find - count);
+					if (index == A.end) break;
+					last = index;
+					if (++count >= find) break;
 				}
 				index = last;
 				
@@ -480,11 +575,11 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				/* these values will be pulled out to the end of B */
 				last = B.end - 1;
 				count = 1;
-				for (index = B.end - 2; index >= B.start; index--) {
-					if (compare(array[index], array[index + 1])) {
-						last = index;
-						if (++count >= find) break;
-					}
+				while (true) {
+					index = FindFirstBackward(array, array[last], Range_new(B.start, last), compare, find - count);
+					if (index == B.start) break;
+					last = index - 1;
+					if (++count >= find) break;
 				}
 				index = last;
 				
@@ -535,27 +630,31 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			
 			/* pull out the two ranges so we can use them as internal buffers */
 			for (pull_index = 0; pull_index < 2; pull_index++) {
+				Range range;
 				size_t length = pull[pull_index].count;
 				count = 0;
 				
 				if (pull[pull_index].to < pull[pull_index].from) {
 					/* we're pulling the values out to the left, which means the start of an A area */
-					for (index = pull[pull_index].from; count < length; index--) {
-						if (index == pull[pull_index].to || compare(array[index - 1], array[index])) {
-							Range range = Range_new(index + 1, pull[pull_index].from + 1);
-							Rotate(array, Range_length(range) - count, range, cache, cache_size);
-							pull[pull_index].from = index + count;
-							count++;
-						}
+					count = 1;
+					index = pull[pull_index].from;
+					while (count < length) {
+						index = FindFirstBackward(array, array[index - 1], Range_new(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
+						range = Range_new(index + 1, pull[pull_index].from + 1);
+						Rotate(array, Range_length(range) - count, range, cache, cache_size);
+						pull[pull_index].from = index + count;
+						count++;
 					}
 				} else if (pull[pull_index].to > pull[pull_index].from) {
 					/* we're pulling values out to the right, which means the end of a B area */
-					for (index = pull[pull_index].from; count < length; index++) {
-						if (index == pull[pull_index].to - 1 || compare(array[index], array[index + 1])) {
-							Rotate(array, count, Range_new(pull[pull_index].from, index), cache, cache_size);
-							pull[pull_index].from = index - count;
-							count++;
-						}
+					count = 1;
+					index = pull[pull_index].from + count;
+					while (count < length) {
+						index = FindLastForward(array, array[index], Range_new(index, pull[pull_index].to), compare, length - count);
+						range = Range_new(pull[pull_index].from, index - 1);
+						Rotate(array, count, range, cache, cache_size);
+						pull[pull_index].from = index - 1 - count;
+						count++;
 					}
 				}
 			}
@@ -585,10 +684,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					}
 				}
 				
-				if (compare(array[B.end - 1], array[A.start])) {
-					/* the two ranges are in reverse order, so a simple rotation should fix it */
-					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
-				} else if (compare(array[A.end], array[A.end - 1])) {
+				if (compare(array[A.end], array[A.end - 1])) {
 					/* these two ranges weren't already in order, so we'll need to merge them! */
 					Range blockA, firstA, lastA, lastB, blockB;
 					size_t minA, indexA, findA;
@@ -645,7 +741,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 							else if (Range_length(buffer2) > 0)
 								MergeInternal(array, lastA, Range_new(lastA.end, B_split), compare, buffer2);
 							else
-								MergeInPlace(array, lastA, Range_new(lastA.end, B_split), compare);
+								MergeInPlace(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
 							
 							if (Range_length(buffer2) > 0 || block_size <= cache_size) {
 								/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
@@ -711,7 +807,10 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					else if (Range_length(buffer2) > 0)
 						MergeInternal(array, lastA, Range_new(lastA.end, B.end), compare, buffer2);
 					else
-						MergeInPlace(array, lastA, Range_new(lastA.end, B.end), compare);
+						MergeInPlace(array, lastA, Range_new(lastA.end, B.end), compare, cache, cache_size);
+				} else if (compare(array[B.end - 1], array[A.start])) {
+					/* the two ranges are in reverse order, so a simple rotation should fix it */
+					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
 				}
 			}
 			
@@ -726,26 +825,26 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				if (pull[pull_index].from > pull[pull_index].to) {
 					/* the values were pulled out to the left, so redistribute them back to the right */
 					Range buffer = Range_new(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
-					for (index = buffer.end; Range_length(buffer) > 0; index++) {
-						if (index == pull[pull_index].range.end || !compare(array[index], array[buffer.start])) {
-							size_t amount = index - buffer.end;
-							Rotate(array, Range_length(buffer), Range_new(buffer.start, index), cache, cache_size);
-							buffer.start += (amount + 1);
-							buffer.end += amount;
-							index--;
-						}
+					size_t amount, unique = Range_length(buffer) * 2;
+					while (Range_length(buffer) > 0) {
+						index = FindFirstForward(array, array[buffer.start], Range_new(buffer.end, pull[pull_index].range.end), compare, unique);
+						amount = index - buffer.end;
+						Rotate(array, Range_length(buffer), Range_new(buffer.start, index), cache, cache_size);
+						buffer.start += (amount + 1);
+						buffer.end += amount;
+						unique -= 2;
 					}
 				} else if (pull[pull_index].from < pull[pull_index].to) {
 					/* the values were pulled out to the right, so redistribute them back to the left */
 					Range buffer = Range_new(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
-					for (index = buffer.start; Range_length(buffer) > 0; index--) {
-						if (index == pull[pull_index].range.start || !compare(array[buffer.end - 1], array[index - 1])) {
-							size_t amount = buffer.start - index;
-							Rotate(array, amount, Range_new(index, buffer.end), cache, cache_size);
-							buffer.start -= amount;
-							buffer.end -= (amount + 1);
-							index++;
-						}
+					size_t amount, unique = Range_length(buffer) * 2;
+					while (Range_length(buffer) > 0) {
+						index = FindLastBackward(array, array[buffer.end - 1], Range_new(pull[pull_index].range.start, buffer.start), compare, unique);
+						amount = buffer.start - index;
+						Rotate(array, amount, Range_new(index, buffer.end), cache, cache_size);
+						buffer.start -= amount;
+						buffer.end -= (amount + 1);
+						unique -= 2;
 					}
 				}
 			}
@@ -804,14 +903,6 @@ void MergeSort(Test array[], const size_t array_count, const Comparison compare)
 
 
 
-
-size_t TestingPathological(size_t index, size_t total) {
-	if (index == 0) return 10;
-	else if (index < total/2) return 11;
-	else if (index == total - 1) return 10;
-	return 9;
-}
-
 size_t TestingRandom(size_t index, size_t total) {
 	return rand();
 }
@@ -853,15 +944,15 @@ size_t TestingMostlyEqual(size_t index, size_t total) {
 /* if you want to test the correctness of any changes you make to the main WikiSort function,
  move this function to the top of the file and call it from within WikiSort after each step */
 void WikiVerify(const Test array[], const Range range, const Comparison compare, const char *msg) {
-	size_t index, index2;
+	size_t index;
 	for (index = range.start + 1; index < range.end; index++) {
 		/* if it's in ascending order then we're good */
 		/* if both values are equal, we need to make sure the index values are ascending */
 		if (!(compare(array[index - 1], array[index]) ||
 			  (!compare(array[index], array[index - 1]) && array[index].index > array[index - 1].index))) {
 			
-			for (index2 = range.start; index2 < range.end; index2++)
-				printf("%lu (%lu) ", array[index2].value, array[index2].index);
+			/*for (index2 = range.start; index2 < range.end; index2++) */
+			/*	printf("%lu (%lu) ", array[index2].value, array[index2].index); */
 			
 			printf("failed with message: %s\n", msg);
 			assert(false);
@@ -870,35 +961,41 @@ void WikiVerify(const Test array[], const Range range, const Comparison compare,
 }
 
 int main() {
-	size_t total, index, test_case;
+	size_t total, index;
 	double total_time, total_time1, total_time2;
 	const size_t max_size = 1500000;
 	Var(array1, Allocate(Test, max_size));
 	Var(array2, Allocate(Test, max_size));
 	Comparison compare = TestCompare;
-	size_t compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 	
-	__typeof__(&TestingPathological) test_cases[] = {
-		TestingPathological,
-		TestingRandom,
-		TestingRandomFew,
-		TestingMostlyDescending,
-		TestingMostlyAscending,
-		TestingAscending,
-		TestingDescending,
-		TestingEqual,
-		TestingJittered,
-		TestingMostlyEqual
-	};
+	#if PROFILE
+		size_t compares1, compares2, total_compares1 = 0, total_compares2 = 0;
+	#endif
+	#if !SLOW_COMPARISONS
+		size_t test_case;
+		__typeof__(&TestingRandom) test_cases[] = {
+			TestingRandom,
+			TestingRandomFew,
+			TestingMostlyDescending,
+			TestingMostlyAscending,
+			TestingAscending,
+			TestingDescending,
+			TestingEqual,
+			TestingJittered,
+			TestingMostlyEqual
+		};
+	#endif
 	
 	/* initialize the random-number generator */
 	srand(time(NULL));
 	/*srand(10141985);*/ /* in case you want the same random numbers */
 	
+	total = max_size;
+	
+#if !SLOW_COMPARISONS
 	printf("running test cases... ");
 	fflush(stdout);
 	
-	total = max_size;
 	for (test_case = 0; test_case < sizeof(test_cases)/sizeof(test_cases[0]); test_case++) {
 		
 		for (index = 0; index < total; index++) {
@@ -919,6 +1016,7 @@ int main() {
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 	}
 	printf("passed!\n");
+#endif
 	
 	total_time = Seconds();
 	total_time1 = total_time2 = 0;
@@ -929,7 +1027,6 @@ int main() {
 		for (index = 0; index < total; index++) {
 			Test item;
 			
-			/* TestingPathological */
 			/* TestingRandom */
 			/* TestingRandomFew */
 			/* TestingMostlyDescending */
@@ -947,30 +1044,40 @@ int main() {
 		}
 		
 		time1 = Seconds();
-		comparisons = 0;
+		#if PROFILE
+			comparisons = 0;
+		#endif
 		WikiSort(array1, total, compare);
 		time1 = Seconds() - time1;
 		total_time1 += time1;
-		compares1 = comparisons;
-		total_compares1 += compares1;
+		#if PROFILE
+			compares1 = comparisons;
+			total_compares1 += compares1;
+		#endif
 		
 		time2 = Seconds();
-		comparisons = 0;
+		#if PROFILE
+			comparisons = 0;
+		#endif
 		MergeSort(array2, total, compare);
 		time2 = Seconds() - time2;
 		total_time2 += time2;
-		compares2 = comparisons;
-		total_compares2 += compares2;
+		#if PROFILE
+			compares2 = comparisons;
+			total_compares2 += compares2;
+		#endif
 		
 		if (time1 >= time2)
 			printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total, time1, time2, time2/time1 * 100.0);
 		else
 			printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total, time1, time2, time2/time1 * 100.0 - 100.0);
 		
-		if (compares1 <= compares2)
-			printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total, compares1, compares2, compares1 * 100.0/compares2);
-		else
-			printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total, compares1, compares2, compares1 * 100.0/compares2 - 100.0);
+		#if PROFILE
+			if (compares1 <= compares2)
+				printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+			else
+				printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total, compares1, compares2, compares1 * 100.0/compares2 - 100.0);
+		#endif
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
 		printf("verifying... ");
@@ -990,10 +1097,12 @@ int main() {
 	else
 		printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
 	
-	if (total_compares1 <= total_compares2)
-		printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
-	else
-		printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
+	#if PROFILE
+		if (total_compares1 <= total_compares2)
+			printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+		else
+			printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
+	#endif
 	
 	free(array1); free(array2);
 	return 0;
