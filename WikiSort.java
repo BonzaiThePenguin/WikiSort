@@ -192,7 +192,8 @@ class WikiSorter<T> {
 	// combine a linear search with a binary search to reduce the number of comparisons in situations
 	// where have some idea as to how many unique values there are and where the next value might be
 	int FindFirstForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
-		int skip = range.length()/unique, index = range.start + skip;
+		if (range.length() == 0) return range.start;
+		int skip = Math.max(range.length()/unique, 1), index = range.start + skip;
 		while (comp.compare(array[index - 1], value) < 0) {
 			if (index >= range.end - skip) {
 				skip = range.end - index;
@@ -206,7 +207,8 @@ class WikiSorter<T> {
 	}
 	
 	int FindLastForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
-		int skip = range.length()/unique, index = range.start + skip;
+		if (range.length() == 0) return range.start;
+		int skip = Math.max(range.length()/unique, 1), index = range.start + skip;
 		while (comp.compare(value, array[index - 1]) >= 0) {
 			if (index >= range.end - skip) {
 				skip = range.end - index;
@@ -220,7 +222,8 @@ class WikiSorter<T> {
 	}
 	
 	int FindFirstBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
-		int skip = range.length()/unique, index = range.end - skip;
+		if (range.length() == 0) return range.start;
+		int skip = Math.max(range.length()/unique, 1), index = range.end - skip;
 		while (index > range.start && comp.compare(array[index - 1], value) >= 0) {
 			if (index < range.start + skip) {
 				skip = index - range.start;
@@ -234,7 +237,8 @@ class WikiSorter<T> {
 	}
 	
 	int FindLastBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
-		int skip = range.length()/unique, index = range.end - skip;
+		if (range.length() == 0) return range.start;
+		int skip = Math.max(range.length()/unique, 1), index = range.end - skip;
 		while (index > range.start && comp.compare(value, array[index - 1]) < 0) {
 			if (index < range.start + skip) {
 				skip = index - range.start;
@@ -416,8 +420,9 @@ class WikiSorter<T> {
 			Rotate(array, -amount, new Range(A.start, mid), true);
 			
 			// calculate the new A and B ranges
-			B.start = A.end = mid;
-			A.start = BinaryLast(array, array[A.start + amount], A, comp);
+			B.start = mid;
+			A.set(A.start + amount, B.start);
+			A.start = BinaryLast(array, array[A.start], A, comp);
 		}
 	}
 	
@@ -616,11 +621,10 @@ class WikiSorter<T> {
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
 					int length = pull[pull_index].count;
-					count = 0;
+					count = 1;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
-						count = 1;
 						index = pull[pull_index].from;
 						while (count < length) {
 							index = FindFirstBackward(array, array[index - 1], new Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), comp, length - count);
@@ -631,7 +635,6 @@ class WikiSorter<T> {
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
 						// we're pulling values out to the right, which means the end of a B area
-						count = 1;
 						index = pull[pull_index].from + count;
 						while (count < length) {
 							index = FindLastForward(array, array[index], new Range(index, pull[pull_index].to), comp, length - count);

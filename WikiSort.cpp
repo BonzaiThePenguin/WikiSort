@@ -73,7 +73,8 @@ size_t BinaryLast(const T array[], const T & value, const Range & range, const C
 // where have some idea as to how many unique values there are and where the next value might be
 template <typename T, typename Comparison>
 size_t FindFirstForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
-	size_t skip = range.length()/unique, index = range.start + skip;
+	if (range.length() == 0) return range.start;
+	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.start + skip;
 	while (compare(array[index - 1], value)) {
 		if (index >= range.end - skip) {
 			skip = range.end - index;
@@ -88,7 +89,8 @@ size_t FindFirstForward(const T array[], const T & value, const Range & range, c
 
 template <typename T, typename Comparison>
 size_t FindLastForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
-	size_t skip = range.length()/unique, index = range.start + skip;
+	if (range.length() == 0) return range.start;
+	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.start + skip;
 	while (!compare(value, array[index - 1])) {
 		if (index >= range.end - skip) {
 			skip = range.end - index;
@@ -103,7 +105,8 @@ size_t FindLastForward(const T array[], const T & value, const Range & range, co
 
 template <typename T, typename Comparison>
 size_t FindFirstBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
-	size_t skip = range.length()/unique, index = range.end - skip;
+	if (range.length() == 0) return range.start;
+	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.end - skip;
 	while (index > range.start && !compare(array[index - 1], value)) {
 		if (index < range.start + skip) {
 			skip = index - range.start;
@@ -118,7 +121,8 @@ size_t FindFirstBackward(const T array[], const T & value, const Range & range, 
 
 template <typename T, typename Comparison>
 size_t FindLastBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
-	size_t skip = range.length()/unique, index = range.end - skip;
+	if (range.length() == 0) return range.start;
+	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.end - skip;
 	while (index > range.start && compare(value, array[index - 1])) {
 		if (index < range.start + skip) {
 			skip = index - range.start;
@@ -549,11 +553,10 @@ namespace Wiki {
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
 					size_t length = pull[pull_index].count;
-					count = 0;
+					count = 1;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A area
-						count = 1;
 						index = pull[pull_index].from;
 						while (count < length) {
 							index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
@@ -564,7 +567,6 @@ namespace Wiki {
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
 						// we're pulling values out to the right, which means the end of a B area
-						count = 1;
 						index = pull[pull_index].from + count;
 						while (count < length) {
 							index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
