@@ -194,61 +194,37 @@ class WikiSorter<T> {
 	// where have some idea as to how many unique values there are and where the next value might be
 	int FindFirstForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
-		int skip = Math.max(range.length()/unique, 1), index = range.start + skip;
-		while (comp.compare(array[index - 1], value) < 0) {
-			if (index >= range.end - skip) {
-				skip = range.end - index;
-				index = range.end;
-				break;
-			}
-			index += skip;
-		}
-		
+		int index, skip = Math.max(range.length()/unique, 1);
+		for (index = range.start + skip; comp.compare(array[index - 1], value) < 0; index += skip)
+			if (index >= range.end - skip)
+				return BinaryFirst(array, value, new Range(index, range.end), comp);
 		return BinaryFirst(array, value, new Range(index - skip, index), comp);
 	}
 	
 	int FindLastForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
-		int skip = Math.max(range.length()/unique, 1), index = range.start + skip;
-		while (comp.compare(value, array[index - 1]) >= 0) {
-			if (index >= range.end - skip) {
-				skip = range.end - index;
-				index = range.end;
-				break;
-			}
-			index += skip;
-		}
-		
+		int index, skip = Math.max(range.length()/unique, 1);
+		for (index = range.start + skip; comp.compare(value, array[index - 1]) >= 0; index += skip)
+			if (index >= range.end - skip)
+				return BinaryLast(array, value, new Range(index, range.end), comp);
 		return BinaryLast(array, value, new Range(index - skip, index), comp);
 	}
 	
 	int FindFirstBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
-		int skip = Math.max(range.length()/unique, 1), index = range.end - skip;
-		while (index > range.start && comp.compare(array[index - 1], value) >= 0) {
-			if (index < range.start + skip) {
-				skip = index - range.start;
-				index = range.start;
-				break;
-			}
-			index -= skip;
-		}
-		
+		int index, skip = Math.max(range.length()/unique, 1);
+		for (index = range.end - skip; index > range.start && comp.compare(array[index - 1], value) >= 0; index -= skip)
+			if (index < range.start + skip)
+				return BinaryFirst(array, value, new Range(range.start, index), comp);
 		return BinaryFirst(array, value, new Range(index, index + skip), comp);
 	}
 	
 	int FindLastBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
-		int skip = Math.max(range.length()/unique, 1), index = range.end - skip;
-		while (index > range.start && comp.compare(value, array[index - 1]) < 0) {
-			if (index < range.start + skip) {
-				skip = index - range.start;
-				index = range.start;
-				break;
-			}
-			index -= skip;
-		}
-		
+		int index, skip = Math.max(range.length()/unique, 1);
+		for (index = range.end - skip; index > range.start && comp.compare(value, array[index - 1]) < 0; index -= skip)
+			if (index < range.start + skip)
+				return BinaryLast(array, value, new Range(range.start, index), comp);
 		return BinaryLast(array, value, new Range(index, index + skip), comp);
 	}
 	

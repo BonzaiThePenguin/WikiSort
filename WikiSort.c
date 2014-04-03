@@ -24,7 +24,7 @@
 
 /* simulate comparisons that have a bit more overhead than just an inlined (int < int) */
 /* (so we can tell whether reducing the number of comparisons was worth the added complexity) */
-#define SLOW_COMPARISONS true
+#define SLOW_COMPARISONS false
 
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
@@ -165,16 +165,9 @@ size_t FindFirstForward(const Test array[], const Test value, const Range range,
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
-	index = range.start + skip;
-	while (compare(array[index - 1], value)) {
-		if (index >= range.end - skip) {
-			skip = range.end - index;
-			index = range.end;
-			break;
-		}
-		index += skip;
-	}
-	
+	for (index = range.start + skip; compare(array[index - 1], value); index += skip)
+		if (index >= range.end - skip)
+			return BinaryFirst(array, value, Range_new(index, range.end), compare);
 	return BinaryFirst(array, value, Range_new(index - skip, index), compare);
 }
 
@@ -182,16 +175,9 @@ size_t FindLastForward(const Test array[], const Test value, const Range range, 
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
-	index = range.start + skip;
-	while (!compare(value, array[index - 1])) {
-		if (index >= range.end - skip) {
-			skip = range.end - index;
-			index = range.end;
-			break;
-		}
-		index += skip;
-	}
-	
+	for (index = range.start + skip; !compare(value, array[index - 1]); index += skip)
+		if (index >= range.end - skip)
+			return BinaryLast(array, value, Range_new(index, range.end), compare);
 	return BinaryLast(array, value, Range_new(index - skip, index), compare);
 }
 
@@ -199,16 +185,9 @@ size_t FindFirstBackward(const Test array[], const Test value, const Range range
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
-	index = range.end - skip;
-	while (index > range.start && !compare(array[index - 1], value)) {
-		if (index < range.start + skip) {
-			skip = index - range.start;
-			index = range.start;
-			break;
-		}
-		index -= skip;
-	}
-	
+	for (index = range.end - skip; index > range.start && !compare(array[index - 1], value); index -= skip)
+		if (index < range.start + skip)
+			return BinaryFirst(array, value, Range_new(range.start, index), compare);
 	return BinaryFirst(array, value, Range_new(index, index + skip), compare);
 }
 
@@ -216,16 +195,9 @@ size_t FindLastBackward(const Test array[], const Test value, const Range range,
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
-	index = range.end - skip;
-	while (index > range.start && compare(value, array[index - 1])) {
-		if (index < range.start + skip) {
-			skip = index - range.start;
-			index = range.start;
-			break;
-		}
-		index -= skip;
-	}
-	
+	for (index = range.end - skip; index > range.start && compare(value, array[index - 1]); index -= skip)
+		if (index < range.start + skip)
+			return BinaryLast(array, value, Range_new(range.start, index), compare);
 	return BinaryLast(array, value, Range_new(index, index + skip), compare);
 }
 

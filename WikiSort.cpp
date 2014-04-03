@@ -22,7 +22,7 @@
 
 // simulate comparisons that have a bit more overhead than just an inlined (int < int)
 // (so we can tell whether reducing the number of comparisons was worth the added complexity)
-#define SLOW_COMPARISONS true
+#define SLOW_COMPARISONS false
 
 // if true, test against std::__inplace_stable_sort() rather than std::stable_sort()
 #define TEST_INPLACE false
@@ -81,64 +81,40 @@ size_t BinaryLast(const T array[], const T & value, const Range & range, const C
 template <typename T, typename Comparison>
 size_t FindFirstForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.start + skip;
-	while (compare(array[index - 1], value)) {
-		if (index >= range.end - skip) {
-			skip = range.end - index;
-			index = range.end;
-			break;
-		}
-		index += skip;
-	}
-	
+	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	for (index = range.start + skip; compare(array[index - 1], value); index += skip)
+		if (index >= range.end - skip)
+			return BinaryFirst(array, value, Range(index, range.end), compare);
 	return BinaryFirst(array, value, Range(index - skip, index), compare);
 }
 
 template <typename T, typename Comparison>
 size_t FindLastForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.start + skip;
-	while (!compare(value, array[index - 1])) {
-		if (index >= range.end - skip) {
-			skip = range.end - index;
-			index = range.end;
-			break;
-		}
-		index += skip;
-	}
-	
+	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	for (index = range.start + skip; !compare(value, array[index - 1]); index += skip)
+		if (index >= range.end - skip)
+			return BinaryLast(array, value, Range(index, range.end), compare);
 	return BinaryLast(array, value, Range(index - skip, index), compare);
 }
 
 template <typename T, typename Comparison>
 size_t FindFirstBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.end - skip;
-	while (index > range.start && !compare(array[index - 1], value)) {
-		if (index < range.start + skip) {
-			skip = index - range.start;
-			index = range.start;
-			break;
-		}
-		index -= skip;
-	}
-	
+	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	for (index = range.end - skip; index > range.start && !compare(array[index - 1], value); index -= skip)
+		if (index < range.start + skip)
+			return BinaryFirst(array, value, Range(range.start, index), compare);
 	return BinaryFirst(array, value, Range(index, index + skip), compare);
 }
 
 template <typename T, typename Comparison>
 size_t FindLastBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t skip = std::max(range.length()/unique, (size_t)1), index = range.end - skip;
-	while (index > range.start && compare(value, array[index - 1])) {
-		if (index < range.start + skip) {
-			skip = index - range.start;
-			index = range.start;
-			break;
-		}
-		index -= skip;
-	}
-	
+	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	for (index = range.end - skip; index > range.start && compare(value, array[index - 1]); index -= skip)
+		if (index < range.start + skip)
+			return BinaryLast(array, value, Range(range.start, index), compare);
 	return BinaryLast(array, value, Range(index, index + skip), compare);
 }
 
@@ -180,10 +156,19 @@ void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t
 	std::swap_ranges(&array[start1], &array[start1 + block_size], &array[start2]);
 }
 
+size_t GCD(size_t first, size_t second) {
+	while (second != 0) {
+		size_t swap = first % second;
+		first = second;
+		second = swap;
+	}
+	return first;
+}
+
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 // (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
 template <typename T>
-void Rotate(T array[], const size_t & amount, const Range & range, T cache[], const size_t cache_size) {
+void Rotate(T array[], const size_t amount, const Range & range, T cache[], const size_t cache_size) {
 	if (range.length() == 0) return;
 	
 	size_t split = range.start + amount;
@@ -207,7 +192,37 @@ void Rotate(T array[], const size_t & amount, const Range & range, T cache[], co
 		}
 	}
 	
+//	size_t the_gcd = GCD(amount, range.length());
+//	if (the_gcd <= cache_size) {
+//		printf("!\n");
+//		std::copy(&array[range.start], &array[range.start + the_gcd], cache);
+//		size_t j = 0;
+//		while (true) {
+//			size_t k = j;
+//			if (k >= range.length() - amount) k -= (range.length() - amount);
+//			else k += amount;
+//			if (k == 0) break;
+//			std::copy(&array[range.start + k], &array[range.start + k + the_gcd], &array[range.start + j]);
+//			j = k;
+//		}
+//		std::copy(cache, &cache[the_gcd], &array[range.start + j]);
+//	}
+	
+//	while (true) {
+//		if (range.length() - amount >= amount) {
+//			BlockSwap(array, range.start, range.end - amount, amount);
+//			if (range.length() - amount == amount) return;
+//			range.end -= amount;
+//		} else {
+//			BlockSwap(array, range.start, range.start + amount, range.length() - amount);
+//			size_t new_amount = amount + amount - range.length();
+//			range.start = range.end - amount;
+//			amount = new_amount;
+//		}
+//	}
+	
 	std::rotate(&array[range1.start], &array[range2.start], &array[range2.end]);
+	
 }
 
 namespace Wiki {
@@ -900,8 +915,8 @@ int main() {
 	#endif
 	
 	// initialize the random-number generator
-	srand(time(NULL));
-	//srand(10141985); // in case you want the same random numbers
+	//srand(time(NULL));
+	srand(10141985); // in case you want the same random numbers
 	
 	size_t total = max_size;
 	
