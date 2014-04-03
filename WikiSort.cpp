@@ -17,10 +17,17 @@
 #include <ctime>
 
 // record the number of comparisons and assignments
+// note that this reduces WikiSort's performance when enabled
 #define PROFILE true
 
 // simulate comparisons that have a bit more overhead than just an inlined (int < int)
+// (so we can tell whether reducing the number of comparisons was worth the added complexity)
 #define SLOW_COMPARISONS true
+
+// if true, test against std::__inplace_stable_sort() rather than std::stable_sort()
+#define TEST_INPLACE false
+
+
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
@@ -149,6 +156,7 @@ void InsertionSort(T array[], const Range & range, const Comparison compare) {
 
 // binary search variant of insertion sort,
 // which reduces the number of comparisons at the cost of some speed
+// (it only makes sense to use this if the fewer comparisons makes it faster overall!)
 template <typename T, typename Comparison>
 void InsertionSortBinary(T array[], const Range & range, const Comparison compare) {
 	for (size_t i = range.start + 1; i < range.end; i++) {
@@ -160,7 +168,7 @@ void InsertionSortBinary(T array[], const Range & range, const Comparison compar
 	}
 }
 
-// reverse a range within the array
+// reverse a range of values within the array
 template <typename T>
 void Reverse(T array[], const Range & range) {
 	std::reverse(&array[range.start], &array[range.end]);
@@ -296,34 +304,34 @@ namespace Wiki {
 	}
 	
 	// calculate how to scale the index value to the range within the array
-	// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
-	// and where the fractional part is in base "fractional_base", rather than base 10
+	// the bottom-up merge sort only operates on values that are powers of two,
+	// so scale down to that power of two, then use a fraction to scale back again
 	class Iterator {
 		size_t size, power_of_two;
-		size_t fractional, decimal;
-		size_t fractional_base, decimal_step, fractional_step;
+		size_t decimal, numerator, denominator;
+		size_t decimal_step, numerator_step;
 		
 	public:
 		Iterator(size_t size2, size_t min_level) {
 			size = size2;
 			power_of_two = FloorPowerOfTwo(size);
-			fractional_base = power_of_two/min_level;
-			fractional_step = size % fractional_base;
-			decimal_step = size/fractional_base;
+			denominator = power_of_two/min_level;
+			numerator_step = size % denominator;
+			decimal_step = size/denominator;
 			begin();
 		}
 		
 		void begin() {
-			fractional = decimal = 0;
+			numerator = decimal = 0;
 		}
 		
 		Range nextRange() {
 			size_t start = decimal;
 			
 			decimal += decimal_step;
-			fractional += fractional_step;
-			if (fractional >= fractional_base) {
-				fractional -= fractional_base;
+			numerator += numerator_step;
+			if (numerator >= denominator) {
+				numerator -= denominator;
 				decimal++;
 			}
 			
@@ -336,9 +344,9 @@ namespace Wiki {
 		
 		bool nextLevel() {
 			decimal_step += decimal_step;
-			fractional_step += fractional_step;
-			if (fractional_step >= fractional_base) {
-				fractional_step -= fractional_base;
+			numerator_step += numerator_step;
+			if (numerator_step >= denominator) {
+				numerator_step -= denominator;
 				decimal_step++;
 			}
 			
@@ -381,15 +389,25 @@ namespace Wiki {
 		// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
 		
 		
-		// first insertion sort everything the lowest level, which is 8-15 items at a time
-		Wiki::Iterator iterator (size, 8);
-		iterator.begin();
-		while (!iterator.finished())
-			InsertionSortBinary(array, iterator.nextRange(), compare);
+		#if SLOW_COMPARISONS
+			// first insertion sort everything the lowest level, which is 8-15 items at a time
+			Wiki::Iterator iterator (size, 8);
+			while (!iterator.finished())
+				InsertionSortBinary(array, iterator.nextRange(), compare);
+		#else
+			// obviously a #define like this isn't something that would go into production code,
+			// but this is here to show that the binary search version is only preferrable
+			// if the comparisons are slow enough to justify optimizing for fewer of them
+			
+			// if you know of a way to predict whether comparisons will be the bottleneck,
+			// this would be a good place to take advantage of that knowledge
+			Wiki::Iterator iterator (size, 16);
+			while (!iterator.finished())
+				InsertionSort(array, iterator.nextRange(), compare);
+		#endif
 		
 		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
 		while (true) {
-			
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
 			// (we use < rather than <= since the block size might be one more than decimal_step)
 			if (iterator.length() < cache_size) {
@@ -791,7 +809,7 @@ public:
 };
 
 #if SLOW_COMPARISONS
-	#define NOOP_SIZE 100
+	#define NOOP_SIZE 50
 	size_t noop1[NOOP_SIZE], noop2[NOOP_SIZE];
 #endif
 
@@ -966,8 +984,12 @@ int main() {
 		#if PROFILE
 			comparisons = assignments = 0;
 		#endif
-		//__inplace_stable_sort(array2.begin(), array2.end(), compare);
-		stable_sort(array2.begin(), array2.end(), compare);
+		
+		#if TEST_INPLACE
+			__inplace_stable_sort(array2.begin(), array2.end(), compare);
+		#else
+			stable_sort(array2.begin(), array2.end(), compare);
+		#endif
 		time2 = Seconds() - time2;
 		total_time2 += time2;
 		
@@ -978,15 +1000,17 @@ int main() {
 			total_assigns2 += assigns2;
 		#endif
 		
-		if (time1 >= time2) cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "% as fast)" << endl;
-		else cout << "[" << total << "] WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 - 100.0 << "% faster)" << endl;
+		cout << "[" << total << "]" << endl;
+		
+		if (time1 >= time2) cout << "WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 << "% as fast)" << endl;
+		else cout << "WikiSort: " << time1 << " seconds, stable_sort: " << time2 << " seconds (" << time2/time1 * 100.0 - 100.0 << "% faster)" << endl;
 		
 		#if PROFILE
-			if (compares1 <= compares2) cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "% as many)" << endl;
-			else cout << "[" << total << "] WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 - 100.0 << "% more)" << endl;
+			if (compares1 <= compares2) cout << "WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 << "% as many)" << endl;
+			else cout << "WikiSort: " << compares1 << " compares, stable_sort: " << compares2 << " compares (" << compares1 * 100.0/compares2 - 100.0 << "% more)" << endl;
 			
-			if (assigns1 <= assigns2) cout << "[" << total << "] WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 << "% as many)" << endl;
-			else cout << "[" << total << "] WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 - 100.0 << "% more)" << endl;
+			if (assigns1 <= assigns2) cout << "WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 << "% as many)" << endl;
+			else cout << "WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 - 100.0 << "% more)" << endl;
 		#endif
 		
 		// make sure the arrays are sorted correctly, and that the results were stable

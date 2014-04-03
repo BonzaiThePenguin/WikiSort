@@ -14,6 +14,7 @@ import java.util.*;
 import java.lang.*;
 import java.io.*;
 
+// class to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
 class Test {
 	public int value;
 	public int index;
@@ -67,12 +68,12 @@ class Pull {
 }
 
 // calculate how to scale the index value to the range within the array
-// this is essentially 64.64 fixed-point math, where we manually check for and handle overflow,
-// and where the fractional part is in base "fractional_base", rather than base 10
+// the bottom-up merge sort only operates on values that are powers of two,
+// so scale down to that power of two, then use a fraction to scale back again
 class Iterator {
 	public int size, power_of_two;
-	public int fractional, decimal;
-	public int fractional_base, decimal_step, fractional_step;
+	public int numerator, decimal;
+	public int denominator, decimal_step, numerator_step;
 	
 	// 63 -> 32, 64 -> 64, etc.
 	// this comes from Hacker's Delight
@@ -89,23 +90,23 @@ class Iterator {
 	Iterator(int size2, int min_level) {
 		size = size2;
 		power_of_two = FloorPowerOfTwo(size);
-		fractional_base = power_of_two/min_level;
-		fractional_step = size % fractional_base;
-		decimal_step = size/fractional_base;
+		denominator = power_of_two/min_level;
+		numerator_step = size % denominator;
+		decimal_step = size/denominator;
 		begin();
 	}
 	
 	void begin() {
-		fractional = decimal = 0;
+		numerator = decimal = 0;
 	}
 	
 	Range nextRange() {
 		int start = decimal;
 		
 		decimal += decimal_step;
-		fractional += fractional_step;
-		if (fractional >= fractional_base) {
-			fractional -= fractional_base;
+		numerator += numerator_step;
+		if (numerator >= denominator) {
+			numerator -= denominator;
 			decimal++;
 		}
 		
@@ -118,9 +119,9 @@ class Iterator {
 	
 	boolean nextLevel() {
 		decimal_step += decimal_step;
-		fractional_step += fractional_step;
-		if (fractional_step >= fractional_base) {
-			fractional_step -= fractional_base;
+		numerator_step += numerator_step;
+		if (numerator_step >= denominator) {
+			numerator_step -= denominator;
 			decimal_step++;
 		}
 		
@@ -264,6 +265,7 @@ class WikiSorter<T> {
 	
 	// binary search variant of insertion sort,
 	// which reduces the number of comparisons at the cost of some speed
+	// (it only makes sense to use this if the fewer comparisons makes it faster overall!)
 	void InsertionSortBinary(T array[], Range range, Comparator<T> comp) {
 		for (int i = range.start + 1; i < range.end; i++) {
 			T temp = array[i];
@@ -274,7 +276,7 @@ class WikiSorter<T> {
 		}
 	}
 	
-	// reverse a range within the array
+	// reverse a range of values within the array
 	void Reverse(T array[], Range range) {
 		for (int index = range.length()/2 - 1; index >= 0; index--) {
 			T swap = array[range.start + index];
@@ -1084,15 +1086,17 @@ class WikiSort {
 			compares2 = TestComparator.comparisons;
 			total_compares2 += compares2;
 			
+			System.out.format("[%d]\n", total);
+			
 			if (time1 >= time2)
-				System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total, time1, time2, time2/time1 * 100.0);
+				System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", time1, time2, time2/time1 * 100.0);
 			else
-				System.out.format("[%d] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total, time1, time2, time2/time1 * 100.0 - 100.0);
+				System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", time1, time2, time2/time1 * 100.0 - 100.0);
 			
 			if (compares1 <= compares2)
-				System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%% as many)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+				System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% as many)\n", compares1, compares2, compares1 * 100.0/compares2);
 			else
-				System.out.format("[%d] WikiSort: %d compares, MergeSort: %d compares (%.2f%% more)\n", total, compares1, compares2, compares1 * 100.0/compares2 - 100.0);
+				System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
 			System.out.println("verifying...");

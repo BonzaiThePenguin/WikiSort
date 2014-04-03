@@ -19,13 +19,15 @@
 #include <limits.h>
 
 /* record the number of comparisons */
+/* note that this reduces WikiSort's performance when enabled */
 #define PROFILE true
 
 /* simulate comparisons that have a bit more overhead than just an inlined (int < int) */
+/* (so we can tell whether reducing the number of comparisons was worth the added complexity) */
 #define SLOW_COMPARISONS true
 
-double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
+double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
 /* various #defines for the C code */
 #ifndef true
@@ -60,7 +62,7 @@ typedef struct {
 #endif
 
 #if SLOW_COMPARISONS
-	#define NOOP_SIZE 100
+	#define NOOP_SIZE 50
 	size_t noop1[NOOP_SIZE], noop2[NOOP_SIZE];
 #endif
 
@@ -240,6 +242,7 @@ void InsertionSort(Test array[], const Range range, const Comparison compare) {
 
 /* binary search variant of insertion sort, */
 /* which reduces the number of comparisons at the cost of some speed */
+/* (it only makes sense to use this if the fewer comparisons makes it faster overall!) */
 void InsertionSortBinary(Test array[], const Range range, const Comparison compare) {
 	size_t i, j, insert;
 	for (i = range.start + 1; i < range.end; i++) {
@@ -251,7 +254,7 @@ void InsertionSortBinary(Test array[], const Range range, const Comparison compa
 	}
 }
 
-/* reverse a range within the array */
+/* reverse a range of values within the array */
 void Reverse(Test array[], const Range range) {
 	size_t index;
 	for (index = Range_length(range)/2; index > 0; index--)
@@ -298,25 +301,25 @@ void Rotate(Test array[], const size_t amount, const Range range, Test cache[], 
 }
 
 /* calculate how to scale the index value to the range within the array */
-/* this is essentially 64.64 fixed-point math, where we manually check for and handle overflow, */
-/* and where the fractional part is in base "fractional_base", rather than base 10 */
+/* the bottom-up merge sort only operates on values that are powers of two, */
+/* so scale down to that power of two, then use a fraction to scale back again */
 typedef struct {
 	size_t size, power_of_two;
-	size_t fractional, decimal;
-	size_t fractional_base, decimal_step, fractional_step;
+	size_t numerator, decimal;
+	size_t denominator, decimal_step, numerator_step;
 } WikiIterator;
 
 void WikiIterator_begin(WikiIterator *me) {
-	me->fractional = me->decimal = 0;
+	me->numerator = me->decimal = 0;
 }
 
 Range WikiIterator_nextRange(WikiIterator *me) {
 	size_t start = me->decimal;
 	
 	me->decimal += me->decimal_step;
-	me->fractional += me->fractional_step;
-	if (me->fractional >= me->fractional_base) {
-		me->fractional -= me->fractional_base;
+	me->numerator += me->numerator_step;
+	if (me->numerator >= me->denominator) {
+		me->numerator -= me->denominator;
 		me->decimal++;
 	}
 	
@@ -329,9 +332,9 @@ bool WikiIterator_finished(WikiIterator *me) {
 
 bool WikiIterator_nextLevel(WikiIterator *me) {
 	me->decimal_step += me->decimal_step;
-	me->fractional_step += me->fractional_step;
-	if (me->fractional_step >= me->fractional_base) {
-		me->fractional_step -= me->fractional_base;
+	me->numerator_step += me->numerator_step;
+	if (me->numerator_step >= me->denominator) {
+		me->numerator_step -= me->denominator;
 		me->decimal_step++;
 	}
 	
@@ -346,9 +349,9 @@ WikiIterator WikiIterator_new(size_t size2, size_t min_level) {
 	WikiIterator me;
 	me.size = size2;
 	me.power_of_two = FloorPowerOfTwo(me.size);
-	me.fractional_base = me.power_of_two/min_level;
-	me.fractional_step = me.size % me.fractional_base;
-	me.decimal_step = me.size/me.fractional_base;
+	me.denominator = me.power_of_two/min_level;
+	me.numerator_step = me.size % me.denominator;
+	me.decimal_step = me.size/me.denominator;
 	WikiIterator_begin(&me);
 	return me;
 }
@@ -470,11 +473,24 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 		return;
 	}
 	
-	/* first insertion sort everything the lowest level, which is 8-15 items at a time */
-	iterator = WikiIterator_new(size, 8);
-	WikiIterator_begin(&iterator);
-	while (!WikiIterator_finished(&iterator))
-		InsertionSortBinary(array, WikiIterator_nextRange(&iterator), compare);
+	#if SLOW_COMPARISONS
+		/* first insertion sort everything the lowest level, which is 8-15 items at a time */
+		iterator = WikiIterator_new(size, 8);
+		WikiIterator_begin(&iterator);
+		while (!WikiIterator_finished(&iterator))
+			InsertionSortBinary(array, WikiIterator_nextRange(&iterator), compare);
+	#else
+		/* obviously a #define like this isn't something that would go into production code, */
+		/* but this is here to show that the binary search version is only preferrable */
+		/* if the comparisons are slow enough to justify optimizing for fewer of them */
+		
+		/* if you know of a way to predict whether comparisons will be the bottleneck, */
+		/* this would be a good place to take advantage of that knowledge */
+		iterator = WikiIterator_new(size, 16);
+		WikiIterator_begin(&iterator);
+		while (!WikiIterator_finished(&iterator))
+			InsertionSort(array, WikiIterator_nextRange(&iterator), compare);
+	#endif
 	
 	/* then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc. */
 	while (true) {
@@ -1078,16 +1094,18 @@ int main() {
 			total_compares2 += compares2;
 		#endif
 		
+		printf("[%zu]\n", total);
+		
 		if (time1 >= time2)
-			printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total, time1, time2, time2/time1 * 100.0);
+			printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", time1, time2, time2/time1 * 100.0);
 		else
-			printf("[%zu] WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total, time1, time2, time2/time1 * 100.0 - 100.0);
+			printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", time1, time2, time2/time1 * 100.0 - 100.0);
 		
 		#if PROFILE
 			if (compares1 <= compares2)
-				printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total, compares1, compares2, compares1 * 100.0/compares2);
+				printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", compares1, compares2, compares1 * 100.0/compares2);
 			else
-				printf("[%zu] WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total, compares1, compares2, compares1 * 100.0/compares2 - 100.0);
+				printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 		#endif
 		
 		/* make sure the arrays are sorted correctly, and that the results were stable */
