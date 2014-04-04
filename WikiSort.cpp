@@ -31,6 +31,9 @@
 // if true, test against std::__inplace_stable_sort() rather than std::stable_sort()
 #define TEST_INPLACE false
 
+// whether to give WikiSort a full-size cache, to see how it performs when given more memory
+#define DYNAMIC_CACHE false
+
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
@@ -349,8 +352,9 @@ namespace Wiki {
 	void Sort(Iterator first, Iterator last, const Comparison compare) {
 		// map first and last to a C-style array, so we don't have to change the rest of the code
 		// (bit of a nasty hack, but it's good enough for now...)
+		typedef typename std::iterator_traits<Iterator>::value_type T;
 		const size_t size = last - first;
-		__typeof__(&first[0]) array = &first[0];
+		T *array = &first[0];
 		
 		// if there are 32 or fewer items, just insertion sort the entire array
 		if (size <= 32) {
@@ -359,40 +363,42 @@ namespace Wiki {
 		}
 		
 		// use a small cache to speed up some of the operations
-		// since the cache size is fixed, it's still O(1) memory!
-		// just keep in mind that making it too small ruins the point (nothing will fit into it),
-		// and making it too large also ruins the point (so much for "low memory"!)
-		// removing the cache entirely still gives 70% of the performance of a standard merge
-		const size_t cache_size = 512;
-		__typeof__(array[0]) cache[cache_size];
-		
-		// note that you can easily modify the above to allocate a dynamically sized cache
-		// good choices for the cache size are:
-		// (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
-		// sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
-		// so a buffer of this size would allow it to skip using internal or in-place merges for anything
-		// 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
-		// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
-		
-		
-		#if SLOW_COMPARISONS
-			// first insertion sort everything the lowest level, which is 8-15 items at a time
-			Wiki::Iterator iterator (size, 8);
-			while (!iterator.finished())
-				InsertionSortBinary(array, iterator.nextRange(), compare);
-		#else
-			// obviously a #define like this isn't something that would go into production code,
-			// but this is here to show that the binary search version is only preferrable
-			// if the comparisons are slow enough to justify optimizing for fewer of them
+		#if DYNAMIC_CACHE
+			// good choices for the cache size are:
+			// (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
+			size_t cache_size = (size + 1)/2;
+			T *cache = new T[cache_size];
 			
-			// if you know of a way to predict whether comparisons will be the bottleneck,
-			// this would be a good place to take advantage of that knowledge
-			Wiki::Iterator iterator (size, 16);
-			while (!iterator.finished())
-				InsertionSort(array, iterator.nextRange(), compare);
+			if (!cache) {
+				// sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
+				// so a buffer of this size would allow it to skip using internal or in-place merges for anything
+				cache_size = sqrt(cache_size) + 1;
+				cache = new T[cache_size];
+				
+				if (!cache) {
+					// 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
+					cache_size = 512;
+					cache = new T[cache_size];
+					
+					// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
+					if (!cache) cache_size = 0;
+				}
+			}
+		#else
+			// since the cache size is fixed, it's still O(1) memory!
+			// just keep in mind that making it too small ruins the point (nothing will fit into it),
+			// and making it too large also ruins the point (so much for "low memory"!)
+			// removing the cache entirely still gives 70% of the performance of a standard merge
+			const size_t cache_size = 512;
+			T cache[cache_size];
 		#endif
 		
-		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
+		// first insertion sort everything the lowest level, which is 4-7 items at a time
+		Wiki::Iterator iterator (size, 4);
+		while (!iterator.finished())
+			InsertionSortBinary(array, iterator.nextRange(), compare);
+		
+		// then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc.
 		while (true) {
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
 			// (we use < rather than <= since the block size might be one more than decimal_step)
@@ -402,7 +408,10 @@ namespace Wiki {
 					Range A = iterator.nextRange();
 					Range B = iterator.nextRange();
 					
-					if (compare(array[B.start], array[A.end - 1])) {
+					if (compare(array[B.end - 1], array[A.start])) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
+					} else if (compare(array[B.start], array[A.end - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						std::copy(&array[A.start], &array[A.end], &cache[0]);
 						MergeExternal(array, A, B, compare, cache, cache_size);
@@ -412,7 +421,7 @@ namespace Wiki {
 				// this is where the in-place merge logic starts!
 				// 1. pull out two internal buffers each containing √A unique values
 				//     1a. adjust block_size and buffer_size if we couldn't find enough unique values
-				// 2. loop over the A and B areas within this level of the merge sort
+				// 2. loop over the A and B subarrays within this level of the merge sort
 				//     3. break A and B into blocks of size 'block_size'
 				//     4. "tag" each of the A blocks with values from the first internal buffer
 				//     5. roll the A blocks through the B blocks and drop/rotate them where they belong
@@ -483,7 +492,7 @@ namespace Wiki {
 							buffer1 = Range(A.start, A.start + count);
 							break;
 						} else {
-							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
+							// we found a second buffer in an 'A' subarray containing √A unique values, so we're done!
 							buffer2 = Range(A.start, A.start + count);
 							break;
 						}
@@ -534,11 +543,11 @@ namespace Wiki {
 							buffer1 = Range(B.end - count, B.end);
 							break;
 						} else {
-							// we found a second buffer in a 'B' area containing √A unique values, so we're done!
+							// we found a second buffer in a 'B' subarray containing √A unique values, so we're done!
 							buffer2 = Range(B.end - count, B.end);
 							
-							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
-							// we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2
+							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
+							// we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2
 							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 							
 							break;
@@ -560,7 +569,7 @@ namespace Wiki {
 					count = 1;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
-						// we're pulling the values out to the left, which means the start of an A area
+						// we're pulling the values out to the left, which means the start of an A subarray
 						index = pull[pull_index].from;
 						while (count < length) {
 							index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
@@ -570,7 +579,7 @@ namespace Wiki {
 							count++;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
-						// we're pulling values out to the right, which means the end of a B area
+						// we're pulling values out to the right, which means the end of a B subarray
 						index = pull[pull_index].from + count;
 						while (count < length) {
 							index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
@@ -629,7 +638,7 @@ namespace Wiki {
 						blockA.start += firstA.length();
 						
 						size_t minA = blockA.start, indexA = 0;
-						__typeof__(*array) min_value = array[minA];
+						T min_value = array[minA];
 						
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
@@ -769,9 +778,13 @@ namespace Wiki {
 				}
 			}
 			
-			// double the size of each A and B area that will be merged in the next level
+			// double the size of each A and B subarray that will be merged in the next level
 			if (!iterator.nextLevel()) break;
 		}
+		
+		#if DYNAMIC_CACHE
+			if (cache) delete[] cache;
+		#endif
 	}
 }
 

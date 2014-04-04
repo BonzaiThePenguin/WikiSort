@@ -421,8 +421,8 @@ class WikiSorter<T> {
 			return;
 		}
 		
-		// first insertion sort everything the lowest level, which is 8-15 items at a time
-		Iterator iterator = new Iterator(size, 8);
+		// first insertion sort everything the lowest level, which is 4-7 items at a time
+		Iterator iterator = new Iterator(size, 4);
 		iterator.begin();
 		while (!iterator.finished())
 			InsertionSortBinary(array, iterator.nextRange(), comp);
@@ -438,7 +438,7 @@ class WikiSorter<T> {
 		pull[0] = new Pull();
 		pull[1] = new Pull();
 		
-		// then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc.
+		// then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc.
 		while (true) {
 			
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
@@ -449,7 +449,10 @@ class WikiSorter<T> {
 					A = iterator.nextRange();
 					B = iterator.nextRange();
 					
-					if (comp.compare(array[B.start], array[A.end - 1]) < 0) {
+					if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
+					} else if (comp.compare(array[B.start], array[A.end - 1]) < 0) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
 						MergeExternal(array, A, B, comp);
@@ -459,7 +462,7 @@ class WikiSorter<T> {
 				// this is where the in-place merge logic starts!
 				// 1. pull out two internal buffers each containing √A unique values
 				//     1a. adjust block_size and buffer_size if we couldn't find enough unique values
-				// 2. loop over the A and B areas within this level of the merge sort
+				// 2. loop over the A and B subarrays within this level of the merge sort
 				//     3. break A and B into blocks of size 'block_size'
 				//     4. "tag" each of the A blocks with values from the first internal buffer
 				//     5. roll the A blocks through the B blocks and drop/rotate them where they belong
@@ -532,7 +535,7 @@ class WikiSorter<T> {
 							buffer1.set(A.start, A.start + count);
 							break;
 						} else {
-							// we found a second buffer in an 'A' area containing √A unique values, so we're done!
+							// we found a second buffer in an 'A' subarray containing √A unique values, so we're done!
 							buffer2.set(A.start, A.start + count);
 							break;
 						}
@@ -583,11 +586,11 @@ class WikiSorter<T> {
 							buffer1.set(B.end - count, B.end);
 							break;
 						} else {
-							// we found a second buffer in an 'B' area containing √A unique values, so we're done!
+							// we found a second buffer in an 'B' subarray containing √A unique values, so we're done!
 							buffer2.set(B.end - count, B.end);
 							
-							// buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area,
-							// we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2
+							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
+							// we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2
 							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 							
 							break;
@@ -609,7 +612,7 @@ class WikiSorter<T> {
 					count = 1;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
-						// we're pulling the values out to the left, which means the start of an A area
+						// we're pulling the values out to the left, which means the start of an A subarray
 						index = pull[pull_index].from;
 						while (count < length) {
 							index = FindFirstBackward(array, array[index - 1], new Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), comp, length - count);
@@ -619,7 +622,7 @@ class WikiSorter<T> {
 							count++;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
-						// we're pulling values out to the right, which means the end of a B area
+						// we're pulling values out to the right, which means the end of a B subarray
 						index = pull[pull_index].from + count;
 						while (count < length) {
 							index = FindLastForward(array, array[index], new Range(index, pull[pull_index].to), comp, length - count);
@@ -829,7 +832,7 @@ class WikiSorter<T> {
 				}
 			}
 			
-			// double the size of each A and B area that will be merged in the next level
+			// double the size of each A and B subarray that will be merged in the next level
 			if (!iterator.nextLevel()) break;
 		}
 	}

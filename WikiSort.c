@@ -30,6 +30,9 @@
 /* (so we can tell whether reducing the number of comparisons was worth the added complexity) */
 #define SLOW_COMPARISONS false
 
+/* whether to give WikiSort a full-size cache, to see how it performs when given more memory */
+#define DYNAMIC_CACHE false
+
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
@@ -433,23 +436,37 @@ void MergeInPlace(Test array[], Range A, Range B, const Comparison compare, Test
 
 /* bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use */
 void WikiSort(Test array[], const size_t size, const Comparison compare) {
-	/* use a small cache to speed up some of the operations.
-	 since the cache size is fixed, it's still O(1) memory!
-	 just keep in mind that making it too small ruins the point (nothing will fit into it)
-	 and making it too large also ruins the point (so much for "low memory"!)
-	 removing the cache entirely still gives 70% of the performance of a standard merge */
-	
-	#define CACHE_SIZE 512
-	const size_t cache_size = CACHE_SIZE;
-	Test cache[CACHE_SIZE];
-	
-	/* note that you can easily modify the above to allocate a dynamically sized cache
-	 good choices for the cache size are:
-	 (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
-	 sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
-	 so a buffer of this size would allow it to skip using internal or in-place merges for anything
-	 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
-	 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
+	/* use a small cache to speed up some of the operations */
+	#if DYNAMIC_CACHE
+		/* good choices for the cache size are: */
+		/* (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache */
+		size_t cache_size = (size + 1)/2;
+		Test *cache = (Test *)malloc(cache_size * sizeof(array[0]));
+		
+		if (!cache) {
+			/* sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges, */
+			/* so a buffer of this size would allow it to skip using internal or in-place merges for anything */
+			cache_size = sqrt(cache_size) + 1;
+			cache = (Test *)malloc(cache_size * sizeof(array[0]));
+			
+			if (!cache) {
+				/* 512 – chosen from careful testing as a good balance between fixed-size memory use and run time */
+				cache_size = 512;
+				cache = (Test *)malloc(cache_size * sizeof(array[0]));
+				
+				/* 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
+				if (!cache) cache_size = 0;
+			}
+		}
+	#else
+		/* since the cache size is fixed, it's still O(1) memory! */
+		/* just keep in mind that making it too small ruins the point (nothing will fit into it), */
+		/* and making it too large also ruins the point (so much for "low memory"!) */
+		/* removing the cache entirely still gives 70% of the performance of a standard merge */
+		#define CACHE_SIZE 512
+		const size_t cache_size = CACHE_SIZE;
+		Test cache[CACHE_SIZE];
+	#endif
 	
 	WikiIterator iterator;
 	
@@ -459,26 +476,13 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 		return;
 	}
 	
-	#if SLOW_COMPARISONS
-		/* first insertion sort everything the lowest level, which is 8-15 items at a time */
-		iterator = WikiIterator_new(size, 8);
-		WikiIterator_begin(&iterator);
-		while (!WikiIterator_finished(&iterator))
-			InsertionSortBinary(array, WikiIterator_nextRange(&iterator), compare);
-	#else
-		/* obviously a #define like this isn't something that would go into production code, */
-		/* but this is here to show that the binary search version is only preferrable */
-		/* if the comparisons are slow enough to justify optimizing for fewer of them */
-		
-		/* if you know of a way to predict whether comparisons will be the bottleneck, */
-		/* this would be a good place to take advantage of that knowledge */
-		iterator = WikiIterator_new(size, 16);
-		WikiIterator_begin(&iterator);
-		while (!WikiIterator_finished(&iterator))
-			InsertionSort(array, WikiIterator_nextRange(&iterator), compare);
-	#endif
+	/* first insertion sort everything the lowest level, which is 4-7 items at a time */
+	iterator = WikiIterator_new(size, 4);
+	WikiIterator_begin(&iterator);
+	while (!WikiIterator_finished(&iterator))
+		InsertionSortBinary(array, WikiIterator_nextRange(&iterator), compare);
 	
-	/* then merge sort the higher levels, which can be 16-31, 32-63, 64-127, 128-255, etc. */
+	/* then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc. */
 	while (true) {
 		
 		/* if every A and B block will fit into the cache, use a special branch specifically for merging with the cache */
@@ -489,7 +493,10 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				Range A = WikiIterator_nextRange(&iterator);
 				Range B = WikiIterator_nextRange(&iterator);
 				
-				if (compare(array[B.start], array[A.end - 1])) {
+				if (compare(array[B.end - 1], array[A.start])) {
+					/* the two ranges are in reverse order, so a simple rotation should fix it */
+					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
+				} else if (compare(array[B.start], array[A.end - 1])) {
 					/* these two ranges weren't already in order, so we'll need to merge them! */
 					memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
 					MergeExternal(array, A, B, compare, cache, cache_size);
@@ -499,7 +506,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			/* this is where the in-place merge logic starts!
 			 1. pull out two internal buffers each containing √A unique values
 				1a. adjust block_size and buffer_size if we couldn't find enough unique values
-			 2. loop over the A and B areas within this level of the merge sort
+			 2. loop over the A and B subarrays within this level of the merge sort
 			 3. break A and B into blocks of size 'block_size'
 			 4. "tag" each of the A blocks with values from the first internal buffer
 			 5. roll the A blocks through the B blocks and drop/rotate them where they belong
@@ -572,7 +579,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						buffer1 = Range_new(A.start, A.start + count);
 						break;
 					} else {
-						/* we found a second buffer in an 'A' area containing √A unique values, so we're done! */
+						/* we found a second buffer in an 'A' subarray containing √A unique values, so we're done! */
 						buffer2 = Range_new(A.start, A.start + count);
 						break;
 					}
@@ -623,11 +630,11 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						buffer1 = Range_new(B.end - count, B.end);
 						break;
 					} else {
-						/* we found a second buffer in an 'B' area containing √A unique values, so we're done! */
+						/* we found a second buffer in an 'B' subarray containing √A unique values, so we're done! */
 						buffer2 = Range_new(B.end - count, B.end);
 						
-						/* buffer2 will be pulled out from a 'B' area, so if the first buffer was pulled out from the corresponding 'A' area, */
-						/* we need to adjust the end point for that A area so it knows to stop redistributing its values before reaching buffer2 */
+						/* buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray, */
+						/* we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2 */
 						if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 						
 						break;
@@ -650,7 +657,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				count = 1;
 				
 				if (pull[pull_index].to < pull[pull_index].from) {
-					/* we're pulling the values out to the left, which means the start of an A area */
+					/* we're pulling the values out to the left, which means the start of an A subarray */
 					index = pull[pull_index].from;
 					while (count < length) {
 						index = FindFirstBackward(array, array[index - 1], Range_new(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
@@ -660,7 +667,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						count++;
 					}
 				} else if (pull[pull_index].to > pull[pull_index].from) {
-					/* we're pulling values out to the right, which means the end of a B area */
+					/* we're pulling values out to the right, which means the end of a B subarray */
 					index = pull[pull_index].from + count;
 					while (count < length) {
 						index = FindLastForward(array, array[index], Range_new(index, pull[pull_index].to), compare, length - count);
@@ -863,9 +870,13 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			}
 		}
 		
-		/* double the size of each A and B area that will be merged in the next level */
+		/* double the size of each A and B subarray that will be merged in the next level */
 		if (!WikiIterator_nextLevel(&iterator)) break;
 	}
+	
+	#if DYNAMIC_CACHE
+		if (cache) free(cache);
+	#endif
 	
 	#undef CACHE_SIZE
 }
