@@ -1,7 +1,7 @@
 WikiSort
 ======
 
-WikiSort is an implementation of "block merge sort", which is a stable merge sort based on the work described in ["Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner](http://ak.hanyang.ac.kr/papers/tamc2008.pdf) [PDF]. Block merge sort, or "block sort" for short, maintains **70-90%** of the speed of merge sort *while using O(1) memory*, and is up to 10x faster when the input is partially ordered. It also outpaces merge sort once it needs to use virtual memory to allocate its O(n) buffer, continues working long after merge sort runs out of memory and crashes, and is 3-15x faster than other in-place merge sort algorithms.
+WikiSort is an implementation of "block merge sort", which is a stable merge sort based on the work described in ["Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner](http://ak.hanyang.ac.kr/papers/tamc2008.pdf) [PDF]. Block merge sort, or "block sort" for short, maintains **75-95%** of the speed of merge sort *while using O(1) memory*, and is up to 10x faster when the input is partially ordered. It also outpaces merge sort once it needs to use virtual memory to allocate its O(n) buffer, continues working long after merge sort runs out of memory and crashes, and is 3-15x faster than other in-place merge sort algorithms.
 
 Block sort can also be modified to use any additional memory *optionally* provided to it, which can further improve its speed. When providing a full O(n) buffer, it'd turn into a full-speed merge sort. Instructions are provided in the source code.
 
