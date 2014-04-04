@@ -195,44 +195,51 @@ class WikiSorter<T> {
 	int FindFirstForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
 		int index, skip = Math.max(range.length()/unique, 1);
+		
 		for (index = range.start + skip; comp.compare(array[index - 1], value) < 0; index += skip)
 			if (index >= range.end - skip)
 				return BinaryFirst(array, value, new Range(index, range.end), comp);
+		
 		return BinaryFirst(array, value, new Range(index - skip, index), comp);
 	}
 	
 	int FindLastForward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
 		int index, skip = Math.max(range.length()/unique, 1);
+		
 		for (index = range.start + skip; comp.compare(value, array[index - 1]) >= 0; index += skip)
 			if (index >= range.end - skip)
 				return BinaryLast(array, value, new Range(index, range.end), comp);
+		
 		return BinaryLast(array, value, new Range(index - skip, index), comp);
 	}
 	
 	int FindFirstBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
 		int index, skip = Math.max(range.length()/unique, 1);
+		
 		for (index = range.end - skip; index > range.start && comp.compare(array[index - 1], value) >= 0; index -= skip)
 			if (index < range.start + skip)
 				return BinaryFirst(array, value, new Range(range.start, index), comp);
+		
 		return BinaryFirst(array, value, new Range(index, index + skip), comp);
 	}
 	
 	int FindLastBackward(T array[], T value, Range range, Comparator<T> comp, int unique) {
 		if (range.length() == 0) return range.start;
 		int index, skip = Math.max(range.length()/unique, 1);
+		
 		for (index = range.end - skip; index > range.start && comp.compare(value, array[index - 1]) < 0; index -= skip)
 			if (index < range.start + skip)
 				return BinaryLast(array, value, new Range(range.start, index), comp);
+		
 		return BinaryLast(array, value, new Range(index, index + skip), comp);
 	}
 	
 	// n^2 sorting algorithm used to sort tiny chunks of the full array
 	void InsertionSort(T array[], Range range, Comparator<T> comp) {
-		for (int i = range.start + 1; i < range.end; i++) {
+		for (int j, i = range.start + 1; i < range.end; i++) {
 			T temp = array[i];
-			int j;
 			for (j = i; j > range.start && comp.compare(temp, array[j - 1]) < 0; j--)
 				array[j] = array[j - 1];
 			array[j] = temp;
@@ -649,7 +656,10 @@ class WikiSorter<T> {
 						}
 					}
 					
-					if (comp.compare(array[A.end], array[A.end - 1]) < 0) {
+					if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
+					} else if (comp.compare(array[A.end], array[A.end - 1]) < 0) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						
 						// break the remainder of A into blocks. firstA is the uneven-sized first A block
@@ -778,9 +788,6 @@ class WikiSorter<T> {
 							MergeInternal(array, lastA, new Range(lastA.end, B.end), comp, buffer2);
 						else
 							MergeInPlace(array, lastA, new Range(lastA.end, B.end), comp);
-					} else if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
 					}
 				}
 				

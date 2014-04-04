@@ -31,13 +31,6 @@
 // if true, test against std::__inplace_stable_sort() rather than std::stable_sort()
 #define TEST_INPLACE false
 
-// hm, the floating hole technique really doesn't improve performance much
-// maybe we should give the gap idea another chance?
-// also maybe have VERIFY which removes the index property
-// start learning PHP
-// and switch Pad Pals over to OpenGL ES 2.0
-// and work on the rendering system
-
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 
@@ -92,9 +85,11 @@ template <typename T, typename Comparison>
 size_t FindFirstForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	
 	for (index = range.start + skip; compare(array[index - 1], value); index += skip)
 		if (index >= range.end - skip)
 			return BinaryFirst(array, value, Range(index, range.end), compare);
+	
 	return BinaryFirst(array, value, Range(index - skip, index), compare);
 }
 
@@ -102,9 +97,11 @@ template <typename T, typename Comparison>
 size_t FindLastForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	
 	for (index = range.start + skip; !compare(value, array[index - 1]); index += skip)
 		if (index >= range.end - skip)
 			return BinaryLast(array, value, Range(index, range.end), compare);
+	
 	return BinaryLast(array, value, Range(index - skip, index), compare);
 }
 
@@ -112,9 +109,11 @@ template <typename T, typename Comparison>
 size_t FindFirstBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	
 	for (index = range.end - skip; index > range.start && !compare(array[index - 1], value); index -= skip)
 		if (index < range.start + skip)
 			return BinaryFirst(array, value, Range(range.start, index), compare);
+	
 	return BinaryFirst(array, value, Range(index, index + skip), compare);
 }
 
@@ -122,18 +121,19 @@ template <typename T, typename Comparison>
 size_t FindLastBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	
 	for (index = range.end - skip; index > range.start && compare(value, array[index - 1]); index -= skip)
 		if (index < range.start + skip)
 			return BinaryLast(array, value, Range(range.start, index), compare);
+	
 	return BinaryLast(array, value, Range(index, index + skip), compare);
 }
 
 // n^2 sorting algorithm used to sort tiny chunks of the full array
 template <typename T, typename Comparison>
 void InsertionSort(T array[], const Range & range, const Comparison compare) {
-	for (size_t i = range.start + 1; i < range.end; i++) {
+	for (size_t j, i = range.start + 1; i < range.end; i++) {
 		const T temp = array[i];
-		size_t j;
 		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
 			array[j] = array[j - 1];
 		array[j] = temp;
@@ -607,7 +607,10 @@ namespace Wiki {
 						}
 					}
 					
-					if (compare(array[A.end], array[A.end - 1])) {
+					if (compare(array[B.end - 1], array[A.start])) {
+						// the two ranges are in reverse order, so a simple rotation should fix it
+						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
+					} else if (compare(array[A.end], array[A.end - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						
 						// break the remainder of A into blocks. firstA is the uneven-sized first A block
@@ -725,9 +728,6 @@ namespace Wiki {
 							MergeInternal(array, lastA, Range(lastA.end, B.end), compare, buffer2);
 						else
 							MergeInPlace(array, lastA, Range(lastA.end, B.end), compare, cache, cache_size);
-					} else if (compare(array[B.end - 1], array[A.start])) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
 					}
 				}
 				

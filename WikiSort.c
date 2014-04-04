@@ -171,9 +171,11 @@ size_t FindFirstForward(const Test array[], const Test value, const Range range,
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
+	
 	for (index = range.start + skip; compare(array[index - 1], value); index += skip)
 		if (index >= range.end - skip)
 			return BinaryFirst(array, value, Range_new(index, range.end), compare);
+	
 	return BinaryFirst(array, value, Range_new(index - skip, index), compare);
 }
 
@@ -181,9 +183,11 @@ size_t FindLastForward(const Test array[], const Test value, const Range range, 
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
+	
 	for (index = range.start + skip; !compare(value, array[index - 1]); index += skip)
 		if (index >= range.end - skip)
 			return BinaryLast(array, value, Range_new(index, range.end), compare);
+	
 	return BinaryLast(array, value, Range_new(index - skip, index), compare);
 }
 
@@ -191,9 +195,11 @@ size_t FindFirstBackward(const Test array[], const Test value, const Range range
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
+	
 	for (index = range.end - skip; index > range.start && !compare(array[index - 1], value); index -= skip)
 		if (index < range.start + skip)
 			return BinaryFirst(array, value, Range_new(range.start, index), compare);
+	
 	return BinaryFirst(array, value, Range_new(index, index + skip), compare);
 }
 
@@ -201,9 +207,11 @@ size_t FindLastBackward(const Test array[], const Test value, const Range range,
 	size_t skip, index;
 	if (Range_length(range) == 0) return range.start;
 	skip = Max(Range_length(range)/unique, 1);
+	
 	for (index = range.end - skip; index > range.start && compare(value, array[index - 1]); index -= skip)
 		if (index < range.start + skip)
 			return BinaryLast(array, value, Range_new(range.start, index), compare);
+	
 	return BinaryLast(array, value, Range_new(index, index + skip), compare);
 }
 
@@ -689,7 +697,10 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					}
 				}
 				
-				if (compare(array[A.end], array[A.end - 1])) {
+				if (compare(array[B.end - 1], array[A.start])) {
+					/* the two ranges are in reverse order, so a simple rotation should fix it */
+					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
+				} else if (compare(array[A.end], array[A.end - 1])) {
 					/* these two ranges weren't already in order, so we'll need to merge them! */
 					Range blockA, firstA, lastA, lastB, blockB;
 					size_t minA, indexA, findA;
@@ -813,9 +824,6 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						MergeInternal(array, lastA, Range_new(lastA.end, B.end), compare, buffer2);
 					else
 						MergeInPlace(array, lastA, Range_new(lastA.end, B.end), compare, cache, cache_size);
-				} else if (compare(array[B.end - 1], array[A.start])) {
-					/* the two ranges are in reverse order, so a simple rotation should fix it */
-					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
 				}
 			}
 			
