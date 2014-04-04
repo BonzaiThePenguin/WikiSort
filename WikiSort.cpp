@@ -18,7 +18,11 @@
 
 // record the number of comparisons and assignments
 // note that this reduces WikiSort's performance when enabled
-#define PROFILE true
+#define PROFILE false
+
+// verify that WikiSort is actually correct
+// (this also reduces performance slightly)
+#define VERIFY false
 
 // simulate comparisons that have a bit more overhead than just an inlined (int < int)
 // (so we can tell whether reducing the number of comparisons was worth the added complexity)
@@ -27,6 +31,12 @@
 // if true, test against std::__inplace_stable_sort() rather than std::stable_sort()
 #define TEST_INPLACE false
 
+// hm, the floating hole technique really doesn't improve performance much
+// maybe we should give the gap idea another chance?
+// also maybe have VERIFY which removes the index property
+// start learning PHP
+// and switch Pad Pals over to OpenGL ES 2.0
+// and work on the rendering system
 
 
 double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
@@ -159,7 +169,7 @@ void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 // (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
 template <typename T>
-void Rotate(T array[], const size_t amount, const Range & range, T cache[], const size_t cache_size) {
+void Rotate(T array[], size_t amount, Range range, T cache[], const size_t cache_size) {
 	if (range.length() == 0) return;
 	
 	size_t split = range.start + amount;
@@ -772,13 +782,17 @@ namespace Wiki {
 class Test {
 public:
 	size_t value;
+#if VERIFY
 	size_t index;
+#endif
 	
 #if PROFILE
 	Test& operator=(const Test & rhs) {
 		assignments++;
 		value = rhs.value;
-		index = rhs.index;
+		#if VERIFY
+			index = rhs.index;
+		#endif
 		return *this;
 	}
 #endif
@@ -810,6 +824,7 @@ using namespace std;
 // make sure the items within the given range are in a stable order
 // if you want to test the correctness of any changes you make to the main WikiSort function,
 // move this function to the top of the file and call it from within WikiSort after each step
+#if VERIFY
 template <typename Comparison>
 void Verify(const Test array[], const Range range, const Comparison compare, const string msg) {
 	for (size_t index = range.start + 1; index < range.end; index++) {
@@ -826,6 +841,7 @@ void Verify(const Test array[], const Range range, const Comparison compare, con
 		}
 	}
 }
+#endif
 
 namespace Testing {
 	size_t Random(size_t index, size_t total) {
@@ -876,12 +892,12 @@ int main() {
 	#endif
 	
 	// initialize the random-number generator
-	//srand(time(NULL));
-	srand(10141985); // in case you want the same random numbers
+	srand(time(NULL));
+	//srand(10141985); // in case you want the same random numbers
 	
 	size_t total = max_size;
 	
-#if !SLOW_COMPARISONS
+#if !SLOW_COMPARISONS && VERIFY
 	__typeof__(&Testing::Random) test_cases[] = {
 		Testing::Random,
 		Testing::RandomFew,
@@ -936,7 +952,9 @@ int main() {
 			// Testing::MostlyEqual
 			
 			item.value = Testing::Random(index, total);
-			item.index = index;
+			#if VERIFY
+				item.index = index;
+			#endif
 			
 			array1[index] = array2[index] = item;
 		}
@@ -989,14 +1007,16 @@ int main() {
 			else cout << "WikiSort: " << assigns1 << " assigns, stable_sort: " << assigns2 << " assigns (" << assigns1 * 100.0/assigns2 - 100.0 << "% more)" << endl;
 		#endif
 		
-		// make sure the arrays are sorted correctly, and that the results were stable
-		cout << "verifying... " << flush;
-		
-		Verify(&array1[0], Range(0, total), compare, "testing the final array");
-		for (size_t index = 0; index < total; index++)
-			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
-		
-		cout << "correct!" << endl;
+		#if VERIFY
+			// make sure the arrays are sorted correctly, and that the results were stable
+			cout << "verifying... " << flush;
+			
+			Verify(&array1[0], Range(0, total), compare, "testing the final array");
+			for (size_t index = 0; index < total; index++)
+				assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
+			
+			cout << "correct!" << endl;
+		#endif
 	}
 	
 	total_time = Seconds() - total_time;

@@ -20,7 +20,11 @@
 
 /* record the number of comparisons */
 /* note that this reduces WikiSort's performance when enabled */
-#define PROFILE true
+#define PROFILE false
+
+/* verify that WikiSort is actually correct */
+/* (this also reduces performance slightly) */
+#define VERIFY false
 
 /* simulate comparisons that have a bit more overhead than just an inlined (int < int) */
 /* (so we can tell whether reducing the number of comparisons was worth the added complexity) */
@@ -53,7 +57,9 @@ size_t Max(const size_t a, const size_t b) {
 /* structure to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items) */
 typedef struct {
 	size_t value;
+#if VERIFY
 	size_t index;
+#endif
 } Test;
 
 #if PROFILE
@@ -942,6 +948,7 @@ size_t TestingMostlyEqual(size_t index, size_t total) {
 /* make sure the items within the given range are in a stable order */
 /* if you want to test the correctness of any changes you make to the main WikiSort function,
  move this function to the top of the file and call it from within WikiSort after each step */
+#if VERIFY
 void WikiVerify(const Test array[], const Range range, const Comparison compare, const char *msg) {
 	size_t index;
 	for (index = range.start + 1; index < range.end; index++) {
@@ -958,6 +965,7 @@ void WikiVerify(const Test array[], const Range range, const Comparison compare,
 		}
 	}
 }
+#endif
 
 int main() {
 	size_t total, index;
@@ -970,7 +978,7 @@ int main() {
 	#if PROFILE
 		size_t compares1, compares2, total_compares1 = 0, total_compares2 = 0;
 	#endif
-	#if !SLOW_COMPARISONS
+	#if !SLOW_COMPARISONS && VERIFY
 		size_t test_case;
 		__typeof__(&TestingRandom) test_cases[] = {
 			TestingRandom,
@@ -991,7 +999,7 @@ int main() {
 	
 	total = max_size;
 	
-#if !SLOW_COMPARISONS
+#if !SLOW_COMPARISONS && VERIFY
 	printf("running test cases... ");
 	fflush(stdout);
 	
@@ -1036,7 +1044,9 @@ int main() {
 			/* TestingJittered */
 			/* TestingMostlyEqual */
 			
-			item.index = index;
+			#if VERIFY
+				item.index = index;
+			#endif
 			item.value = TestingRandom(index, total);
 			
 			array1[index] = array2[index] = item;
@@ -1080,15 +1090,17 @@ int main() {
 				printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 		#endif
 		
-		/* make sure the arrays are sorted correctly, and that the results were stable */
-		printf("verifying... ");
-		fflush(stdout);
-		
-		WikiVerify(array1, Range_new(0, total), compare, "testing the final array");
-		for (index = 0; index < total; index++)
-			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
-		
-		printf("correct!\n");
+		#if VERIFY
+			/* make sure the arrays are sorted correctly, and that the results were stable */
+			printf("verifying... ");
+			fflush(stdout);
+			
+			WikiVerify(array1, Range_new(0, total), compare, "testing the final array");
+			for (index = 0; index < total; index++)
+				assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
+			
+			printf("correct!\n");
+		#endif
 	}
 	
 	total_time = Seconds() - total_time;
