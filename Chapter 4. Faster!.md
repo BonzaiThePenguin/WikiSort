@@ -27,6 +27,33 @@ It should actually end up sorting anywhere from 16 to *31* items at a time.
 
 * * *
 
+And if you want to get *really* technical about it, it'd actually be
+faster to skip the items at the start of each group of items that were
+already in order, and use a binary search instead of a linear search as
+part of the insertion sort:
+
+    // 4-7 works better for the binary search variant of insertion sort
+    for each 4-7 items in the array
+        get the range for these items
+        
+        if (array[range.start + 1] < array[range.start])
+            // skip sorting items that are in reverse order
+            for (index = range.start + 2; index < range.end; index++)
+                if (array[index] >= array[index - 1])
+                    break
+            Reverse(array, Range(range.start, index))
+        else
+            // skip sorting any items that are in order
+            for (index = range.start + 2; index < range.end; index++)
+                if (array[index] < array[index - 1])
+                    break
+        
+        // sort the rest of the items in this group,
+        // using a binary search instead of a linear search
+        InsertionSortBinary(array, range, compare, index)
+
+* * *
+
 Also, since there's a good chance the data is already somewhat in order,
 let's skip merging any sections that are already sorted:
 
@@ -257,6 +284,45 @@ for the Merge() call anyway, and the contents of the buffer are allowed to be
 rearranged. By considering those constraints we were able to replace the costly
 rotation with a simple block swap, and since the operation is performed so
 often it results in a nice speed boost!
+
+* * *
+
+Another useful optimization is merging two A+B pairs at the same time if it
+can fit into the cache, then merging the two remaining subarrays back into
+the original array. This requires another Merge function:
+
+    MergeInto(from, A, B, into, at_index)
+        A_index = A.start, B_index = B.start
+        A_last = A.end, B_last = B.end
+        insert = at_index
+        
+        if (B.length > 0 and A.length > 0)
+            while (true)
+                if (from[B_index] >= from[A_index])
+                    into[insert++] = from[A_index++]
+                    if (A_index = A_last) break
+                else
+                    into[insert++] = from[B_index++]
+                    if (B_index = B_last) break
+        
+        // copy the remainder of A and B into the final array
+
+And it uses another branch in the merge sort:
+
+    // if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache,
+    // then merge the two merged subarrays from the cache back into the original array
+    if ((iterator.length + 1) * 4 < cache_size and size/iterator.length >= 4)
+        iterator.begin()
+        while (!iterator.finished)
+            // handle two A+B pairs at a time!
+            Range A1 = iterator.nextRange
+            Range B1 = iterator.nextRange
+            Range A2 = iterator.nextRange
+            Range B2 = iterator.nextRange
+            
+            // merge A1 and B1 into the cache
+            // merge A2 and B2 into the cache
+            // merge (A1+B1) and (A2+B2) from the cache into the array
 
 * * *
 
