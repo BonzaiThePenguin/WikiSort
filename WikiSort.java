@@ -249,13 +249,16 @@ class WikiSorter<T> {
 	// binary search variant of insertion sort,
 	// which reduces the number of comparisons at the cost of some speed
 	// (it only makes sense to use this if the fewer comparisons makes it faster overall!)
-	void InsertionSortBinary(T array[], Range range, Comparator<T> comp) {
-		for (int i = range.start + 1; i < range.end; i++) {
-			T temp = array[i];
-			int insert = BinaryLast(array, temp, new Range(range.start, i), comp);
-			for (int j = i; j > insert; j--)
-				array[j] = array[j - 1];
-			array[insert] = temp;
+	// this also takes an index for the first item that is not already in order
+	void InsertionSortBinary(T array[], Range range, Comparator<T> comp, int start_index) {
+		for (int i = start_index; i < range.end; i++) {
+			if (comp.compare(array[i], array[i - 1]) < 0) {
+				T temp = array[i];
+				int insert = BinaryLast(array, temp, new Range(range.start, i - 1), comp);
+				for (int j = i; j > insert; j--)
+					array[j] = array[j - 1];
+				array[insert] = temp;
+			}
 		}
 	}
 	
@@ -344,6 +347,36 @@ class WikiSorter<T> {
 		java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
 	}
 	
+	// merge two ranges from one array and save the results into a different array
+	void MergeInto(T from[], Range A, Range B, Comparator<T> comp, T into[], int at_index) {
+		int A_index = A.start;
+		int B_index = B.start;
+		int insert_index = at_index;
+		int A_last = A.end;
+		int B_last = B.end;
+		
+		if (B.length() > 0 && A.length() > 0) {
+			while (true) {
+				if (comp.compare(from[B_index], from[A_index]) >= 0) {
+					into[insert_index] = from[A_index];
+					A_index++;
+					insert_index++;
+					if (A_index == A_last) break;
+				} else {
+					into[insert_index] = from[B_index];
+					B_index++;
+					insert_index++;
+					if (B_index == B_last) break;
+				}
+			}
+		}
+		
+		// copy the remainder of A and B into the final array
+		java.lang.System.arraycopy(from, A_index, into, insert_index, A_last - A_index);
+		insert_index += (A_last - A_index);
+		java.lang.System.arraycopy(from, B_index, into, insert_index, B_last - B_index);
+	}
+	
 	// merge operation using an internal buffer
 	void MergeInternal(T array[], Range A, Range B, Comparator<T> comp, Range buffer) {
 		// whenever we find a value to add to the final array, swap it with the value that's already in that spot
@@ -422,10 +455,31 @@ class WikiSorter<T> {
 		}
 		
 		// first insertion sort everything the lowest level, which is 4-7 items at a time
+		// as a minor optimization, we can skip sorting any values that are already in order or reversed at the start of each range
+		// (this ended up providing a *slightly* better performance profile overall)
 		Iterator iterator = new Iterator(size, 4);
-		iterator.begin();
-		while (!iterator.finished())
-			InsertionSortBinary(array, iterator.nextRange(), comp);
+		while (!iterator.finished()) {
+			Range range = iterator.nextRange();
+			int index;
+			
+			if (comp.compare(array[range.start + 1], array[range.start]) < 0) {
+				for (index = range.start + 2; index < range.end; index++)
+					if (comp.compare(array[index], array[index - 1]) >= 0) break;
+				Reverse(array, new Range(range.start, index));
+			} else {
+				for (index = range.start + 2; index < range.end; index++)
+					if (comp.compare(array[index], array[index - 1]) < 0) break;
+			}
+			
+			InsertionSortBinary(array, range, comp, index);
+		}
+		
+		// (here's a simple insertion sort of 4-7 items at a time)
+		//Iterator iterator = new Iterator(size, 4);
+		//while (!iterator.finished()) {
+		//	Range range = iterator.nextRange();
+		//	InsertionSortBinary(array, range, comp, range.start);
+		//}
 		
 		// we need to keep track of a lot of ranges during this sort!
 		Range buffer1 = new Range(), buffer2 = new Range();
@@ -444,18 +498,86 @@ class WikiSorter<T> {
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
 			// (we use < rather than <= since the block size might be one more than decimal_step)
 			if (iterator.length() < cache_size) {
-				iterator.begin();
-				while (!iterator.finished()) {
-					A = iterator.nextRange();
-					B = iterator.nextRange();
+				
+				// if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache,
+				// then merge the two merged subarrays from the cache back into the original array
+				if ((iterator.length() + 1) * 4 < cache_size && size/iterator.length() >= 4) {
+					iterator.begin();
+					while (!iterator.finished()) {
+						// merge A1 and B1 into the cache
+						Range A1 = iterator.nextRange();
+						Range B1 = iterator.nextRange();
+						Range A2 = iterator.nextRange();
+						Range B2 = iterator.nextRange();
+						
+						if (comp.compare(array[B1.end - 1], array[A1.start]) < 0) {
+							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							java.lang.System.arraycopy(array, A1.start, cache, B1.length(), A1.length());
+							java.lang.System.arraycopy(array, B1.start, cache, 0, B1.length());
+						} else if (comp.compare(array[B1.start], array[A1.end - 1]) < 0) {
+							// these two ranges weren't already in order, so merge them into the cache
+							MergeInto(array, A1, B1, comp, cache, 0);
+						} else {
+							// if A1, B1, A2, and B2 are all in order, skip doing anything else
+							if (comp.compare(array[B2.start], array[A2.end - 1]) >= 0 && comp.compare(array[A2.start], array[B1.end - 1]) >= 0) continue;
+							
+							// copy A1 and B1 into the cache in the same order
+							java.lang.System.arraycopy(array, A1.start, cache, 0, A1.length());
+							java.lang.System.arraycopy(array, B1.start, cache, A1.length(), B1.length());
+						}
+						A1.set(A1.start, B1.end);
+						
+						// merge A2 and B2 into the cache
+						if (comp.compare(array[B2.end - 1], array[A2.start]) < 0) {
+							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							java.lang.System.arraycopy(array, A2.start, cache, A1.length() + B2.length(), A2.length());
+							java.lang.System.arraycopy(array, B2.start, cache, A1.length(), B2.length());
+						} else if (comp.compare(array[B2.start], array[A2.end - 1]) < 0) {
+							// these two ranges weren't already in order, so merge them into the cache
+							MergeInto(array, A2, B2, comp, cache, A1.length());
+						} else {
+							// copy A2 and B2 into the cache in the same order
+							java.lang.System.arraycopy(array, A2.start, cache, A1.length(), A2.length());
+							java.lang.System.arraycopy(array, B2.start, cache, A1.length() + A2.length(), B2.length());
+						}
+						A2.set(A2.start, B2.end);
+						
+						// merge A1 and A2 from the cache into the array
+						Range A3 = new Range(0, A1.length());
+						Range B3 = new Range(A1.length(), A1.length() + A2.length());
+						
+						if (comp.compare(cache[B3.end - 1], cache[A3.start]) < 0) {
+							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							java.lang.System.arraycopy(cache, A3.start, array, A1.start + A2.length(), A3.length());
+							java.lang.System.arraycopy(cache, B3.start, array, A1.start, B3.length());
+						} else if (comp.compare(cache[B3.start], cache[A3.end - 1]) < 0) {
+							// these two ranges weren't already in order, so merge them back into the array
+							MergeInto(cache, A3, B3, comp, array, A1.start);
+						} else {
+							// copy A3 and B3 into the array in the same order
+							java.lang.System.arraycopy(cache, A3.start, array, A1.start, A3.length());
+							java.lang.System.arraycopy(cache, B3.start, array, A1.start + A1.length(), B3.length());
+						}
+					}
 					
-					if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
-					} else if (comp.compare(array[B.start], array[A.end - 1]) < 0) {
-						// these two ranges weren't already in order, so we'll need to merge them!
-						java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
-						MergeExternal(array, A, B, comp);
+					// we merged two levels at the same time, so we're done with this level already
+					// (iterator.nextLevel() is called again at the bottom of this outer merge loop)
+					iterator.nextLevel();
+					
+				} else {
+					iterator.begin();
+					while (!iterator.finished()) {
+						A = iterator.nextRange();
+						B = iterator.nextRange();
+						
+						if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
+							// the two ranges are in reverse order, so a simple rotation should fix it
+							Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
+						} else if (comp.compare(array[B.start], array[A.end - 1]) < 0) {
+							// these two ranges weren't already in order, so we'll need to merge them!
+							java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
+							MergeExternal(array, A, B, comp);
+						}
 					}
 				}
 			} else {

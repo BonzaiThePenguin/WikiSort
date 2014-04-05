@@ -232,14 +232,17 @@ void InsertionSort(Test array[], const Range range, const Comparison compare) {
 /* binary search variant of insertion sort, */
 /* which reduces the number of comparisons at the cost of some speed */
 /* (it only makes sense to use this if the fewer comparisons makes it faster overall!) */
-void InsertionSortBinary(Test array[], const Range range, const Comparison compare) {
+/* this also takes an index for the first item that is not already in order */
+void InsertionSortBinary(Test array[], const Range range, const Comparison compare, const size_t start_index) {
 	size_t i, j, insert;
-	for (i = range.start + 1; i < range.end; i++) {
-		const Test temp = array[i];
-		insert = BinaryLast(array, temp, Range_new(range.start, i), compare);
-		for (j = i; j > insert; j--)
-			array[j] = array[j - 1];
-		array[insert] = temp;
+	for (i = start_index; i < range.end; i++) {
+		if (compare(array[i], array[i - 1])) {
+			Test temp = array[i];
+			insert = BinaryLast(array, temp, Range_new(range.start, i - 1), compare);
+			for (j = i; j > insert; j--)
+				array[j] = array[j - 1];
+			array[insert] = temp;
+		}
 	}
 }
 
@@ -374,6 +377,34 @@ void MergeExternal(Test array[], const Range A, const Range B, const Comparison 
 	memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
 }
 
+/* merge two ranges from one array and save the results into a different array */
+void MergeInto(Test from[], const Range A, const Range B, const Comparison compare, Test into[]) {
+	Test *A_index = &from[A.start], *B_index = &from[B.start];
+	Test *A_last = &from[A.end], *B_last = &from[B.end];
+	Test *insert_index = &into[0];
+	
+	if (Range_length(B) > 0 && Range_length(A) > 0) {
+		while (true) {
+			if (!compare(*B_index, *A_index)) {
+				*insert_index = *A_index;
+				A_index++;
+				insert_index++;
+				if (A_index == A_last) break;
+			} else {
+				*insert_index = *B_index;
+				B_index++;
+				insert_index++;
+				if (B_index == B_last) break;
+			}
+		}
+	}
+	
+	/* copy the remainder of A and B into the final array */
+	memcpy(insert_index, A_index, (A_last - A_index) * sizeof(from[0]));
+	insert_index += (A_last - A_index);
+	memcpy(insert_index, B_index, (B_last - B_index) * sizeof(from[0]));
+}
+
 /* merge operation using an internal buffer */
 void MergeInternal(Test array[], const Range A, const Range B, const Comparison compare, const Range buffer) {
 	/* whenever we find a value to add to the final array, swap it with the value that's already in that spot */
@@ -477,10 +508,33 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 	}
 	
 	/* first insertion sort everything the lowest level, which is 4-7 items at a time */
+	/* as a minor optimization, we can skip sorting any values that are already in order or reversed at the start of each range */
+	/* (this ended up providing a *slightly* better performance profile overall) */
 	iterator = WikiIterator_new(size, 4);
 	WikiIterator_begin(&iterator);
-	while (!WikiIterator_finished(&iterator))
-		InsertionSortBinary(array, WikiIterator_nextRange(&iterator), compare);
+	while (!WikiIterator_finished(&iterator)) {
+		size_t index;
+		Range range = WikiIterator_nextRange(&iterator);
+		
+		if (compare(array[range.start + 1], array[range.start])) {
+			for (index = range.start + 2; index < range.end; index++)
+				if (!compare(array[index], array[index - 1])) break;
+			Reverse(array, Range_new(range.start, index));
+		} else {
+			for (index = range.start + 2; index < range.end; index++)
+				if (compare(array[index], array[index - 1])) break;
+		}
+		
+		InsertionSortBinary(array, range, compare, index);
+	}
+	
+	/* (here's a simple insertion sort of 4-7 items at a time) */
+	/*iterator = WikiIterator_new(size, 4);
+	WikiIterator_begin(&iterator);
+	while (!WikiIterator_finished(&iterator)) {
+		Range range = WikiIterator_nextRange(&iterator);
+		InsertionSortBinary(array, range, compare, range.start);
+	} */
 	
 	/* then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc. */
 	while (true) {
@@ -488,18 +542,86 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 		/* if every A and B block will fit into the cache, use a special branch specifically for merging with the cache */
 		/* (we use < rather than <= since the block size might be one more than decimal_step) */
 		if (WikiIterator_length(&iterator) < cache_size) {
-			WikiIterator_begin(&iterator);
-			while (!WikiIterator_finished(&iterator)) {
-				Range A = WikiIterator_nextRange(&iterator);
-				Range B = WikiIterator_nextRange(&iterator);
+			
+			/* if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache, */
+			/* then merge the two merged subarrays from the cache back into the original array */
+			if ((WikiIterator_length(&iterator) + 1) * 4 < cache_size && size/WikiIterator_length(&iterator) >= 4) {
+				WikiIterator_begin(&iterator);
+				while (!WikiIterator_finished(&iterator)) {
+					/* merge A1 and B1 into the cache */
+					Range A1 = WikiIterator_nextRange(&iterator);
+					Range B1 = WikiIterator_nextRange(&iterator);
+					Range A2 = WikiIterator_nextRange(&iterator);
+					Range B2 = WikiIterator_nextRange(&iterator);
+					
+					if (compare(array[B1.end - 1], array[A1.start])) {
+						/* the two ranges are in reverse order, so copy them in reverse order into the cache */
+						memcpy(&cache[Range_length(B1)], &array[A1.start], Range_length(A1) * sizeof(array[0]));
+						memcpy(&cache[0], &array[B1.start], Range_length(B1) * sizeof(array[0]));
+					} else if (compare(array[B1.start], array[A1.end - 1])) {
+						/* these two ranges weren't already in order, so merge them into the cache */
+						MergeInto(array, A1, B1, compare, &cache[0]);
+					} else {
+						/* if A1, B1, A2, and B2 are all in order, skip doing anything else */
+						if (!compare(array[B2.start], array[A2.end - 1]) && !compare(array[A2.start], array[B1.end - 1])) continue;
+						
+						/* copy A1 and B1 into the cache in the same order */
+						memcpy(&cache[0], &array[A1.start], Range_length(A1) * sizeof(array[0]));
+						memcpy(&cache[Range_length(A1)], &array[B1.start], Range_length(B1) * sizeof(array[0]));
+					}
+					A1 = Range_new(A1.start, B1.end);
+					
+					/* merge A2 and B2 into the cache */
+					if (compare(array[B2.end - 1], array[A2.start])) {
+						/* the two ranges are in reverse order, so copy them in reverse order into the cache */
+						memcpy(&cache[Range_length(A1) + Range_length(B2)], &array[A2.start], Range_length(A2) * sizeof(array[0]));
+						memcpy(&cache[Range_length(A1)], &array[B2.start], Range_length(B2) * sizeof(array[0]));
+					} else if (compare(array[B2.start], array[A2.end - 1])) {
+						/* these two ranges weren't already in order, so merge them into the cache */
+						MergeInto(array, A2, B2, compare, &cache[Range_length(A1)]);
+					} else {
+						/* copy A2 and B2 into the cache in the same order */
+						memcpy(&cache[Range_length(A1)], &array[A2.start], Range_length(A2) * sizeof(array[0]));
+						memcpy(&cache[Range_length(A1) + Range_length(A2)], &array[B2.start], Range_length(B2) * sizeof(array[0]));
+					}
+					A2 = Range_new(A2.start, B2.end);
+					
+					/* merge A1 and A2 from the cache into the array */
+					Range A3 = Range_new(0, Range_length(A1));
+					Range B3 = Range_new(Range_length(A1), Range_length(A1) + Range_length(A2));
+					
+					if (compare(cache[B3.end - 1], cache[A3.start])) {
+						/* the two ranges are in reverse order, so copy them in reverse order into the cache */
+						memcpy(&array[A1.start + Range_length(A2)], &cache[A3.start], Range_length(A3) * sizeof(array[0]));
+						memcpy(&array[A1.start], &cache[B3.start], Range_length(B3) * sizeof(array[0]));
+					} else if (compare(cache[B3.start], cache[A3.end - 1])) {
+						/* these two ranges weren't already in order, so merge them back into the array */
+						MergeInto(cache, A3, B3, compare, &array[A1.start]);
+					} else {
+						/* copy A3 and B3 into the array in the same order */
+						memcpy(&array[A1.start], &cache[A3.start], Range_length(A3) * sizeof(array[0]));
+						memcpy(&array[A1.start + Range_length(A1)], &cache[B3.start], Range_length(B3) * sizeof(array[0]));
+					}
+				}
 				
-				if (compare(array[B.end - 1], array[A.start])) {
-					/* the two ranges are in reverse order, so a simple rotation should fix it */
-					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
-				} else if (compare(array[B.start], array[A.end - 1])) {
-					/* these two ranges weren't already in order, so we'll need to merge them! */
-					memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
-					MergeExternal(array, A, B, compare, cache, cache_size);
+				/* we merged two levels at the same time, so we're done with this level already */
+				/* (iterator.nextLevel() is called again at the bottom of this outer merge loop) */
+				WikiIterator_nextLevel(&iterator);
+				
+			} else {
+				WikiIterator_begin(&iterator);
+				while (!WikiIterator_finished(&iterator)) {
+					Range A = WikiIterator_nextRange(&iterator);
+					Range B = WikiIterator_nextRange(&iterator);
+					
+					if (compare(array[B.end - 1], array[A.start])) {
+						/* the two ranges are in reverse order, so a simple rotation should fix it */
+						Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
+					} else if (compare(array[B.start], array[A.end - 1])) {
+						/* these two ranges weren't already in order, so we'll need to merge them! */
+						memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
+						MergeExternal(array, A, B, compare, cache, cache_size);
+					}
 				}
 			}
 		} else {

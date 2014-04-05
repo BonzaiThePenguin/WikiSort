@@ -136,24 +136,30 @@ size_t FindLastBackward(const T array[], const T & value, const Range & range, c
 template <typename T, typename Comparison>
 void InsertionSort(T array[], const Range & range, const Comparison compare) {
 	for (size_t j, i = range.start + 1; i < range.end; i++) {
-		const T temp = array[i];
-		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
-			array[j] = array[j - 1];
-		array[j] = temp;
+		//if (compare(array[i], array[i - 1])) {
+			const T temp = array[i];
+			//array[i] = array[i - 1];
+			for (j = i/* - 1*/; j > range.start && compare(temp, array[j - 1]); j--)
+				array[j] = array[j - 1];
+			array[j] = temp;
+		//}
 	}
 }
 
 // binary search variant of insertion sort,
 // which reduces the number of comparisons at the cost of some speed
 // (it only makes sense to use this if the fewer comparisons makes it faster overall!)
+// this also takes an index for the first item that is not already in order
 template <typename T, typename Comparison>
-void InsertionSortBinary(T array[], const Range & range, const Comparison compare) {
-	for (size_t i = range.start + 1; i < range.end; i++) {
-		T temp = array[i];
-		size_t insert = BinaryLast(array, temp, Range(range.start, i), compare);
-		for (size_t j = i; j > insert; j--)
-			array[j] = array[j - 1];
-		array[insert] = temp;
+void InsertionSortBinary(T array[], const Range & range, const Comparison compare, const size_t start_index) {
+	for (size_t i = start_index; i < range.end; i++) {
+		if (compare(array[i], array[i - 1])) {
+			T temp = array[i];
+			size_t insert = BinaryLast(array, temp, Range(range.start, i - 1), compare);
+			for (size_t j = i; j > insert; j--)
+				array[j] = array[j - 1];
+			array[insert] = temp;
+		}
 	}
 }
 
@@ -226,6 +232,35 @@ namespace Wiki {
 		
 		// copy the remainder of A into the final array
 		std::copy(A_index, A_last, insert_index);
+	}
+	
+	// merge two ranges from one array and save the results into a different array
+	template <typename T, typename Comparison>
+	void MergeInto(T from[], const Range & A, const Range & B, const Comparison compare, T into[]) {
+		T *A_index = &from[A.start], *B_index = &from[B.start];
+		T *A_last = &from[A.end], *B_last = &from[B.end];
+		T *insert_index = &into[0];
+		
+		if (B.length() > 0 && A.length() > 0) {
+			while (true) {
+				if (!compare(*B_index, *A_index)) {
+					*insert_index = *A_index;
+					A_index++;
+					insert_index++;
+					if (A_index == A_last) break;
+				} else {
+					*insert_index = *B_index;
+					B_index++;
+					insert_index++;
+					if (B_index == B_last) break;
+				}
+			}
+		}
+		
+		// copy the remainder of A and B into the final array
+		std::copy(A_index, A_last, insert_index);
+		insert_index += (A_last - A_index);
+		std::copy(B_index, B_last, insert_index);
 	}
 	
 	// merge operation using an internal buffer
@@ -394,27 +429,117 @@ namespace Wiki {
 		#endif
 		
 		// first insertion sort everything the lowest level, which is 4-7 items at a time
+		// as a minor optimization, we can skip sorting any values that are already in order or reversed at the start of each range
+		// (this ended up providing a *slightly* better performance profile overall)
 		Wiki::Iterator iterator (size, 4);
-		while (!iterator.finished())
-			InsertionSortBinary(array, iterator.nextRange(), compare);
+		while (!iterator.finished()) {
+			Range range = iterator.nextRange();
+			size_t index;
+			
+			if (compare(array[range.start + 1], array[range.start])) {
+				for (index = range.start + 2; index < range.end; index++)
+					if (!compare(array[index], array[index - 1])) break;
+				Reverse(array, Range(range.start, index));
+			} else {
+				for (index = range.start + 2; index < range.end; index++)
+					if (compare(array[index], array[index - 1])) break;
+			}
+			
+			InsertionSortBinary(array, range, compare, index);
+		}
+		
+		// (here's a simple insertion sort of 4-7 items at a time)
+		//Wiki::Iterator iterator (size, 4);
+		//while (!iterator.finished()) {
+		//	Range range = iterator.nextRange();
+		//	InsertionSortBinary(array, range, compare, range.start);
+		//}
 		
 		// then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc.
 		while (true) {
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
 			// (we use < rather than <= since the block size might be one more than decimal_step)
 			if (iterator.length() < cache_size) {
-				iterator.begin();
-				while (!iterator.finished()) {
-					Range A = iterator.nextRange();
-					Range B = iterator.nextRange();
+				
+				// if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache,
+				// then merge the two merged subarrays from the cache back into the original array
+				if ((iterator.length() + 1) * 4 < cache_size && size/iterator.length() >= 4) {
+					iterator.begin();
+					while (!iterator.finished()) {
+						// merge A1 and B1 into the cache
+						Range A1 = iterator.nextRange();
+						Range B1 = iterator.nextRange();
+						Range A2 = iterator.nextRange();
+						Range B2 = iterator.nextRange();
+						
+						if (compare(array[B1.end - 1], array[A1.start])) {
+							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							std::copy(&array[A1.start], &array[A1.end], &cache[B1.length()]);
+							std::copy(&array[B1.start], &array[B1.end], &cache[0]);
+						} else if (compare(array[B1.start], array[A1.end - 1])) {
+							// these two ranges weren't already in order, so merge them into the cache
+							MergeInto(array, A1, B1, compare, &cache[0]);
+						} else {
+							// if A1, B1, A2, and B2 are all in order, skip doing anything else
+							if (!compare(array[B2.start], array[A2.end - 1]) && !compare(array[A2.start], array[B1.end - 1])) continue;
+							
+							// copy A1 and B1 into the cache in the same order
+							std::copy(&array[A1.start], &array[A1.end], &cache[0]);
+							std::copy(&array[B1.start], &array[B1.end], &cache[A1.length()]);
+						}
+						A1 = Range(A1.start, B1.end);
+						
+						// merge A2 and B2 into the cache
+						if (compare(array[B2.end - 1], array[A2.start])) {
+							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							std::copy(&array[A2.start], &array[A2.end], &cache[A1.length() + B2.length()]);
+							std::copy(&array[B2.start], &array[B2.end], &cache[A1.length()]);
+						} else if (compare(array[B2.start], array[A2.end - 1])) {
+							// these two ranges weren't already in order, so merge them into the cache
+							MergeInto(array, A2, B2, compare, &cache[A1.length()]);
+						} else {
+							// copy A2 and B2 into the cache in the same order
+							std::copy(&array[A2.start], &array[A2.end], &cache[A1.length()]);
+							std::copy(&array[B2.start], &array[B2.end], &cache[A1.length() + A2.length()]);
+						}
+						A2 = Range(A2.start, B2.end);
+						
+						// merge A1 and A2 from the cache into the array
+						Range A3 = Range(0, A1.length());
+						Range B3 = Range(A1.length(), A1.length() + A2.length());
+						
+						if (compare(cache[B3.end - 1], cache[A3.start])) {
+							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start + A2.length()]);
+							std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start]);
+						} else if (compare(cache[B3.start], cache[A3.end - 1])) {
+							// these two ranges weren't already in order, so merge them back into the array
+							MergeInto(cache, A3, B3, compare, &array[A1.start]);
+						} else {
+							// copy A3 and B3 into the array in the same order
+							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start]);
+							std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start + A1.length()]);
+						}
+					}
 					
-					if (compare(array[B.end - 1], array[A.start])) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
-					} else if (compare(array[B.start], array[A.end - 1])) {
-						// these two ranges weren't already in order, so we'll need to merge them!
-						std::copy(&array[A.start], &array[A.end], &cache[0]);
-						MergeExternal(array, A, B, compare, cache, cache_size);
+					// we merged two levels at the same time, so we're done with this level already
+					// (iterator.nextLevel() is called again at the bottom of this outer merge loop)
+					iterator.nextLevel();
+					
+				} else {
+					iterator.begin();
+					while (!iterator.finished()) {
+						Range A = iterator.nextRange();
+						Range B = iterator.nextRange();
+						
+						if (compare(array[B.end - 1], array[A.start])) {
+							// the two ranges are in reverse order, so a simple rotation should fix it
+							Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
+						} else if (compare(array[B.start], array[A.end - 1])) {
+							// these two ranges weren't already in order, so we'll need to merge them!
+							std::copy(&array[A.start], &array[A.end], &cache[0]);
+							MergeExternal(array, A, B, compare, cache, cache_size);
+						}
 					}
 				}
 			} else {
