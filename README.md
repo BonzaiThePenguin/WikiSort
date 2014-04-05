@@ -45,3 +45,21 @@ Using a dynamically allocated half-size cache:
     Equal             1162% faster       887% faster
     Jittered           366% faster       336% faster
     MostlyEqual         16% faster         8% faster
+
+* * *
+
+**WikiSort vs. std::__inplace_stable_sort()**  
+<sup>(clang++ version 3.2)</sup>
+
+Using a 20-item fixed-size cache to somewhat match __inplace_stable_sort's memory use:
+
+    Test             Fast comparisons   Slow comparisons
+    Random             317% faster       111% faster
+    RandomFew          182% faster        57% faster
+    MostlyDescending    92% faster        18% faster
+    MostlyAscending     69% as fast       82% as fast
+    Ascending          153% faster       199% faster
+    Descending         201% faster       215% faster
+    Equal               38% faster        69% faster
+    Jittered            48% faster        71% faster
+    MostlyEqual         42% faster        20% faster
