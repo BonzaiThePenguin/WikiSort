@@ -229,23 +229,6 @@ void InsertionSort(Test array[], const Range range, const Comparison compare) {
 	}
 }
 
-/* binary search variant of insertion sort, */
-/* which reduces the number of comparisons at the cost of some speed */
-/* (it only makes sense to use this if the fewer comparisons makes it faster overall!) */
-/* this also takes an index for the first item that is not already in order */
-void InsertionSortBinary(Test array[], const Range range, const Comparison compare, const size_t start_index) {
-	size_t i, j, insert;
-	for (i = start_index; i < range.end; i++) {
-		if (compare(array[i], array[i - 1])) {
-			Test temp = array[i];
-			insert = BinaryLast(array, temp, Range_new(range.start, i - 1), compare);
-			for (j = i; j > insert; j--)
-				array[j] = array[j - 1];
-			array[insert] = temp;
-		}
-	}
-}
-
 /* reverse a range of values within the array */
 void Reverse(Test array[], const Range range) {
 	size_t index;
@@ -507,34 +490,60 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 		return;
 	}
 	
-	/* first insertion sort everything the lowest level, which is 4-7 items at a time */
-	/* as a minor optimization, we can skip sorting any values that are already in order or reversed at the start of each range */
-	/* (this ended up providing a *slightly* better performance profile overall) */
+	/* first sort everything the lowest level, which is 4-7 items at a time */
+	/* use an unstable sorting network, but keep track of the original orders for the items */
+	/* so we can force it to be a stable sorting network */
+	/* http://pages.ripco.net/~jgamble/nw.html */
 	iterator = WikiIterator_new(size, 4);
 	WikiIterator_begin(&iterator);
 	while (!WikiIterator_finished(&iterator)) {
-		size_t index;
 		Range range = WikiIterator_nextRange(&iterator);
+		uint8_t order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 		
-		if (compare(array[range.start + 1], array[range.start])) {
-			for (index = range.start + 2; index < range.end; index++)
-				if (!compare(array[index], array[index - 1])) break;
-			Reverse(array, Range_new(range.start, index));
-		} else {
-			for (index = range.start + 2; index < range.end; index++)
-				if (compare(array[index], array[index - 1])) break;
+		#define SWAP(x, y) if (compare(array[range.start + y], array[range.start + x]) || \
+								(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
+								Swap(array[range.start + x], array[range.start + y]); Swap(order[x], order[y]); }
+		
+		if (Range_length(range) == 8) {
+			SWAP(0, 1); SWAP(2, 3); SWAP(4, 5); SWAP(6, 7);
+			SWAP(0, 2); SWAP(1, 3); SWAP(4, 6); SWAP(5, 7);
+			SWAP(1, 2); SWAP(5, 6); SWAP(0, 4); SWAP(3, 7);
+			SWAP(1, 5); SWAP(2, 6);
+			SWAP(1, 4); SWAP(3, 6);
+			SWAP(2, 4); SWAP(3, 5);
+			SWAP(3, 4);
+			
+		} else if (Range_length(range) == 7) {
+			SWAP(1, 2); SWAP(3, 4); SWAP(5, 6);
+			SWAP(0, 2); SWAP(3, 5); SWAP(4, 6);
+			SWAP(0, 1); SWAP(4, 5); SWAP(2, 6);
+			SWAP(0, 4); SWAP(1, 5);
+			SWAP(0, 3); SWAP(2, 5);
+			SWAP(1, 3); SWAP(2, 4);
+			SWAP(2, 3);
+			
+		} else if (Range_length(range) == 6) {
+			SWAP(1, 2); SWAP(4, 5);
+			SWAP(0, 2); SWAP(3, 5);
+			SWAP(0, 1); SWAP(3, 4); SWAP(2, 5);
+			SWAP(0, 3); SWAP(1, 4);
+			SWAP(2, 4); SWAP(1, 3);
+			SWAP(2, 3);
+			
+		} else if (Range_length(range) == 5) {
+			SWAP(0, 1); SWAP(3, 4);
+			SWAP(2, 4);
+			SWAP(2, 3); SWAP(1, 4);
+			SWAP(0, 3);
+			SWAP(0, 2); SWAP(1, 3);
+			SWAP(1, 2);
+			
+		} else if (Range_length(range) == 4) {
+			SWAP(0, 1); SWAP(2, 3);
+			SWAP(0, 2); SWAP(1, 3);
+			SWAP(1, 2);
 		}
-		
-		InsertionSortBinary(array, range, compare, index);
 	}
-	
-	/* (here's a simple insertion sort of 4-7 items at a time) */
-	/*iterator = WikiIterator_new(size, 4);
-	WikiIterator_begin(&iterator);
-	while (!WikiIterator_finished(&iterator)) {
-		Range range = WikiIterator_nextRange(&iterator);
-		InsertionSortBinary(array, range, compare, range.start);
-	} */
 	
 	/* then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc. */
 	while (true) {
@@ -591,7 +600,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					Range B3 = Range_new(Range_length(A1), Range_length(A1) + Range_length(A2));
 					
 					if (compare(cache[B3.end - 1], cache[A3.start])) {
-						/* the two ranges are in reverse order, so copy them in reverse order into the cache */
+						/* the two ranges are in reverse order, so copy them in reverse order into the array */
 						memcpy(&array[A1.start + Range_length(A2)], &cache[A3.start], Range_length(A3) * sizeof(array[0]));
 						memcpy(&array[A1.start], &cache[B3.start], Range_length(B3) * sizeof(array[0]));
 					} else if (compare(cache[B3.start], cache[A3.end - 1])) {

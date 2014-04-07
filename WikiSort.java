@@ -246,22 +246,6 @@ class WikiSorter<T> {
 		}
 	}
 	
-	// binary search variant of insertion sort,
-	// which reduces the number of comparisons at the cost of some speed
-	// (it only makes sense to use this if the fewer comparisons makes it faster overall!)
-	// this also takes an index for the first item that is not already in order
-	void InsertionSortBinary(T array[], Range range, Comparator<T> comp, int start_index) {
-		for (int i = start_index; i < range.end; i++) {
-			if (comp.compare(array[i], array[i - 1]) < 0) {
-				T temp = array[i];
-				int insert = BinaryLast(array, temp, new Range(range.start, i - 1), comp);
-				for (int j = i; j > insert; j--)
-					array[j] = array[j - 1];
-				array[insert] = temp;
-			}
-		}
-	}
-	
 	// reverse a range of values within the array
 	void Reverse(T array[], Range range) {
 		for (int index = range.length()/2 - 1; index >= 0; index--) {
@@ -444,6 +428,18 @@ class WikiSorter<T> {
 		}
 	}
 	
+	void SWAP(T array[], int order[], Range range, Comparator<T> comp, int x, int y) {
+		int compare = comp.compare(array[range.start + x], array[range.start + y]);
+		if (compare > 0 || (order[x] > order[y] && compare == 0)) {
+			T swap = array[range.start + x];
+			array[range.start + x] = array[range.start + y];
+			array[range.start + y] = swap;
+			int swap2 = order[x];
+			order[x] = order[y];
+			order[y] = swap2;
+		}
+	}
+	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	void Sort(T array[], Comparator<T> comp) {
 		int size = array.length;
@@ -454,32 +450,58 @@ class WikiSorter<T> {
 			return;
 		}
 		
-		// first insertion sort everything the lowest level, which is 4-7 items at a time
-		// as a minor optimization, we can skip sorting any values that are already in order or reversed at the start of each range
-		// (this ended up providing a *slightly* better performance profile overall)
+		// first sort everything the lowest level, which is 4-7 items at a time
+		// use an unstable sorting network, but keep track of the original orders for the items
+		// so we can force it to be a stable sorting network
+		// http://pages.ripco.net/~jgamble/nw.html
 		Iterator iterator = new Iterator(size, 4);
 		while (!iterator.finished()) {
 			Range range = iterator.nextRange();
-			int index;
+			int order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 			
-			if (comp.compare(array[range.start + 1], array[range.start]) < 0) {
-				for (index = range.start + 2; index < range.end; index++)
-					if (comp.compare(array[index], array[index - 1]) >= 0) break;
-				Reverse(array, new Range(range.start, index));
-			} else {
-				for (index = range.start + 2; index < range.end; index++)
-					if (comp.compare(array[index], array[index - 1]) < 0) break;
+			if (range.length() == 8) {
+				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 2, 3);
+				SWAP(array, order, range, comp, 4, 5); SWAP(array, order, range, comp, 6, 7);
+				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 1, 3);
+				SWAP(array, order, range, comp, 4, 6); SWAP(array, order, range, comp, 5, 7);
+				SWAP(array, order, range, comp, 1, 2); SWAP(array, order, range, comp, 5, 6);
+				SWAP(array, order, range, comp, 0, 4); SWAP(array, order, range, comp, 3, 7);
+				SWAP(array, order, range, comp, 1, 5); SWAP(array, order, range, comp, 2, 6);
+				SWAP(array, order, range, comp, 1, 4); SWAP(array, order, range, comp, 3, 6);
+				SWAP(array, order, range, comp, 2, 4); SWAP(array, order, range, comp, 3, 5);
+				SWAP(array, order, range, comp, 3, 4);
+				
+			} else if (range.length() == 7) {
+				SWAP(array, order, range, comp, 1, 2); SWAP(array, order, range, comp, 3, 4); SWAP(array, order, range, comp, 5, 6);
+				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 3, 5); SWAP(array, order, range, comp, 4, 6);
+				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 4, 5); SWAP(array, order, range, comp, 2, 6);
+				SWAP(array, order, range, comp, 0, 4); SWAP(array, order, range, comp, 1, 5);
+				SWAP(array, order, range, comp, 0, 3); SWAP(array, order, range, comp, 2, 5);
+				SWAP(array, order, range, comp, 1, 3); SWAP(array, order, range, comp, 2, 4);
+				SWAP(array, order, range, comp, 2, 3);
+				
+			} else if (range.length() == 6) {
+				SWAP(array, order, range, comp, 1, 2); SWAP(array, order, range, comp, 4, 5);
+				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 3, 5);
+				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 3, 4); SWAP(array, order, range, comp, 2, 5);
+				SWAP(array, order, range, comp, 0, 3); SWAP(array, order, range, comp, 1, 4);
+				SWAP(array, order, range, comp, 2, 4); SWAP(array, order, range, comp, 1, 3);
+				SWAP(array, order, range, comp, 2, 3);
+				
+			} else if (range.length() == 5) {
+				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 3, 4);
+				SWAP(array, order, range, comp, 2, 4);
+				SWAP(array, order, range, comp, 2, 3); SWAP(array, order, range, comp, 1, 4);
+				SWAP(array, order, range, comp, 0, 3);
+				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 1, 3);
+				SWAP(array, order, range, comp, 1, 2);
+				
+			} else if (range.length() == 4) {
+				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 2, 3);
+				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 1, 3);
+				SWAP(array, order, range, comp, 1, 2);
 			}
-			
-			InsertionSortBinary(array, range, comp, index);
 		}
-		
-		// (here's a simple insertion sort of 4-7 items at a time)
-		//Iterator iterator = new Iterator(size, 4);
-		//while (!iterator.finished()) {
-		//	Range range = iterator.nextRange();
-		//	InsertionSortBinary(array, range, comp, range.start);
-		//}
 		
 		// we need to keep track of a lot of ranges during this sort!
 		Range buffer1 = new Range(), buffer2 = new Range();

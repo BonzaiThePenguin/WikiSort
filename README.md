@@ -1,7 +1,7 @@
 WikiSort
 ======
 
-WikiSort is an implementation of "block merge sort", which is a stable merge sort based on the work described in ["Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner](http://ak.hanyang.ac.kr/papers/tamc2008.pdf) [PDF]. Block merge sort, or "block sort" for short, generally maintains **80-95%** of the speed of merge sort *while using O(1) memory*, and is even faster when the input is partially ordered. Block sort can also be modified to use any additional memory *optionally* provided to it, which can further improve its speed.
+WikiSort is an implementation of "block merge sort", which is a stable merge sort based on the work described in ["Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner](http://ak.hanyang.ac.kr/papers/tamc2008.pdf) [PDF]. Block merge sort, or "block sort" for short, is generally **as fast as a standard merge sort while using O(1) memory**, and is *even faster* when the input is partially ordered. Block sort can also be modified to use any additional memory *optionally* provided to it, which can further improve its speed.
 
 [C](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.c), [C++](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.cpp), and [Java](https://github.com/BonzaiThePenguin/WikiSort/blob/master/WikiSort.java) versions are currently available, and you have permission from me and the authors of the paper (Dr. Kim and Dr. Kutzner) to [do whatever you want with this code](https://github.com/BonzaiThePenguin/WikiSort/blob/master/LICENSE).
 
@@ -18,48 +18,30 @@ Or you can check out the work-in-progress version of the [Wikipedia page](https:
 * * *
 
 **WikiSort vs. std::stable_sort()**  
-<sup>(clang++ version 3.2)</sup>
+<sup>(clang++ version 3.2, sorting 0 to 1.5 million items)</sup>
 
 Using a 512-item fixed-size cache for O(1) memory:
 
     Test             Fast comparisons   Slow comparisons
-    Random              83% as fast       88% as fast
-    RandomFew           84% as fast        7% faster
-    MostlyDescending    82% as fast        5% faster
-    MostlyAscending    111% faster       112% faster
-    Ascending          892% faster       794% faster
-    Descending          18% faster       176% faster
-    Equal              932% faster       711% faster
-    Jittered           390% faster       351% faster
-    MostlyEqual         95% as fast       48% faster
+    Random              99% as fast       94% as fast
+    RandomFew            1% faster        19% faster
+    MostlyDescending    95% as fast       16% faster
+    MostlyAscending    150% faster       116% faster
+    Ascending         1164% faster       487% faster
+    Descending          22% faster       128% faster
+    Equal             1158% faster       426% faster
+    Jittered           470% faster       287% faster
+    MostlyEqual         17% faster        60% faster
 
 Using a dynamically allocated half-size cache:
 
     Test             Fast comparisons   Slow comparisons
-    Random              10% faster         2% faster
-    RandomFew           12% faster         5% faster
-    MostlyDescending    33% faster        31% faster
-    MostlyAscending    101% faster        89% faster
-    Ascending         1064% faster       857% faster
-    Descending          84% faster       285% faster
-    Equal             1162% faster       887% faster
-    Jittered           366% faster       336% faster
-    MostlyEqual         16% faster         8% faster
-
-* * *
-
-**WikiSort vs. std::__inplace_stable_sort()**  
-<sup>(clang++ version 3.2)</sup>
-
-Using a 20-item fixed-size cache to somewhat match __inplace_stable_sort's memory use:
-
-    Test             Fast comparisons   Slow comparisons
-    Random             317% faster       111% faster
-    RandomFew          182% faster        57% faster
-    MostlyDescending    92% faster        18% faster
-    MostlyAscending     69% as fast       82% as fast
-    Ascending          153% faster       199% faster
-    Descending         201% faster       215% faster
-    Equal               38% faster        69% faster
-    Jittered            48% faster        71% faster
-    MostlyEqual         42% faster        20% faster
+    Random              11% faster         2% faster
+    RandomFew           15% faster         6% faster
+    MostlyDescending    38% faster        35% faster
+    MostlyAscending     96% faster        80% faster
+    Ascending          812% faster       450% faster
+    Descending          75% faster       176% faster
+    Equal              822% faster       462% faster
+    Jittered           321% faster       244% faster
+    MostlyEqual         18% faster         5% faster

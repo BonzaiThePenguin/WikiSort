@@ -143,23 +143,6 @@ void InsertionSort(T array[], const Range & range, const Comparison compare) {
 	}
 }
 
-// binary search variant of insertion sort,
-// which reduces the number of comparisons at the cost of some speed
-// (it only makes sense to use this if the fewer comparisons makes it faster overall!)
-// this also takes an index for the first item that is not already in order
-template <typename T, typename Comparison>
-void InsertionSortBinary(T array[], const Range & range, const Comparison compare, const size_t start_index) {
-	for (size_t i = start_index; i < range.end; i++) {
-		if (compare(array[i], array[i - 1])) {
-			T temp = array[i];
-			size_t insert = BinaryLast(array, temp, Range(range.start, i - 1), compare);
-			for (size_t j = i; j > insert; j--)
-				array[j] = array[j - 1];
-			array[insert] = temp;
-		}
-	}
-}
-
 // reverse a range of values within the array
 template <typename T>
 void Reverse(T array[], const Range & range) {
@@ -173,10 +156,10 @@ void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
-// (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
+// this assumes that 0 <= amount <= range.length()
 template <typename T>
 void Rotate(T array[], size_t amount, Range range, T cache[], const size_t cache_size) {
-	if (range.length() == 0) return;
+	if (range.length() == amount) return;
 	
 	size_t split = range.start + amount;
 	Range range1 = Range(range.start, split);
@@ -444,32 +427,59 @@ namespace Wiki {
 			T cache[cache_size];
 		#endif
 		
-		// first insertion sort everything the lowest level, which is 4-7 items at a time
-		// as a minor optimization, we can skip sorting any values that are already in order or reversed at the start of each range
-		// (this ended up providing a *slightly* better performance profile overall)
+		// first sort everything the lowest level, which is 4-7 items at a time
+		// use an unstable sorting network, but keep track of the original orders for the items
+		// so we can force it to be a stable sorting network
+		// http://pages.ripco.net/~jgamble/nw.html
 		Wiki::Iterator iterator (size, 4);
 		while (!iterator.finished()) {
 			Range range = iterator.nextRange();
-			size_t index;
+			uint8_t order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 			
-			if (compare(array[range.start + 1], array[range.start])) {
-				for (index = range.start + 2; index < range.end; index++)
-					if (!compare(array[index], array[index - 1])) break;
-				Reverse(array, Range(range.start, index));
-			} else {
-				for (index = range.start + 2; index < range.end; index++)
-					if (compare(array[index], array[index - 1])) break;
+			#define SWAP(x, y) if (compare(array[range.start + y], array[range.start + x]) || \
+									(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
+									std::swap(array[range.start + x], array[range.start + y]); std::swap(order[x], order[y]); }
+			
+			if (range.length() == 8) {
+				SWAP(0, 1); SWAP(2, 3); SWAP(4, 5); SWAP(6, 7);
+				SWAP(0, 2); SWAP(1, 3); SWAP(4, 6); SWAP(5, 7);
+				SWAP(1, 2); SWAP(5, 6); SWAP(0, 4); SWAP(3, 7);
+				SWAP(1, 5); SWAP(2, 6);
+				SWAP(1, 4); SWAP(3, 6);
+				SWAP(2, 4); SWAP(3, 5);
+				SWAP(3, 4);
+				
+			} else if (range.length() == 7) {
+				SWAP(1, 2); SWAP(3, 4); SWAP(5, 6);
+				SWAP(0, 2); SWAP(3, 5); SWAP(4, 6);
+				SWAP(0, 1); SWAP(4, 5); SWAP(2, 6);
+				SWAP(0, 4); SWAP(1, 5);
+				SWAP(0, 3); SWAP(2, 5);
+				SWAP(1, 3); SWAP(2, 4);
+				SWAP(2, 3);
+				
+			} else if (range.length() == 6) {
+				SWAP(1, 2); SWAP(4, 5);
+				SWAP(0, 2); SWAP(3, 5);
+				SWAP(0, 1); SWAP(3, 4); SWAP(2, 5);
+				SWAP(0, 3); SWAP(1, 4);
+				SWAP(2, 4); SWAP(1, 3);
+				SWAP(2, 3);
+				
+			} else if (range.length() == 5) {
+				SWAP(0, 1); SWAP(3, 4);
+				SWAP(2, 4);
+				SWAP(2, 3); SWAP(1, 4);
+				SWAP(0, 3);
+				SWAP(0, 2); SWAP(1, 3);
+				SWAP(1, 2);
+				
+			} else if (range.length() == 4) {
+				SWAP(0, 1); SWAP(2, 3);
+				SWAP(0, 2); SWAP(1, 3);
+				SWAP(1, 2);
 			}
-			
-			InsertionSortBinary(array, range, compare, index);
 		}
-		
-		// (here's a simple insertion sort of 4-7 items at a time)
-		//Wiki::Iterator iterator (size, 4);
-		//while (!iterator.finished()) {
-		//	Range range = iterator.nextRange();
-		//	InsertionSortBinary(array, range, compare, range.start);
-		//}
 		
 		// then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc.
 		while (true) {
@@ -479,7 +489,7 @@ namespace Wiki {
 				
 				// if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache,
 				// then merge the two merged subarrays from the cache back into the original array
-				if ((iterator.length() + 1) * 4 < cache_size && size/iterator.length() >= 4) {
+				if ((iterator.length() + 1) * 4 <= cache_size && size/iterator.length() >= 4) {
 					iterator.begin();
 					while (!iterator.finished()) {
 						// merge A1 and B1 into the cache
@@ -525,7 +535,7 @@ namespace Wiki {
 						Range B3 = Range(A1.length(), A1.length() + A2.length());
 						
 						if (compare(cache[B3.end - 1], cache[A3.start])) {
-							// the two ranges are in reverse order, so copy them in reverse order into the cache
+							// the two ranges are in reverse order, so copy them in reverse order into the array
 							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start + A2.length()]);
 							std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start]);
 						} else if (compare(cache[B3.start], cache[A3.end - 1])) {

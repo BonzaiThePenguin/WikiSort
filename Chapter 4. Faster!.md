@@ -27,33 +27,6 @@ It should actually end up sorting anywhere from 16 to *31* items at a time.
 
 * * *
 
-And if you want to get *really* technical about it, it'd actually be
-faster to skip the items at the start of each group of items that were
-already in order, and use a binary search instead of a linear search as
-part of the insertion sort:
-
-    // 4-7 works better for the binary search variant of insertion sort
-    for each 4-7 items in the array
-        get the range for these items
-        
-        if (array[range.start + 1] < array[range.start])
-            // skip sorting items that are in reverse order
-            for (index = range.start + 2; index < range.end; index++)
-                if (array[index] >= array[index - 1])
-                    break
-            Reverse(array, Range(range.start, index))
-        else
-            // skip sorting any items that are in order
-            for (index = range.start + 2; index < range.end; index++)
-                if (array[index] < array[index - 1])
-                    break
-        
-        // sort the rest of the items in this group,
-        // using a binary search instead of a linear search
-        InsertionSortBinary(array, range, compare, index)
-
-* * *
-
 Also, since there's a good chance the data is already somewhat in order,
 let's skip merging any sections that are already sorted:
 
