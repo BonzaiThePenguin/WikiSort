@@ -288,14 +288,57 @@ And it uses another branch in the merge sort:
         iterator.begin()
         while (!iterator.finished)
             // handle two A+B pairs at a time!
-            Range A1 = iterator.nextRange
-            Range B1 = iterator.nextRange
-            Range A2 = iterator.nextRange
-            Range B2 = iterator.nextRange
+            A1 = iterator.nextRange
+            B1 = iterator.nextRange
+            A2 = iterator.nextRange
+            B2 = iterator.nextRange
             
             // merge A1 and B1 into the cache
             // merge A2 and B2 into the cache
             // merge (A1+B1) and (A2+B2) from the cache into the array
+
+* * *
+
+Remember that whole thing with insertion sorting groups of 16 to 31 items at the start? Yeah, forget all
+that and use a [sorting network](https://en.wikipedia.org/wiki/Sorting_network) instead. Sorting networks
+are a series of hard-coded comparisons and swaps determined *in advance* to work for any possible input
+of a certain size. They are generally unstable, require completely different algorithms for every single
+array size, and become incredibly impractical for 16 or more items... but work quite well for groups of
+4-8 items.
+
+Sorting networks for 4-8 items can be generated using [this website](http://pages.ripco.net/~jgamble/nw.html).
+Since these networks are unstable, we will need to use an additional array to keep track of the original
+order of the items, to force the sort to be stable. The networks are fixed in size, so this array will
+also be fixed in size – and therefore will still be O(1) memory.
+
+    iterator.begin()
+    while (!iterator.finished)
+        range = iterator.nextRange
+        order = { 0, 1, 2, 3, 4, 5, 6, 7 }
+        
+        if (range.length = 8)
+            [sorting network for 8 items]
+        else if (range.length = 7)
+            [sorting network for 7 items]
+        else if (range.length = 6)
+            [sorting network for 6 items]
+        else if (range.length = 5)
+            [sorting network for 5 items]
+        else if (range.length = 4)
+            [sorting network for 4 items]
+
+
+Check that website to see how each sorting network should be constructed, then use the following rule
+to handle the comparisons and swaps:
+
+    SortingNetworkSwap(array, order, range, x, y)
+        if (array[range.start + y] < array[range.start + x] or
+               (order[x] > order[y] and array[range.start + x] >= array[range.start + y]))
+            Swap(array[range.start + x], array[range.start + y])
+            Swap(order[x], order[y])
+
+It's tedious and *seems* like it'd be slow with all of this branching and swapping, but in practice
+it ends up being a *lot* faster than the insertion sort for both fast and slow comparisons.
 
 * * *
 
