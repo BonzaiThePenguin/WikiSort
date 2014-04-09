@@ -265,7 +265,7 @@ class WikiSorter<T> {
 	}
 	
 	// rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
-	// (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!)
+	// this assumes that 0 <= amount <= range.length()
 	void Rotate(T array[], int amount, Range range, boolean use_cache) {
 		if (range.length() == 0) return;
 		
@@ -398,6 +398,9 @@ class WikiSorter<T> {
 		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
 		 but I decided to stick with this because it had better situational performance
 		 
+		 (Hwang and Lin is designed for merging subarrays of very different sizes,
+		 but WikiSort almost always uses subarrays that are roughly the same size)
+		 
 		 normally this is incredibly suboptimal, but this function is only called
 		 when none of the A or B blocks in any subarray contained 2√A unique values,
 		 which places a hard limit on the number of times this will ACTUALLY need
@@ -428,7 +431,7 @@ class WikiSorter<T> {
 		}
 	}
 	
-	void SWAP(T array[], int order[], Range range, Comparator<T> comp, int x, int y) {
+	void NetSwap(T array[], int order[], Range range, Comparator<T> comp, int x, int y) {
 		int compare = comp.compare(array[range.start + x], array[range.start + y]);
 		if (compare > 0 || (order[x] > order[y] && compare == 0)) {
 			T swap = array[range.start + x];
@@ -444,64 +447,89 @@ class WikiSorter<T> {
 	void Sort(T array[], Comparator<T> comp) {
 		int size = array.length;
 		
-		// if there are 32 or fewer items, just insertion sort the entire array
-		if (size <= 32) {
-			InsertionSort(array, new Range(0, size), comp);
+		// if the array is of size 0, 1, 2, or 3, just sort them like so:
+		if (size < 4) {
+			if (size == 3) {
+				// hard-coded insertion sort
+				if (comp.compare(array[1], array[0]) < 0) {
+					T swap = array[0];
+					array[0] = array[1];
+					array[1] = swap;
+				}
+				if (comp.compare(array[2], array[1]) < 0) {
+					T swap = array[1];
+					array[1] = array[2];
+					array[2] = swap;
+					if (comp.compare(array[1], array[0]) < 0) {
+						swap = array[0];
+						array[0] = array[1];
+						array[1] = swap;
+					}
+				}
+			} else if (size == 2) {
+				// swap the items if they're out of order
+				if (comp.compare(array[1], array[0]) < 0) {
+					T swap = array[0];
+					array[0] = array[1];
+					array[1] = swap;
+				}
+			}
+			
 			return;
 		}
 		
-		// first sort everything the lowest level, which is 4-7 items at a time
-		// use an unstable sorting network, but keep track of the original orders for the items
-		// so we can force it to be a stable sorting network
+		// sort groups of 4-8 items at a time using an unstable sorting network,
+		// but keep track of the original item orders to force it to be stable
 		// http://pages.ripco.net/~jgamble/nw.html
 		Iterator iterator = new Iterator(size, 4);
 		while (!iterator.finished()) {
-			Range range = iterator.nextRange();
 			int order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+			Range range = iterator.nextRange();
 			
 			if (range.length() == 8) {
-				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 2, 3);
-				SWAP(array, order, range, comp, 4, 5); SWAP(array, order, range, comp, 6, 7);
-				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 1, 3);
-				SWAP(array, order, range, comp, 4, 6); SWAP(array, order, range, comp, 5, 7);
-				SWAP(array, order, range, comp, 1, 2); SWAP(array, order, range, comp, 5, 6);
-				SWAP(array, order, range, comp, 0, 4); SWAP(array, order, range, comp, 3, 7);
-				SWAP(array, order, range, comp, 1, 5); SWAP(array, order, range, comp, 2, 6);
-				SWAP(array, order, range, comp, 1, 4); SWAP(array, order, range, comp, 3, 6);
-				SWAP(array, order, range, comp, 2, 4); SWAP(array, order, range, comp, 3, 5);
-				SWAP(array, order, range, comp, 3, 4);
+				NetSwap(array, order, range, comp, 0, 1); NetSwap(array, order, range, comp, 2, 3);
+				NetSwap(array, order, range, comp, 4, 5); NetSwap(array, order, range, comp, 6, 7);
+				NetSwap(array, order, range, comp, 0, 2); NetSwap(array, order, range, comp, 1, 3);
+				NetSwap(array, order, range, comp, 4, 6); NetSwap(array, order, range, comp, 5, 7);
+				NetSwap(array, order, range, comp, 1, 2); NetSwap(array, order, range, comp, 5, 6);
+				NetSwap(array, order, range, comp, 0, 4); NetSwap(array, order, range, comp, 3, 7);
+				NetSwap(array, order, range, comp, 1, 5); NetSwap(array, order, range, comp, 2, 6);
+				NetSwap(array, order, range, comp, 1, 4); NetSwap(array, order, range, comp, 3, 6);
+				NetSwap(array, order, range, comp, 2, 4); NetSwap(array, order, range, comp, 3, 5);
+				NetSwap(array, order, range, comp, 3, 4);
 				
 			} else if (range.length() == 7) {
-				SWAP(array, order, range, comp, 1, 2); SWAP(array, order, range, comp, 3, 4); SWAP(array, order, range, comp, 5, 6);
-				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 3, 5); SWAP(array, order, range, comp, 4, 6);
-				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 4, 5); SWAP(array, order, range, comp, 2, 6);
-				SWAP(array, order, range, comp, 0, 4); SWAP(array, order, range, comp, 1, 5);
-				SWAP(array, order, range, comp, 0, 3); SWAP(array, order, range, comp, 2, 5);
-				SWAP(array, order, range, comp, 1, 3); SWAP(array, order, range, comp, 2, 4);
-				SWAP(array, order, range, comp, 2, 3);
+				NetSwap(array, order, range, comp, 1, 2); NetSwap(array, order, range, comp, 3, 4); NetSwap(array, order, range, comp, 5, 6);
+				NetSwap(array, order, range, comp, 0, 2); NetSwap(array, order, range, comp, 3, 5); NetSwap(array, order, range, comp, 4, 6);
+				NetSwap(array, order, range, comp, 0, 1); NetSwap(array, order, range, comp, 4, 5); NetSwap(array, order, range, comp, 2, 6);
+				NetSwap(array, order, range, comp, 0, 4); NetSwap(array, order, range, comp, 1, 5);
+				NetSwap(array, order, range, comp, 0, 3); NetSwap(array, order, range, comp, 2, 5);
+				NetSwap(array, order, range, comp, 1, 3); NetSwap(array, order, range, comp, 2, 4);
+				NetSwap(array, order, range, comp, 2, 3);
 				
 			} else if (range.length() == 6) {
-				SWAP(array, order, range, comp, 1, 2); SWAP(array, order, range, comp, 4, 5);
-				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 3, 5);
-				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 3, 4); SWAP(array, order, range, comp, 2, 5);
-				SWAP(array, order, range, comp, 0, 3); SWAP(array, order, range, comp, 1, 4);
-				SWAP(array, order, range, comp, 2, 4); SWAP(array, order, range, comp, 1, 3);
-				SWAP(array, order, range, comp, 2, 3);
+				NetSwap(array, order, range, comp, 1, 2); NetSwap(array, order, range, comp, 4, 5);
+				NetSwap(array, order, range, comp, 0, 2); NetSwap(array, order, range, comp, 3, 5);
+				NetSwap(array, order, range, comp, 0, 1); NetSwap(array, order, range, comp, 3, 4); NetSwap(array, order, range, comp, 2, 5);
+				NetSwap(array, order, range, comp, 0, 3); NetSwap(array, order, range, comp, 1, 4);
+				NetSwap(array, order, range, comp, 2, 4); NetSwap(array, order, range, comp, 1, 3);
+				NetSwap(array, order, range, comp, 2, 3);
 				
 			} else if (range.length() == 5) {
-				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 3, 4);
-				SWAP(array, order, range, comp, 2, 4);
-				SWAP(array, order, range, comp, 2, 3); SWAP(array, order, range, comp, 1, 4);
-				SWAP(array, order, range, comp, 0, 3);
-				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 1, 3);
-				SWAP(array, order, range, comp, 1, 2);
+				NetSwap(array, order, range, comp, 0, 1); NetSwap(array, order, range, comp, 3, 4);
+				NetSwap(array, order, range, comp, 2, 4);
+				NetSwap(array, order, range, comp, 2, 3); NetSwap(array, order, range, comp, 1, 4);
+				NetSwap(array, order, range, comp, 0, 3);
+				NetSwap(array, order, range, comp, 0, 2); NetSwap(array, order, range, comp, 1, 3);
+				NetSwap(array, order, range, comp, 1, 2);
 				
 			} else if (range.length() == 4) {
-				SWAP(array, order, range, comp, 0, 1); SWAP(array, order, range, comp, 2, 3);
-				SWAP(array, order, range, comp, 0, 2); SWAP(array, order, range, comp, 1, 3);
-				SWAP(array, order, range, comp, 1, 2);
+				NetSwap(array, order, range, comp, 0, 1); NetSwap(array, order, range, comp, 2, 3);
+				NetSwap(array, order, range, comp, 0, 2); NetSwap(array, order, range, comp, 1, 3);
+				NetSwap(array, order, range, comp, 1, 2);
 			}
 		}
+		if (size < 8) return;
 		
 		// we need to keep track of a lot of ranges during this sort!
 		Range buffer1 = new Range(), buffer2 = new Range();
@@ -518,12 +546,12 @@ class WikiSorter<T> {
 		while (true) {
 			
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
-			// (we use < rather than <= since the block size might be one more than decimal_step)
+			// (we use < rather than <= since the block size might be one more than iterator.length())
 			if (iterator.length() < cache_size) {
 				
 				// if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache,
 				// then merge the two merged subarrays from the cache back into the original array
-				if ((iterator.length() + 1) * 4 < cache_size && size/iterator.length() >= 4) {
+				if ((iterator.length() + 1) * 4 <= cache_size && iterator.length() * 4 <= size) {
 					iterator.begin();
 					while (!iterator.finished()) {
 						// merge A1 and B1 into the cache
@@ -615,7 +643,7 @@ class WikiSorter<T> {
 				// 8. redistribute the two internal buffers back into the array
 				
 				int block_size = (int)Math.sqrt(iterator.length());
-				int buffer_size = iterator.length()/block_size + 1;
+				int buffer_size = (iterator.length() + 1)/block_size;
 				
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
@@ -626,9 +654,19 @@ class WikiSorter<T> {
 				pull[0].reset();
 				pull[1].reset();
 				
-				// if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values
+				// find two internal buffers of size 'buffer_size' each
 				int find = buffer_size + buffer_size;
-				if (block_size <= cache_size) find = buffer_size;
+				boolean find_separately = false;
+				
+				if (block_size <= cache_size) {
+					// if every A block fits into the cache then we won't need the second internal buffer,
+					// so we really only need to find 'buffer_size' unique values
+					find = buffer_size;
+				} else if (find > iterator.length()) {
+					// we can't fit both buffers into the same A or B subarray, so find two buffers separately
+					find = buffer_size;
+					find_separately = true;
+				}
 				
 				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
 				// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
@@ -636,6 +674,7 @@ class WikiSorter<T> {
 				
 				// in the case where it couldn't find a single buffer of at least √A unique values,
 				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
+				
 				iterator.begin();
 				while (!iterator.finished()) {
 					A = iterator.nextRange();
@@ -643,14 +682,9 @@ class WikiSorter<T> {
 					
 					// check A for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the start of A
-					last = A.start;
-					count = 1;
-					// assume find is > 1
-					while (true) {
+					for (last = A.start, count = 1; count < find; last = index, count++) {
 						index = FindLastForward(array, array[last], new Range(last + 1, A.end), comp, find - count);
 						if (index == A.end) break;
-						last = index;
-						if (++count >= find) break;
 					}
 					index = last;
 					
@@ -669,15 +703,18 @@ class WikiSorter<T> {
 							buffer2.set(A.start + buffer_size, A.start + count);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1.set(A.start, A.start + count);
-							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
+							buffer1.set(A.start, A.start + count);
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
 							buffer1.set(A.start, A.start + count);
 							break;
+						} else if (find_separately) {
+							// found one buffer, but now find the other one
+							buffer1 = new Range(A.start, A.start + count);
+							find_separately = false;
 						} else {
 							// we found a second buffer in an 'A' subarray containing √A unique values, so we're done!
 							buffer2.set(A.start, A.start + count);
@@ -695,13 +732,9 @@ class WikiSorter<T> {
 					
 					// check B for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the end of B
-					last = B.end - 1;
-					count = 1;
-					while (true) {
+					for (last = B.end - 1, count = 1; count < find; last = index - 1, count++) {
 						index = FindFirstBackward(array, array[last], new Range(B.start, last), comp, find - count);
 						if (index == B.start) break;
-						last = index - 1;
-						if (++count >= find) break;
 					}
 					index = last;
 					
@@ -720,23 +753,25 @@ class WikiSorter<T> {
 							buffer2.set(B.end - buffer_size, B.end);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1.set(B.end - count, B.end);
-							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
+							buffer1.set(B.end - count, B.end);
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
 							buffer1.set(B.end - count, B.end);
 							break;
+						} else if (find_separately) {
+							// found one buffer, but now find the other one
+							buffer1 = new Range(B.start - count, B.end);
+							find_separately = false;
 						} else {
-							// we found a second buffer in an 'B' subarray containing √A unique values, so we're done!
-							buffer2.set(B.end - count, B.end);
-							
 							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
 							// we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2
 							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 							
+							// we found a second buffer in an 'B' subarray containing √A unique values, so we're done!
+							buffer2.set(B.end - count, B.end);
 							break;
 						}
 					} else if (pull_index == 0 && count > buffer1.length()) {
@@ -753,34 +788,31 @@ class WikiSorter<T> {
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
 					int length = pull[pull_index].count;
-					count = 1;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A subarray
 						index = pull[pull_index].from;
-						while (count < length) {
+						for (count = 1; count < length; count++) {
 							index = FindFirstBackward(array, array[index - 1], new Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), comp, length - count);
 							Range range = new Range(index + 1, pull[pull_index].from + 1);
 							Rotate(array, range.length() - count, range, true);
 							pull[pull_index].from = index + count;
-							count++;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
 						// we're pulling values out to the right, which means the end of a B subarray
-						index = pull[pull_index].from + count;
-						while (count < length) {
+						index = pull[pull_index].from + 1;
+						for (count = 1; count < length; count++) {
 							index = FindLastForward(array, array[index], new Range(index, pull[pull_index].to), comp, length - count);
 							Range range = new Range(pull[pull_index].from, index - 1);
 							Rotate(array, count, range, true);
 							pull[pull_index].from = index - 1 - count;
-							count++;
 						}
 					}
 				}
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = iterator.length()/buffer_size + 1;
+				block_size = (iterator.length() + 1)/buffer_size;
 				
 				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
 				// so this was originally here to test the math for adjusting block_size above
@@ -794,12 +826,26 @@ class WikiSorter<T> {
 					
 					// remove any parts of A or B that are being used by the internal buffers
 					int start = A.start;
-					for (pull_index = 0; pull_index < 2; pull_index++) {
-						if (start == pull[pull_index].range.start) {
-							if (pull[pull_index].from > pull[pull_index].to)
-								A.start += pull[pull_index].count;
-							else if (pull[pull_index].from < pull[pull_index].to)
-								B.end -= pull[pull_index].count;
+					if (start == pull[0].range.start) {
+						if (pull[0].from > pull[0].to) {
+							A.start += pull[0].count;
+							
+							// if the internal buffer takes up the entire A or B subarray, then there's nothing to merge
+							// this only happens for very small subarrays, like √4 = 2, 2 * (2 internal buffers) = 4,
+							// which also only happens when cache_size is small or 0 since it'd otherwise use MergeExternal
+							if (A.length() == 0) continue;
+						} else if (pull[0].from < pull[0].to) {
+							B.end -= pull[0].count;
+							if (B.length() == 0) continue;
+						}
+					}
+					if (start == pull[1].range.start) {
+						if (pull[1].from > pull[1].to) {
+							A.start += pull[1].count;
+							if (A.length() == 0) continue;
+						} else if (pull[1].from < pull[1].to) {
+							B.end -= pull[1].count;
+							if (B.length() == 0) continue;
 						}
 					}
 					
@@ -828,6 +874,7 @@ class WikiSorter<T> {
 						lastB.set(0, 0);
 						blockB.set(B.start, B.start + Math.min(block_size, B.length()));
 						blockA.start += firstA.length();
+						if (blockA.length() == 0) continue;
 						
 						int minA = blockA.start;
 						int indexA = 0;
@@ -895,7 +942,7 @@ class WikiSorter<T> {
 								
 								// search the second value of the remaining A blocks to find the new minimum A block
 								minA = blockA.start + 1;
-								for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
+								for (int findA = minA + block_size; findA < blockA.end - 1; findA += block_size)
 									if (comp.compare(array[findA], array[minA]) < 0)
 										minA = findA;
 								minA = minA - 1; // decrement once to get back to the start of that A block
@@ -946,11 +993,10 @@ class WikiSorter<T> {
 				InsertionSort(array, buffer2, comp);
 				
 				for (pull_index = 0; pull_index < 2; pull_index++) {
+					int unique = pull[pull_index].count * 2;
 					if (pull[pull_index].from > pull[pull_index].to) {
 						// the values were pulled out to the left, so redistribute them back to the right
 						Range buffer = new Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
-						
-						int unique = buffer.length() * 2;
 						while (buffer.length() > 0) {
 							index = FindFirstForward(array, array[buffer.start], new Range(buffer.end, pull[pull_index].range.end), comp, unique);
 							int amount = index - buffer.end;
@@ -962,8 +1008,6 @@ class WikiSorter<T> {
 					} else if (pull[pull_index].from < pull[pull_index].to) {
 						// the values were pulled out to the right, so redistribute them back to the left
 						Range buffer = new Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
-						
-						int unique = buffer.length() * 2;
 						while (buffer.length() > 0) {
 							index = FindLastBackward(array, array[buffer.end - 1], new Range(pull[pull_index].range.start, buffer.start), comp, unique);
 							int amount = buffer.start - index;
@@ -1109,6 +1153,14 @@ class TestingMostlyEqual extends Testing {
 	}
 }
 
+// the last 1/5 of the data is random
+class TestingAppend extends Testing {
+	int value(int index, int total) {
+		if (index > total - total/5) return SortRandom.nextInt(total);
+		return index;
+	}
+}
+
 class WikiSort {
 	static double Seconds() {
 		return System.currentTimeMillis()/1000.0;
@@ -1149,7 +1201,8 @@ class WikiSort {
 			new TestingDescending(),
 			new TestingEqual(),
 			new TestingJittered(),
-			new TestingMostlyEqual()
+			new TestingMostlyEqual(),
+			new TestingAppend()
 		};
 		
 		WikiSorter<Test> Wiki = new WikiSorter<Test>();
@@ -1219,14 +1272,14 @@ class WikiSort {
 			System.out.format("[%d]\n", total);
 			
 			if (time1 >= time2)
-				System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", time1, time2, time2/time1 * 100.0);
+				System.out.format("WikiSort: %f seconds, MergeSort: %f seconds (%f%% as fast)\n", time1, time2, time2/time1 * 100.0);
 			else
-				System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", time1, time2, time2/time1 * 100.0 - 100.0);
+				System.out.format("WikiSort: %f seconds, MergeSort: %f seconds (%f%% faster)\n", time1, time2, time2/time1 * 100.0 - 100.0);
 			
 			if (compares1 <= compares2)
-				System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% as many)\n", compares1, compares2, compares1 * 100.0/compares2);
+				System.out.format("WikiSort: %d compares, MergeSort: %d compares (%f%% as many)\n", compares1, compares2, compares1 * 100.0/compares2);
 			else
-				System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
+				System.out.format("WikiSort: %d compares, MergeSort: %d compares (%f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 			
 			// make sure the arrays are sorted correctly, and that the results were stable
 			System.out.println("verifying...");
@@ -1241,15 +1294,15 @@ class WikiSort {
 		}
 		
 		total_time = Seconds() - total_time;
-		System.out.format("tests completed in %.2f seconds\n", total_time);
+		System.out.format("tests completed in %f seconds\n", total_time);
 		if (total_time1 >= total_time2)
-			System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+			System.out.format("WikiSort: %f seconds, MergeSort: %f seconds (%f%% as fast)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
 		else
-			System.out.format("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
+			System.out.format("WikiSort: %f seconds, MergeSort: %f seconds (%f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
 		
 		if (total_compares1 <= total_compares2)
-			System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+			System.out.format("WikiSort: %d compares, MergeSort: %d compares (%f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
 		else
-			System.out.format("WikiSort: %d compares, MergeSort: %d compares (%.2f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
+			System.out.format("WikiSort: %d compares, MergeSort: %d compares (%f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
 	}
 }

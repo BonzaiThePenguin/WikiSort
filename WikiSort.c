@@ -244,7 +244,7 @@ void BlockSwap(Test array[], const size_t start1, const size_t start2, const siz
 }
 
 /* rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1) */
-/* (the GCD variant of this was tested, but despite having fewer assignments it was never faster than three reversals!) */
+/* this assumes that 0 <= amount <= range.length() */
 void Rotate(Test array[], const size_t amount, const Range range, Test cache[], const size_t cache_size) {
 	size_t split; Range range1, range2;
 	if (Range_length(range) == 0) return;
@@ -421,6 +421,9 @@ void MergeInPlace(Test array[], Range A, Range B, const Comparison compare, Test
 	 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
 	 but I decided to stick with this because it had better situational performance
 	 
+	 (Hwang and Lin is designed for merging subarrays of very different sizes,
+	 but WikiSort almost always uses subarrays that are roughly the same size)
+	 
 	 normally this is incredibly suboptimal, but this function is only called
 	 when none of the A or B blocks in any subarray contained 2√A unique values,
 	 which places a hard limit on the number of times this will ACTUALLY need
@@ -465,8 +468,10 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			
 			if (!cache) {
 				/* 512 – chosen from careful testing as a good balance between fixed-size memory use and run time */
-				cache_size = 512;
-				cache = (Test *)malloc(cache_size * sizeof(array[0]));
+				if (cache_size > 512) {
+					cache_size = 512;
+					cache = (Test *)malloc(cache_size * sizeof(array[0]));
+				}
 				
 				/* 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
 				if (!cache) cache_size = 0;
@@ -484,21 +489,31 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 	
 	WikiIterator iterator;
 	
-	/* if there are 32 or fewer items, just insertion sort the entire array */
-	if (size <= 32) {
-		InsertionSort(array, Range_new(0, size), compare);
+	/* if the array is of size 0, 1, 2, or 3, just sort them like so: */
+	if (size < 4) {
+		if (size == 3) {
+			/* hard-coded insertion sort */
+			if (compare(array[1], array[0])) Swap(array[0], array[1]);
+			if (compare(array[2], array[1])) {
+				Swap(array[1], array[2]);
+				if (compare(array[1], array[0])) Swap(array[0], array[1]);
+			}
+		} else if (size == 2) {
+			/* swap the items if they're out of order */
+			if (compare(array[1], array[0])) Swap(array[0], array[1]);
+		}
+		
 		return;
 	}
 	
-	/* first sort everything the lowest level, which is 4-7 items at a time */
-	/* use an unstable sorting network, but keep track of the original orders for the items */
-	/* so we can force it to be a stable sorting network */
+	/* sort groups of 4-8 items at a time using an unstable sorting network, */
+	/* but keep track of the original item orders to force it to be stable */
 	/* http://pages.ripco.net/~jgamble/nw.html */
 	iterator = WikiIterator_new(size, 4);
 	WikiIterator_begin(&iterator);
 	while (!WikiIterator_finished(&iterator)) {
-		Range range = WikiIterator_nextRange(&iterator);
 		uint8_t order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+		Range range = WikiIterator_nextRange(&iterator);
 		
 		#define SWAP(x, y) if (compare(array[range.start + y], array[range.start + x]) || \
 								(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
@@ -544,24 +559,26 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			SWAP(1, 2);
 		}
 	}
+	if (size < 8) return;
 	
 	/* then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc. */
 	while (true) {
 		
 		/* if every A and B block will fit into the cache, use a special branch specifically for merging with the cache */
-		/* (we use < rather than <= since the block size might be one more than decimal_step) */
+		/* (we use < rather than <= since the block size might be one more than iterator.length()) */
 		if (WikiIterator_length(&iterator) < cache_size) {
 			
 			/* if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache, */
 			/* then merge the two merged subarrays from the cache back into the original array */
-			if ((WikiIterator_length(&iterator) + 1) * 4 < cache_size && size/WikiIterator_length(&iterator) >= 4) {
+			if ((WikiIterator_length(&iterator) + 1) * 4 <= cache_size && WikiIterator_length(&iterator) * 4 <= size) {
 				WikiIterator_begin(&iterator);
 				while (!WikiIterator_finished(&iterator)) {
 					/* merge A1 and B1 into the cache */
-					Range A1 = WikiIterator_nextRange(&iterator);
-					Range B1 = WikiIterator_nextRange(&iterator);
-					Range A2 = WikiIterator_nextRange(&iterator);
-					Range B2 = WikiIterator_nextRange(&iterator);
+					Range A1, B1, A2, B2, A3, B3;
+					A1 = WikiIterator_nextRange(&iterator);
+					B1 = WikiIterator_nextRange(&iterator);
+					A2 = WikiIterator_nextRange(&iterator);
+					B2 = WikiIterator_nextRange(&iterator);
 					
 					if (compare(array[B1.end - 1], array[A1.start])) {
 						/* the two ranges are in reverse order, so copy them in reverse order into the cache */
@@ -596,8 +613,8 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					A2 = Range_new(A2.start, B2.end);
 					
 					/* merge A1 and A2 from the cache into the array */
-					Range A3 = Range_new(0, Range_length(A1));
-					Range B3 = Range_new(Range_length(A1), Range_length(A1) + Range_length(A2));
+					A3 = Range_new(0, Range_length(A1));
+					B3 = Range_new(Range_length(A1), Range_length(A1) + Range_length(A2));
 					
 					if (compare(cache[B3.end - 1], cache[A3.start])) {
 						/* the two ranges are in reverse order, so copy them in reverse order into the array */
@@ -646,20 +663,30 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			 8. redistribute the two internal buffers back into the array */
 			
 			size_t block_size = sqrt(WikiIterator_length(&iterator));
-			size_t buffer_size = WikiIterator_length(&iterator)/block_size + 1;
+			size_t buffer_size = (WikiIterator_length(&iterator) + 1)/block_size;
 			
 			/* as an optimization, we really only need to pull out the internal buffers once for each level of merges */
 			/* after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level */
-			Range buffer1, buffer2, A, B;
-			size_t index, last, count, find, pull_index = 0;
+			Range buffer1, buffer2, A, B; bool find_separately;
+			size_t index, last, count, find, start, pull_index = 0;
 			struct { size_t from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
 			
 			buffer1 = Range_new(0, 0);
 			buffer2 = Range_new(0, 0);
 			
-			/* if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values */
+			/* find two internal buffers of size 'buffer_size' each */
 			find = buffer_size + buffer_size;
-			if (block_size <= cache_size) find = buffer_size;
+			find_separately = false;
+			
+			if (block_size <= cache_size) {
+				/* if every A block fits into the cache then we won't need the second internal buffer, */
+				/* so we really only need to find 'buffer_size' unique values */
+				find = buffer_size;
+			} else if (find > WikiIterator_length(&iterator)) {
+				/* we can't fit both buffers into the same A or B subarray, so find two buffers separately */
+				find = buffer_size;
+				find_separately = true;
+			}
 			
 			/* we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each), */
 			/* or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values, */
@@ -672,25 +699,25 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				A = WikiIterator_nextRange(&iterator);
 				B = WikiIterator_nextRange(&iterator);
 				
+				/* just store information about where the values will be pulled from and to, */
+				/* as well as how many values there are, to create the two internal buffers */
+				#define PULL(_to) \
+					pull[pull_index].range = Range_new(A.start, B.end); \
+					pull[pull_index].count = count; \
+					pull[pull_index].from = index; \
+					pull[pull_index].to = _to
+				
 				/* check A for the number of unique values we need to fill an internal buffer */
 				/* these values will be pulled out to the start of A */
-				last = A.start;
-				count = 1;
-				/* assume find is > 1 */
-				while (true) {
+				for (last = A.start, count = 1; count < find; last = index, count++) {
 					index = FindLastForward(array, array[last], Range_new(last + 1, A.end), compare, find - count);
 					if (index == A.end) break;
-					last = index;
-					if (++count >= find) break;
 				}
 				index = last;
 				
 				if (count >= buffer_size) {
 					/* keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer */
-					pull[pull_index].range = Range_new(A.start, B.end);
-					pull[pull_index].count = count;
-					pull[pull_index].from = index;
-					pull[pull_index].to = A.start;
+					PULL(A.start);
 					pull_index = 1;
 					
 					if (count == buffer_size + buffer_size) {
@@ -700,15 +727,18 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						buffer2 = Range_new(A.start + buffer_size, A.start + count);
 						break;
 					} else if (find == buffer_size + buffer_size) {
-						buffer1 = Range_new(A.start, A.start + count);
-						
 						/* we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values, */
 						/* so we still need to find a second separate buffer of at least √A unique values */
+						buffer1 = Range_new(A.start, A.start + count);
 						find = buffer_size;
 					} else if (block_size <= cache_size) {
 						/* we found the first and only internal buffer that we need, so we're done! */
 						buffer1 = Range_new(A.start, A.start + count);
 						break;
+					} else if (find_separately) {
+						/* found one buffer, but now find the other one */
+						buffer1 = Range_new(A.start, A.start + count);
+						find_separately = false;
 					} else {
 						/* we found a second buffer in an 'A' subarray containing √A unique values, so we're done! */
 						buffer2 = Range_new(A.start, A.start + count);
@@ -717,31 +747,20 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				} else if (pull_index == 0 && count > Range_length(buffer1)) {
 					/* keep track of the largest buffer we were able to find */
 					buffer1 = Range_new(A.start, A.start + count);
-					
-					pull[pull_index].range = Range_new(A.start, B.end);
-					pull[pull_index].count = count;
-					pull[pull_index].from = index;
-					pull[pull_index].to = A.start;
+					PULL(A.start);
 				}
 				
 				/* check B for the number of unique values we need to fill an internal buffer */
 				/* these values will be pulled out to the end of B */
-				last = B.end - 1;
-				count = 1;
-				while (true) {
+				for (last = B.end - 1, count = 1; count < find; last = index - 1, count++) {
 					index = FindFirstBackward(array, array[last], Range_new(B.start, last), compare, find - count);
 					if (index == B.start) break;
-					last = index - 1;
-					if (++count >= find) break;
 				}
 				index = last;
 				
 				if (count >= buffer_size) {
 					/* keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer */
-					pull[pull_index].range = Range_new(A.start, B.end);
-					pull[pull_index].count = count;
-					pull[pull_index].from = index;
-					pull[pull_index].to = B.end;
+					PULL(B.end);
 					pull_index = 1;
 					
 					if (count == buffer_size + buffer_size) {
@@ -751,33 +770,31 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						buffer2 = Range_new(B.end - buffer_size, B.end);
 						break;
 					} else if (find == buffer_size + buffer_size) {
-						buffer1 = Range_new(B.end - count, B.end);
-						
 						/* we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values, */
 						/* so we still need to find a second separate buffer of at least √A unique values */
+						buffer1 = Range_new(B.end - count, B.end);
 						find = buffer_size;
 					} else if (block_size <= cache_size) {
 						/* we found the first and only internal buffer that we need, so we're done! */
 						buffer1 = Range_new(B.end - count, B.end);
 						break;
+					} else if (find_separately) {
+						/* found one buffer, but now find the other one */
+						buffer1 = Range_new(B.start - count, B.end);
+						find_separately = false;
 					} else {
-						/* we found a second buffer in an 'B' subarray containing √A unique values, so we're done! */
-						buffer2 = Range_new(B.end - count, B.end);
-						
 						/* buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray, */
 						/* we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2 */
 						if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 						
+						/* we found a second buffer in an 'B' subarray containing √A unique values, so we're done! */
+						buffer2 = Range_new(B.end - count, B.end);
 						break;
 					}
 				} else if (pull_index == 0 && count > Range_length(buffer1)) {
 					/* keep track of the largest buffer we were able to find */
 					buffer1 = Range_new(B.end - count, B.end);
-					
-					pull[pull_index].range = Range_new(A.start, B.end);
-					pull[pull_index].count = count;
-					pull[pull_index].from = index;
-					pull[pull_index].to = B.end;
+					PULL(B.end);
 				}
 			}
 			
@@ -785,34 +802,31 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			for (pull_index = 0; pull_index < 2; pull_index++) {
 				Range range;
 				size_t length = pull[pull_index].count;
-				count = 1;
 				
 				if (pull[pull_index].to < pull[pull_index].from) {
 					/* we're pulling the values out to the left, which means the start of an A subarray */
 					index = pull[pull_index].from;
-					while (count < length) {
+					for (count = 1; count < length; count++) {
 						index = FindFirstBackward(array, array[index - 1], Range_new(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
 						range = Range_new(index + 1, pull[pull_index].from + 1);
 						Rotate(array, Range_length(range) - count, range, cache, cache_size);
 						pull[pull_index].from = index + count;
-						count++;
 					}
 				} else if (pull[pull_index].to > pull[pull_index].from) {
 					/* we're pulling values out to the right, which means the end of a B subarray */
-					index = pull[pull_index].from + count;
-					while (count < length) {
+					index = pull[pull_index].from + 1;
+					for (count = 1; count < length; count++) {
 						index = FindLastForward(array, array[index], Range_new(index, pull[pull_index].to), compare, length - count);
 						range = Range_new(pull[pull_index].from, index - 1);
 						Rotate(array, count, range, cache, cache_size);
 						pull[pull_index].from = index - 1 - count;
-						count++;
 					}
 				}
 			}
 			
 			/* adjust block_size and buffer_size based on the values we were able to pull out */
 			buffer_size = Range_length(buffer1);
-			block_size = WikiIterator_length(&iterator)/buffer_size + 1;
+			block_size = (WikiIterator_length(&iterator) + 1)/buffer_size;
 			
 			/* the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks, */
 			/* so this was originally here to test the math for adjusting block_size above */
@@ -825,13 +839,27 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				B = WikiIterator_nextRange(&iterator);
 				
 				/* remove any parts of A or B that are being used by the internal buffers */
-				find = A.start;
-				for (pull_index = 0; pull_index < 2; pull_index++) {
-					if (find == pull[pull_index].range.start) {
-						if (pull[pull_index].from > pull[pull_index].to)
-							A.start += pull[pull_index].count;
-						else if (pull[pull_index].from < pull[pull_index].to)
-							B.end -= pull[pull_index].count;
+				start = A.start;
+				if (start == pull[0].range.start) {
+					if (pull[0].from > pull[0].to) {
+						A.start += pull[0].count;
+						
+						/* if the internal buffer takes up the entire A or B subarray, then there's nothing to merge */
+						/* this only happens for very small subarrays, like √4 = 2, 2 * (2 internal buffers) = 4, */
+						/* which also only happens when cache_size is small or 0 since it'd otherwise use MergeExternal */
+						if (Range_length(A) == 0) continue;
+					} else if (pull[0].from < pull[0].to) {
+						B.end -= pull[0].count;
+						if (Range_length(B) == 0) continue;
+					}
+				}
+				if (start == pull[1].range.start) {
+					if (pull[1].from > pull[1].to) {
+						A.start += pull[1].count;
+						if (Range_length(A) == 0) continue;
+					} else if (pull[1].from < pull[1].to) {
+						B.end -= pull[1].count;
+						if (Range_length(B) == 0) continue;
 					}
 				}
 				
@@ -858,6 +886,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					lastB = Range_new(0, 0);
 					blockB = Range_new(B.start, B.start + Min(block_size, Range_length(B)));
 					blockA.start += Range_length(firstA);
+					if (Range_length(blockA) == 0) continue;
 					
 					minA = blockA.start;
 					indexA = 0;
@@ -924,7 +953,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 							
 							/* search the second value of the remaining A blocks to find the new minimum A block */
 							minA = blockA.start;
-							for (findA = minA + block_size; findA < blockA.end; findA += block_size)
+							for (findA = minA + block_size; findA < blockA.end - 1; findA += block_size)
 								if (compare(array[findA + 1], array[minA + 1]))
 									minA = findA;
 							min_value = array[minA];
@@ -973,10 +1002,10 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			InsertionSort(array, buffer2, compare);
 			
 			for (pull_index = 0; pull_index < 2; pull_index++) {
+				size_t amount, unique = pull[pull_index].count * 2;
 				if (pull[pull_index].from > pull[pull_index].to) {
 					/* the values were pulled out to the left, so redistribute them back to the right */
 					Range buffer = Range_new(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
-					size_t amount, unique = Range_length(buffer) * 2;
 					while (Range_length(buffer) > 0) {
 						index = FindFirstForward(array, array[buffer.start], Range_new(buffer.end, pull[pull_index].range.end), compare, unique);
 						amount = index - buffer.end;
@@ -988,7 +1017,6 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				} else if (pull[pull_index].from < pull[pull_index].to) {
 					/* the values were pulled out to the right, so redistribute them back to the left */
 					Range buffer = Range_new(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
-					size_t amount, unique = Range_length(buffer) * 2;
 					while (Range_length(buffer) > 0) {
 						index = FindLastBackward(array, array[buffer.end - 1], Range_new(pull[pull_index].range.start, buffer.start), compare, unique);
 						amount = buffer.start - index;
@@ -1094,6 +1122,11 @@ size_t TestingMostlyEqual(size_t index, size_t total) {
 	return 1000 + rand() * 1.0/RAND_MAX * 4;
 }
 
+/* the last 1/5 of the data is random */
+size_t TestingAppend(size_t index, size_t total) {
+	if (index > total - total/5) return rand() * 1.0/RAND_MAX * total;
+	return index;
+}
 
 /* make sure the items within the given range are in a stable order */
 /* if you want to test the correctness of any changes you make to the main WikiSort function,
@@ -1139,7 +1172,8 @@ int main() {
 			TestingDescending,
 			TestingEqual,
 			TestingJittered,
-			TestingMostlyEqual
+			TestingMostlyEqual,
+			TestingAppend
 		};
 	#endif
 	
@@ -1184,20 +1218,12 @@ int main() {
 		for (index = 0; index < total; index++) {
 			Test item;
 			
-			/* TestingRandom */
-			/* TestingRandomFew */
-			/* TestingMostlyDescending */
-			/* TestingMostlyAscending */
-			/* TestingAscending */
-			/* TestingDescending */
-			/* TestingEqual */
-			/* TestingJittered */
-			/* TestingMostlyEqual */
-			
+			/* TestingRandom, TestingRandomFew, TestingMostlyDescending, TestingMostlyAscending, */
+			/* TestingAscending, TestingDescending, TestingEqual, TestingJittered, TestingMostlyEqual, TestingAppend */
+			item.value = TestingRandom(index, total);
 			#if VERIFY
 				item.index = index;
 			#endif
-			item.value = TestingRandom(index, total);
 			
 			array1[index] = array2[index] = item;
 		}
@@ -1229,15 +1255,15 @@ int main() {
 		printf("[%zu]\n", total);
 		
 		if (time1 >= time2)
-			printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", time1, time2, time2/time1 * 100.0);
+			printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%% as fast)\n", time1, time2, time2/time1 * 100.0);
 		else
-			printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", time1, time2, time2/time1 * 100.0 - 100.0);
+			printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%% faster)\n", time1, time2, time2/time1 * 100.0 - 100.0);
 		
 		#if PROFILE
 			if (compares1 <= compares2)
-				printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", compares1, compares2, compares1 * 100.0/compares2);
+				printf("WikiSort: %zu compares, MergeSort: %zu compares (%f%% as many)\n", compares1, compares2, compares1 * 100.0/compares2);
 			else
-				printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
+				printf("WikiSort: %zu compares, MergeSort: %zu compares (%f%% more)\n", compares1, compares2, compares1 * 100.0/compares2 - 100.0);
 		#endif
 		
 		#if VERIFY
@@ -1254,17 +1280,17 @@ int main() {
 	}
 	
 	total_time = Seconds() - total_time;
-	printf("tests completed in %.2f seconds\n", total_time);
+	printf("tests completed in %f seconds\n", total_time);
 	if (total_time1 >= total_time2)
-		printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% as fast)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
+		printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%% as fast)\n", total_time1, total_time2, total_time2/total_time1 * 100.0);
 	else
-		printf("WikiSort: %.2f seconds, MergeSort: %.2f seconds (%.2f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
+		printf("WikiSort: %f seconds, MergeSort: %f seconds (%f%% faster)\n", total_time1, total_time2, total_time2/total_time1 * 100.0 - 100.0);
 	
 	#if PROFILE
 		if (total_compares1 <= total_compares2)
-			printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
+			printf("WikiSort: %zu compares, MergeSort: %zu compares (%f%% as many)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2);
 		else
-			printf("WikiSort: %zu compares, MergeSort: %zu compares (%.2f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
+			printf("WikiSort: %zu compares, MergeSort: %zu compares (%f%% more)\n", total_compares1, total_compares2, total_compares1 * 100.0/total_compares2 - 100.0);
 	#endif
 	
 	free(array1); free(array2);

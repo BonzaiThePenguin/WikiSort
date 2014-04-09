@@ -280,6 +280,9 @@ namespace Wiki {
 		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
 		 but I decided to stick with this because it had better situational performance
 		 
+		 (Hwang and Lin is designed for merging subarrays of very different sizes,
+		 but WikiSort almost always uses subarrays that are roughly the same size)
+		 
 		 normally this is incredibly suboptimal, but this function is only called
 		 when none of the A or B blocks in any subarray contained 2√A unique values,
 		 which places a hard limit on the number of times this will ACTUALLY need
@@ -389,11 +392,14 @@ namespace Wiki {
 			if (cache) return;
 			
 			// 512 – chosen from careful testing as a good balance between fixed-size memory use and run time
-			cache_size = 512;
-			cache = new (std::nothrow) T[cache_size];
+			if (cache_size > 512) {
+				cache_size = 512;
+				cache = new (std::nothrow) T[cache_size];
+				if (cache) return;
+			}
 			
 			// 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine
-			if (!cache) cache_size = 0;
+			cache_size = 0;
 		}
 	};
 #endif
@@ -407,34 +413,30 @@ namespace Wiki {
 		const size_t size = last - first;
 		T *array = &first[0];
 		
-		// if there are 32 or fewer items, just insertion sort the entire array
-		if (size <= 32) {
-			InsertionSort(array, Range(0, size), compare);
+		// if the array is of size 0, 1, 2, or 3, just sort them like so:
+		if (size < 4) {
+			if (size == 3) {
+				// hard-coded insertion sort
+				if (compare(array[1], array[0])) std::swap(array[0], array[1]);
+				if (compare(array[2], array[1])) {
+					std::swap(array[1], array[2]);
+					if (compare(array[1], array[0])) std::swap(array[0], array[1]);
+				}
+			} else if (size == 2) {
+				// swap the items if they're out of order
+				if (compare(array[1], array[0])) std::swap(array[0], array[1]);
+			}
+			
 			return;
 		}
 		
-		// use a small cache to speed up some of the operations
-		#if DYNAMIC_CACHE
-			Cache<T> cache_obj (size);
-			T *cache = cache_obj.cache;
-			const size_t cache_size = cache_obj.cache_size;
-		#else
-			// since the cache size is fixed, it's still O(1) memory!
-			// just keep in mind that making it too small ruins the point (nothing will fit into it),
-			// and making it too large also ruins the point (so much for "low memory"!)
-			// removing the cache entirely still gives 70% of the performance of a standard merge
-			const size_t cache_size = 512;
-			T cache[cache_size];
-		#endif
-		
-		// first sort everything the lowest level, which is 4-7 items at a time
-		// use an unstable sorting network, but keep track of the original orders for the items
-		// so we can force it to be a stable sorting network
+		// sort groups of 4-8 items at a time using an unstable sorting network,
+		// but keep track of the original item orders to force it to be stable
 		// http://pages.ripco.net/~jgamble/nw.html
 		Wiki::Iterator iterator (size, 4);
 		while (!iterator.finished()) {
-			Range range = iterator.nextRange();
 			uint8_t order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+			Range range = iterator.nextRange();
 			
 			#define SWAP(x, y) if (compare(array[range.start + y], array[range.start + x]) || \
 									(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
@@ -480,16 +482,31 @@ namespace Wiki {
 				SWAP(1, 2);
 			}
 		}
+		if (size < 8) return;
+		
+		// use a small cache to speed up some of the operations
+		#if DYNAMIC_CACHE
+			Cache<T> cache_obj (size);
+			T *cache = cache_obj.cache;
+			const size_t cache_size = cache_obj.cache_size;
+		#else
+			// since the cache size is fixed, it's still O(1) memory!
+			// just keep in mind that making it too small ruins the point (nothing will fit into it),
+			// and making it too large also ruins the point (so much for "low memory"!)
+			// removing the cache entirely still gives 70% of the performance of a standard merge
+			const size_t cache_size = 512;
+			T cache[cache_size];
+		#endif
 		
 		// then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc.
 		while (true) {
 			// if every A and B block will fit into the cache, use a special branch specifically for merging with the cache
-			// (we use < rather than <= since the block size might be one more than decimal_step)
+			// (we use < rather than <= since the block size might be one more than iterator.length())
 			if (iterator.length() < cache_size) {
 				
 				// if four subarrays fit into the cache, it's faster to merge both pairs of subarrays into the cache,
 				// then merge the two merged subarrays from the cache back into the original array
-				if ((iterator.length() + 1) * 4 <= cache_size && size/iterator.length() >= 4) {
+				if ((iterator.length() + 1) * 4 <= cache_size && iterator.length() * 4 <= size) {
 					iterator.begin();
 					while (!iterator.finished()) {
 						// merge A1 and B1 into the cache
@@ -581,7 +598,7 @@ namespace Wiki {
 				// 8. redistribute the two internal buffers back into the array
 				
 				size_t block_size = sqrt(iterator.length());
-				size_t buffer_size = iterator.length()/block_size + 1;
+				size_t buffer_size = (iterator.length() + 1)/block_size;
 				
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
@@ -589,9 +606,19 @@ namespace Wiki {
 				size_t index, last, count, pull_index = 0;
 				struct { size_t from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
 				
-				// if every A block fits into the cache, we don't need the second internal buffer, so we can make do with only 'buffer_size' unique values
+				// find two internal buffers of size 'buffer_size' each
 				size_t find = buffer_size + buffer_size;
-				if (block_size <= cache_size) find = buffer_size;
+				bool find_separately = false;
+				
+				if (block_size <= cache_size) {
+					// if every A block fits into the cache then we won't need the second internal buffer,
+					// so we really only need to find 'buffer_size' unique values
+					find = buffer_size;
+				} else if (find > iterator.length()) {
+					// we can't fit both buffers into the same A or B subarray, so find two buffers separately
+					find = buffer_size;
+					find_separately = true;
+				}
 				
 				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
 				// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
@@ -605,25 +632,25 @@ namespace Wiki {
 					Range A = iterator.nextRange();
 					Range B = iterator.nextRange();
 					
+					// just store information about where the values will be pulled from and to,
+					// as well as how many values there are, to create the two internal buffers
+					#define PULL(_to) \
+						pull[pull_index].range = Range(A.start, B.end); \
+						pull[pull_index].count = count; \
+						pull[pull_index].from = index; \
+						pull[pull_index].to = _to
+					
 					// check A for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the start of A
-					last = A.start;
-					count = 1;
-					// assume find is > 1
-					while (true) {
+					for (last = A.start, count = 1; count < find; last = index, count++) {
 						index = FindLastForward(array, array[last], Range(last + 1, A.end), compare, find - count);
 						if (index == A.end) break;
-						last = index;
-						if (++count >= find) break;
 					}
 					index = last;
 					
 					if (count >= buffer_size) {
 						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						pull[pull_index].range = Range(A.start, B.end);
-						pull[pull_index].count = count;
-						pull[pull_index].from = index;
-						pull[pull_index].to = A.start;
+						PULL(A.start);
 						pull_index = 1;
 						
 						if (count == buffer_size + buffer_size) {
@@ -633,15 +660,18 @@ namespace Wiki {
 							buffer2 = Range(A.start + buffer_size, A.start + count);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1 = Range(A.start, A.start + count);
-							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
+							buffer1 = Range(A.start, A.start + count);
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
 							buffer1 = Range(A.start, A.start + count);
 							break;
+						} else if (find_separately) {
+							// found one buffer, but now find the other one
+							buffer1 = Range(A.start, A.start + count);
+							find_separately = false;
 						} else {
 							// we found a second buffer in an 'A' subarray containing √A unique values, so we're done!
 							buffer2 = Range(A.start, A.start + count);
@@ -650,31 +680,20 @@ namespace Wiki {
 					} else if (pull_index == 0 && count > buffer1.length()) {
 						// keep track of the largest buffer we were able to find
 						buffer1 = Range(A.start, A.start + count);
-						
-						pull[pull_index].range = Range(A.start, B.end);
-						pull[pull_index].count = count;
-						pull[pull_index].from = index;
-						pull[pull_index].to = A.start;
+						PULL(A.start);
 					}
 					
 					// check B for the number of unique values we need to fill an internal buffer
 					// these values will be pulled out to the end of B
-					last = B.end - 1;
-					count = 1;
-					while (true) {
+					for (last = B.end - 1, count = 1; count < find; last = index - 1, count++) {
 						index = FindFirstBackward(array, array[last], Range(B.start, last), compare, find - count);
 						if (index == B.start) break;
-						last = index - 1;
-						if (++count >= find) break;
 					}
 					index = last;
 					
 					if (count >= buffer_size) {
 						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						pull[pull_index].range = Range(A.start, B.end);
-						pull[pull_index].count = count;
-						pull[pull_index].from = index;
-						pull[pull_index].to = B.end;
+						PULL(B.end);
 						pull_index = 1;
 						
 						if (count == buffer_size + buffer_size) {
@@ -684,67 +703,62 @@ namespace Wiki {
 							buffer2 = Range(B.end - buffer_size, B.end);
 							break;
 						} else if (find == buffer_size + buffer_size) {
-							buffer1 = Range(B.end - count, B.end);
-							
 							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
 							// so we still need to find a second separate buffer of at least √A unique values
+							buffer1 = Range(B.end - count, B.end);
 							find = buffer_size;
 						} else if (block_size <= cache_size) {
 							// we found the first and only internal buffer that we need, so we're done!
 							buffer1 = Range(B.end - count, B.end);
 							break;
+						} else if (find_separately) {
+							// found one buffer, but now find the other one
+							buffer1 = Range(B.start - count, B.end);
+							find_separately = false;
 						} else {
-							// we found a second buffer in a 'B' subarray containing √A unique values, so we're done!
-							buffer2 = Range(B.end - count, B.end);
-							
 							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
 							// we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2
 							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
 							
+							// we found a second buffer in a 'B' subarray containing √A unique values, so we're done!
+							buffer2 = Range(B.end - count, B.end);
 							break;
 						}
 					} else if (pull_index == 0 && count > buffer1.length()) {
 						// keep track of the largest buffer we were able to find
 						buffer1 = Range(B.end - count, B.end);
-						
-						pull[pull_index].range = Range(A.start, B.end);
-						pull[pull_index].count = count;
-						pull[pull_index].from = index;
-						pull[pull_index].to = B.end;
+						PULL(B.end);
 					}
 				}
 				
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
 					size_t length = pull[pull_index].count;
-					count = 1;
 					
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A subarray
 						index = pull[pull_index].from;
-						while (count < length) {
+						for (count = 1; count < length; count++) {
 							index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
 							Range range = Range(index + 1, pull[pull_index].from + 1);
 							Rotate(array, range.length() - count, range, cache, cache_size);
 							pull[pull_index].from = index + count;
-							count++;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
 						// we're pulling values out to the right, which means the end of a B subarray
-						index = pull[pull_index].from + count;
-						while (count < length) {
+						index = pull[pull_index].from + 1;
+						for (count = 1; count < length; count++) {
 							index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
 							Range range = Range(pull[pull_index].from, index - 1);
 							Rotate(array, count, range, cache, cache_size);
 							pull[pull_index].from = index - 1 - count;
-							count++;
 						}
 					}
 				}
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = iterator.length()/buffer_size + 1;
+				block_size = (iterator.length() + 1)/buffer_size;
 				
 				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
 				// so this was originally here to test the math for adjusting block_size above
@@ -758,12 +772,26 @@ namespace Wiki {
 					
 					// remove any parts of A or B that are being used by the internal buffers
 					size_t start = A.start;
-					for (pull_index = 0; pull_index < 2; pull_index++) {
-						if (start == pull[pull_index].range.start) {
-							if (pull[pull_index].from > pull[pull_index].to)
-								A.start += pull[pull_index].count;
-							else if (pull[pull_index].from < pull[pull_index].to)
-								B.end -= pull[pull_index].count;
+					if (start == pull[0].range.start) {
+						if (pull[0].from > pull[0].to) {
+							A.start += pull[0].count;
+							
+							// if the internal buffer takes up the entire A or B subarray, then there's nothing to merge
+							// this only happens for very small subarrays, like √4 = 2, 2 * (2 internal buffers) = 4,
+							// which also only happens when cache_size is small or 0 since it'd otherwise use MergeExternal
+							if (A.length() == 0) continue;
+						} else if (pull[0].from < pull[0].to) {
+							B.end -= pull[0].count;
+							if (B.length() == 0) continue;
+						}
+					}
+					if (start == pull[1].range.start) {
+						if (pull[1].from > pull[1].to) {
+							A.start += pull[1].count;
+							if (A.length() == 0) continue;
+						} else if (pull[1].from < pull[1].to) {
+							B.end -= pull[1].count;
+							if (B.length() == 0) continue;
 						}
 					}
 					
@@ -782,11 +810,12 @@ namespace Wiki {
 							std::swap(array[buffer1.start + index], array[indexA]);
 						
 						// start rolling the A blocks through the B blocks!
-						// whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
+						// when we leave an A block behind we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
 						Range lastA = firstA;
 						Range lastB = Range(0, 0);
 						Range blockB = Range(B.start, B.start + std::min(block_size, B.length()));
 						blockA.start += firstA.length();
+						if (blockA.length() == 0) continue;
 						
 						size_t minA = blockA.start, indexA = 0;
 						T min_value = array[minA];
@@ -850,7 +879,7 @@ namespace Wiki {
 								
 								// search the second value of the remaining A blocks to find the new minimum A block
 								minA = blockA.start;
-								for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
+								for (size_t findA = minA + block_size; findA < blockA.end - 1; findA += block_size)
 									if (compare(array[findA + 1], array[minA + 1]))
 										minA = findA;
 								min_value = array[minA];
@@ -899,11 +928,10 @@ namespace Wiki {
 				InsertionSort(array, buffer2, compare);
 				
 				for (pull_index = 0; pull_index < 2; pull_index++) {
+					size_t unique = pull[pull_index].count * 2;
 					if (pull[pull_index].from > pull[pull_index].to) {
 						// the values were pulled out to the left, so redistribute them back to the right
 						Range buffer = Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
-						
-						size_t unique = buffer.length() * 2;
 						while (buffer.length() > 0) {
 							index = FindFirstForward(array, array[buffer.start], Range(buffer.end, pull[pull_index].range.end), compare, unique);
 							size_t amount = index - buffer.end;
@@ -915,8 +943,6 @@ namespace Wiki {
 					} else if (pull[pull_index].from < pull[pull_index].to) {
 						// the values were pulled out to the right, so redistribute them back to the left
 						Range buffer = Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
-						
-						size_t unique = buffer.length() * 2;
 						while (buffer.length() > 0) {
 							index = FindLastBackward(array, array[buffer.end - 1], Range(pull[pull_index].range.start, buffer.start), compare, unique);
 							size_t amount = buffer.start - index;
@@ -1039,6 +1065,12 @@ namespace Testing {
 	size_t MostlyEqual(size_t index, size_t total) {
 		return 1000 + rand() * 1.0/RAND_MAX * 4;
 	}
+	
+	// the last 1/5 of the data is random
+	size_t Append(size_t index, size_t total) {
+		if (index > total - total/5) return rand() * 1.0/RAND_MAX * total;
+		return index;
+	}
 }
 
 int main() {
@@ -1067,7 +1099,8 @@ int main() {
 		Testing::Descending,
 		Testing::Equal,
 		Testing::Jittered,
-		Testing::MostlyEqual
+		Testing::MostlyEqual,
+		Testing::Append
 	};
 	
 	cout << "running test cases... " << flush;
@@ -1101,16 +1134,8 @@ int main() {
 		for (size_t index = 0; index < total; index++) {
 			Test item = Test();
 			
-			// Testing::Random
-			// Testing::RandomFew
-			// Testing::MostlyDescending
-			// Testing::MostlyAscending
-			// Testing::Ascending
-			// Testing::Descending
-			// Testing::Equal
-			// Testing::Jittered
-			// Testing::MostlyEqual
-			
+			// Random, RandomFew, MostlyDescending, MostlyAscending,
+			// Ascending, Descending, Equal, Jittered, MostlyEqual, Append
 			item.value = Testing::Random(index, total);
 			#if VERIFY
 				item.index = index;

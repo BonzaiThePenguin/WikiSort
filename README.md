@@ -24,16 +24,17 @@ Or you can check out the work-in-progress version of the [Wikipedia page](https:
 
 Using a 512-item fixed-size cache for O(1) memory:
 
-    Test             Fast comparisons   Slow comparisons   150,000,000 items
-    Random              99% as fast       94% as fast         21% faster
-    RandomFew            1% faster        19% faster          28% faster
-    MostlyDescending    95% as fast       16% faster          96% as fast
-    MostlyAscending    150% faster       116% faster         313% faster
-    Ascending         1164% faster       487% faster          77% faster
-    Descending          22% faster       128% faster          23% faster
-    Equal             1158% faster       426% faster         831% faster
-    Jittered           470% faster       287% faster         565% faster
-    MostlyEqual         17% faster        60% faster          19% faster
+    Test             Fast comparisons   Slow comparisons   150,000,000 items    0-32 items
+    Random               3% faster        95% as fast         21% faster        42% faster
+    RandomFew            1% faster        19% faster          28% faster        40% faster
+    MostlyDescending    98% as fast       16% faster          96% as fast       48% faster
+    MostlyAscending    150% faster       116% faster         313% faster        46% faster
+    Ascending         1164% faster       487% faster          77% faster       233% faster
+    Descending          22% faster       128% faster          23% faster       172% faster
+    Equal             1158% faster       426% faster         831% faster       241% faster
+    Jittered           470% faster       287% faster         565% faster        66% faster
+    MostlyEqual         17% faster        60% faster          19% faster        39% faster
+    Append             165% faster        86% faster           1% faster       107% faster
 
 Using a dynamically allocated half-size cache:
 
@@ -47,3 +48,4 @@ Using a dynamically allocated half-size cache:
     Equal              822% faster       462% faster
     Jittered           321% faster       244% faster
     MostlyEqual         18% faster         5% faster
+    Append             155% faster        98% faster
