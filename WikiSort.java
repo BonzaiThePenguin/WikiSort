@@ -282,16 +282,20 @@ class WikiSorter<T> {
 			// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
 			if (range1.length() <= range2.length()) {
 				if (range1.length() <= cache_size) {
-					java.lang.System.arraycopy(array, range1.start, cache, 0, range1.length());
-					java.lang.System.arraycopy(array, range2.start, array, range1.start, range2.length());
-					java.lang.System.arraycopy(cache, 0, array, range1.start + range2.length(), range1.length());
+					if (cache != null) {
+						java.lang.System.arraycopy(array, range1.start, cache, 0, range1.length());
+						java.lang.System.arraycopy(array, range2.start, array, range1.start, range2.length());
+						java.lang.System.arraycopy(cache, 0, array, range1.start + range2.length(), range1.length());
+					}
 					return;
 				}
 			} else {
 				if (range2.length() <= cache_size) {
-					java.lang.System.arraycopy(array, range2.start, cache, 0, range2.length());
-					java.lang.System.arraycopy(array, range1.start, array, range2.end - range1.length(), range1.length());
-					java.lang.System.arraycopy(cache, 0, array, range1.start, range2.length());
+					if (cache != null) {
+						java.lang.System.arraycopy(array, range2.start, cache, 0, range2.length());
+						java.lang.System.arraycopy(array, range1.start, array, range2.end - range1.length(), range1.length());
+						java.lang.System.arraycopy(cache, 0, array, range1.start, range2.length());
+					}
 					return;
 				}
 			}
@@ -328,7 +332,7 @@ class WikiSorter<T> {
 		}
 		
 		// copy the remainder of A into the final array
-		java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
+		if (cache != null) java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
 	}
 	
 	// merge two ranges from one array and save the results into a different array
@@ -643,7 +647,7 @@ class WikiSorter<T> {
 				// 8. redistribute the two internal buffers back into the array
 				
 				int block_size = (int)Math.sqrt(iterator.length());
-				int buffer_size = (iterator.length() + 1)/block_size;
+				int buffer_size = iterator.length()/block_size + 1;
 				
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
@@ -812,7 +816,7 @@ class WikiSorter<T> {
 				
 				// adjust block_size and buffer_size based on the values we were able to pull out
 				buffer_size = buffer1.length();
-				block_size = (iterator.length() + 1)/buffer_size;
+				block_size = iterator.length()/buffer_size + 1;
 				
 				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
 				// so this was originally here to test the math for adjusting block_size above
@@ -874,7 +878,6 @@ class WikiSorter<T> {
 						lastB.set(0, 0);
 						blockB.set(B.start, B.start + Math.min(block_size, B.length()));
 						blockA.start += firstA.length();
-						if (blockA.length() == 0) continue;
 						
 						int minA = blockA.start;
 						int indexA = 0;
@@ -882,96 +885,98 @@ class WikiSorter<T> {
 						
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
-						if (lastA.length() <= cache_size)
+						if (lastA.length() <= cache_size && cache != null)
 							java.lang.System.arraycopy(array, lastA.start, cache, 0, lastA.length());
 						else if (buffer2.length() > 0)
 							BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 						
-						while (true) {
-							// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
-							// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
-							if ((lastB.length() > 0 && comp.compare(array[lastB.end - 1], min_value) >= 0) || blockB.length() == 0) {
-								// figure out where to split the previous B block, and rotate it at the split
-								int B_split = BinaryFirst(array, min_value, lastB, comp);
-								int B_remaining = lastB.end - B_split;
-								
-								// swap the minimum A block to the beginning of the rolling A blocks
-								BlockSwap(array, blockA.start, minA, block_size);
-								
-								// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
-								T swap = array[blockA.start + 1];
-								array[blockA.start + 1] = array[buffer1.start + indexA];
-								array[buffer1.start + indexA] = swap;
-								indexA++;
-								
-								// locally merge the previous A block with the B values that follow it
-								// if lastA fits into the external cache we'll use that (with MergeExternal),
-								// or if the second internal buffer exists we'll use that (with MergeInternal),
-								// or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
-								if (lastA.length() <= cache_size)
-									MergeExternal(array, lastA, new Range(lastA.end, B_split), comp);
-								else if (buffer2.length() > 0)
-									MergeInternal(array, lastA, new Range(lastA.end, B_split), comp, buffer2);
-								else
-									MergeInPlace(array, lastA, new Range(lastA.end, B_split), comp);
-								
-								if (buffer2.length() > 0 || block_size <= cache_size) {
-									// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
-									if (block_size <= cache_size)
-										java.lang.System.arraycopy(array, blockA.start, cache, 0, block_size);
-									else
-										BlockSwap(array, blockA.start, buffer2.start, block_size);
+						if (blockA.length() > 0) {
+							while (true) {
+								// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
+								// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
+								if ((lastB.length() > 0 && comp.compare(array[lastB.end - 1], min_value) >= 0) || blockB.length() == 0) {
+									// figure out where to split the previous B block, and rotate it at the split
+									int B_split = BinaryFirst(array, min_value, lastB, comp);
+									int B_remaining = lastB.end - B_split;
 									
-									// this is equivalent to rotating, but faster
-									// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
-									// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
-									BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+									// swap the minimum A block to the beginning of the rolling A blocks
+									BlockSwap(array, blockA.start, minA, block_size);
+									
+									// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
+									T swap = array[blockA.start + 1];
+									array[blockA.start + 1] = array[buffer1.start + indexA];
+									array[buffer1.start + indexA] = swap;
+									indexA++;
+									
+									// locally merge the previous A block with the B values that follow it
+									// if lastA fits into the external cache we'll use that (with MergeExternal),
+									// or if the second internal buffer exists we'll use that (with MergeInternal),
+									// or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
+									if (lastA.length() <= cache_size)
+										MergeExternal(array, lastA, new Range(lastA.end, B_split), comp);
+									else if (buffer2.length() > 0)
+										MergeInternal(array, lastA, new Range(lastA.end, B_split), comp, buffer2);
+									else
+										MergeInPlace(array, lastA, new Range(lastA.end, B_split), comp);
+									
+									if (buffer2.length() > 0 || block_size <= cache_size) {
+										// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
+										if (block_size <= cache_size)
+											java.lang.System.arraycopy(array, blockA.start, cache, 0, block_size);
+										else
+											BlockSwap(array, blockA.start, buffer2.start, block_size);
+										
+										// this is equivalent to rotating, but faster
+										// the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it
+										// either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs
+										BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+									} else {
+										// we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation
+										Rotate(array, blockA.start - B_split, new Range(B_split, blockA.start + block_size), true);
+									}
+									
+									// update the range for the remaining A blocks, and the range remaining from the B block after it was split
+									lastA.set(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
+									lastB.set(lastA.end, lastA.end + B_remaining);
+									
+									// if there are no more A blocks remaining, this step is finished!
+									blockA.start += block_size;
+									if (blockA.length() == 0)
+										break;
+									
+									// search the second value of the remaining A blocks to find the new minimum A block
+									minA = blockA.start + 1;
+									for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
+										if (comp.compare(array[findA], array[minA]) < 0)
+											minA = findA;
+									minA = minA - 1; // decrement once to get back to the start of that A block
+									min_value = array[minA];
+									
+								} else if (blockB.length() < block_size) {
+									// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
+									// the cache is disabled here since it might contain the contents of the previous A block
+									Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false);
+									
+									lastB.set(blockA.start, blockA.start + blockB.length());
+									blockA.start += blockB.length();
+									blockA.end += blockB.length();
+									minA += blockB.length();
+									blockB.end = blockB.start;
 								} else {
-									// we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation
-									Rotate(array, blockA.start - B_split, new Range(B_split, blockA.start + block_size), true);
+									// roll the leftmost A block to the end by swapping it with the next B block
+									BlockSwap(array, blockA.start, blockB.start, block_size);
+									lastB.set(blockA.start, blockA.start + block_size);
+									if (minA == blockA.start)
+										minA = blockA.end;
+									
+									blockA.start += block_size;
+									blockA.end += block_size;
+									blockB.start += block_size;
+									blockB.end += block_size;
+									
+									if (blockB.end > B.end)
+										blockB.end = B.end;
 								}
-								
-								// update the range for the remaining A blocks, and the range remaining from the B block after it was split
-								lastA.set(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
-								lastB.set(lastA.end, lastA.end + B_remaining);
-								
-								// if there are no more A blocks remaining, this step is finished!
-								blockA.start += block_size;
-								if (blockA.length() == 0)
-									break;
-								
-								// search the second value of the remaining A blocks to find the new minimum A block
-								minA = blockA.start + 1;
-								for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
-									if (comp.compare(array[findA], array[minA]) < 0)
-										minA = findA;
-								minA = minA - 1; // decrement once to get back to the start of that A block
-								min_value = array[minA];
-								
-							} else if (blockB.length() < block_size) {
-								// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-								// the cache is disabled here since it might contain the contents of the previous A block
-								Rotate(array, -blockB.length(), new Range(blockA.start, blockB.end), false);
-								
-								lastB.set(blockA.start, blockA.start + blockB.length());
-								blockA.start += blockB.length();
-								blockA.end += blockB.length();
-								minA += blockB.length();
-								blockB.end = blockB.start;
-							} else {
-								// roll the leftmost A block to the end by swapping it with the next B block
-								BlockSwap(array, blockA.start, blockB.start, block_size);
-								lastB.set(blockA.start, blockA.start + block_size);
-								if (minA == blockA.start)
-									minA = blockA.end;
-								
-								blockA.start += block_size;
-								blockA.end += block_size;
-								blockB.start += block_size;
-								blockB.end += block_size;
-								
-								if (blockB.end > B.end)
-									blockB.end = B.end;
 							}
 						}
 						

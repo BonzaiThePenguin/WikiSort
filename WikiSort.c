@@ -455,28 +455,8 @@ void MergeInPlace(Test array[], Range A, Range B, const Comparison compare, Test
 void WikiSort(Test array[], const size_t size, const Comparison compare) {
 	/* use a small cache to speed up some of the operations */
 	#if DYNAMIC_CACHE
-		/* good choices for the cache size are: */
-		/* (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache */
-		size_t cache_size = (size + 1)/2;
-		Test *cache = (Test *)malloc(cache_size * sizeof(array[0]));
-		
-		if (!cache) {
-			/* sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges, */
-			/* so a buffer of this size would allow it to skip using internal or in-place merges for anything */
-			cache_size = sqrt(cache_size) + 1;
-			cache = (Test *)malloc(cache_size * sizeof(array[0]));
-			
-			if (!cache) {
-				/* 512 – chosen from careful testing as a good balance between fixed-size memory use and run time */
-				if (cache_size > 512) {
-					cache_size = 512;
-					cache = (Test *)malloc(cache_size * sizeof(array[0]));
-				}
-				
-				/* 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
-				if (!cache) cache_size = 0;
-			}
-		}
+		size_t cache_size;
+		Test *cache = NULL;
 	#else
 		/* since the cache size is fixed, it's still O(1) memory! */
 		/* just keep in mind that making it too small ruins the point (nothing will fit into it), */
@@ -560,6 +540,31 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 		}
 	}
 	if (size < 8) return;
+	
+	#if	DYNAMIC_CACHE
+		/* good choices for the cache size are: */
+		/* (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache */
+		cache_size = (size + 1)/2;
+		cache = (Test *)malloc(cache_size * sizeof(array[0]));
+		
+		if (!cache) {
+			/* sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges, */
+			/* so a buffer of this size would allow it to skip using internal or in-place merges for anything */
+			cache_size = sqrt(cache_size) + 1;
+			cache = (Test *)malloc(cache_size * sizeof(array[0]));
+			
+			if (!cache) {
+				/* 512 – chosen from careful testing as a good balance between fixed-size memory use and run time */
+				if (cache_size > 512) {
+					cache_size = 512;
+					cache = (Test *)malloc(cache_size * sizeof(array[0]));
+				}
+				
+				/* 0 – if the system simply cannot allocate any extra memory whatsoever, no memory works just fine */
+				if (!cache) cache_size = 0;
+			}
+		}
+	#endif
 	
 	/* then merge sort the higher levels, which can be 8-15, 16-31, 32-63, 64-127, etc. */
 	while (true) {
@@ -663,7 +668,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			 8. redistribute the two internal buffers back into the array */
 			
 			size_t block_size = sqrt(WikiIterator_length(&iterator));
-			size_t buffer_size = (WikiIterator_length(&iterator) + 1)/block_size;
+			size_t buffer_size = WikiIterator_length(&iterator)/block_size + 1;
 			
 			/* as an optimization, we really only need to pull out the internal buffers once for each level of merges */
 			/* after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level */
@@ -826,7 +831,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			
 			/* adjust block_size and buffer_size based on the values we were able to pull out */
 			buffer_size = Range_length(buffer1);
-			block_size = (WikiIterator_length(&iterator) + 1)/buffer_size;
+			block_size = WikiIterator_length(&iterator)/buffer_size + 1;
 			
 			/* the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks, */
 			/* so this was originally here to test the math for adjusting block_size above */
@@ -886,7 +891,6 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					lastB = Range_new(0, 0);
 					blockB = Range_new(B.start, B.start + Min(block_size, Range_length(B)));
 					blockA.start += Range_length(firstA);
-					if (Range_length(blockA) == 0) continue;
 					
 					minA = blockA.start;
 					indexA = 0;
@@ -899,88 +903,90 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					else if (Range_length(buffer2) > 0)
 						BlockSwap(array, lastA.start, buffer2.start, Range_length(lastA));
 					
-					while (true) {
-						/* if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block, */
-						/* then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks. */
-						if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], min_value)) || Range_length(blockB) == 0) {
-							/* figure out where to split the previous B block, and rotate it at the split */
-							size_t B_split = BinaryFirst(array, min_value, lastB, compare);
-							size_t B_remaining = lastB.end - B_split;
-							
-							/* swap the minimum A block to the beginning of the rolling A blocks */
-							BlockSwap(array, blockA.start, minA, block_size);
-							
-							/* swap the second item of the previous A block back with its original value, which is stored in buffer1 */
-							Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
-							
-							/*
-							 locally merge the previous A block with the B values that follow it
-							 if lastA fits into the external cache we'll use that (with MergeExternal),
-							 or if the second internal buffer exists we'll use that (with MergeInternal),
-							 or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
-							 */
-							if (Range_length(lastA) <= cache_size)
-								MergeExternal(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
-							else if (Range_length(buffer2) > 0)
-								MergeInternal(array, lastA, Range_new(lastA.end, B_split), compare, buffer2);
-							else
-								MergeInPlace(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
-							
-							if (Range_length(buffer2) > 0 || block_size <= cache_size) {
-								/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
-								if (block_size <= cache_size)
-									memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
-								else
-									BlockSwap(array, blockA.start, buffer2.start, block_size);
+					if (Range_length(blockA) > 0) {
+						while (true) {
+							/* if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block, */
+							/* then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks. */
+							if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], min_value)) || Range_length(blockB) == 0) {
+								/* figure out where to split the previous B block, and rotate it at the split */
+								size_t B_split = BinaryFirst(array, min_value, lastB, compare);
+								size_t B_remaining = lastB.end - B_split;
 								
-								/* this is equivalent to rotating, but faster */
-								/* the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it */
-								/* either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs */
-								BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+								/* swap the minimum A block to the beginning of the rolling A blocks */
+								BlockSwap(array, blockA.start, minA, block_size);
+								
+								/* swap the second item of the previous A block back with its original value, which is stored in buffer1 */
+								Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
+								
+								/*
+								 locally merge the previous A block with the B values that follow it
+								 if lastA fits into the external cache we'll use that (with MergeExternal),
+								 or if the second internal buffer exists we'll use that (with MergeInternal),
+								 or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
+								 */
+								if (Range_length(lastA) <= cache_size)
+									MergeExternal(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
+								else if (Range_length(buffer2) > 0)
+									MergeInternal(array, lastA, Range_new(lastA.end, B_split), compare, buffer2);
+								else
+									MergeInPlace(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
+								
+								if (Range_length(buffer2) > 0 || block_size <= cache_size) {
+									/* copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway */
+									if (block_size <= cache_size)
+										memcpy(&cache[0], &array[blockA.start], block_size * sizeof(array[0]));
+									else
+										BlockSwap(array, blockA.start, buffer2.start, block_size);
+									
+									/* this is equivalent to rotating, but faster */
+									/* the area normally taken up by the A block is either the contents of buffer2, or data we don't need anymore since we memcopied it */
+									/* either way, we don't need to retain the order of those items, so instead of rotating we can just block swap B to where it belongs */
+									BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+								} else {
+									/* we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation */
+									Rotate(array, blockA.start - B_split, Range_new(B_split, blockA.start + block_size), cache, cache_size);
+								}
+								
+								/* update the range for the remaining A blocks, and the range remaining from the B block after it was split */
+								lastA = Range_new(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
+								lastB = Range_new(lastA.end, lastA.end + B_remaining);
+								
+								/* if there are no more A blocks remaining, this step is finished! */
+								blockA.start += block_size;
+								if (Range_length(blockA) == 0)
+									break;
+								
+								/* search the second value of the remaining A blocks to find the new minimum A block */
+								minA = blockA.start;
+								for (findA = minA + block_size; findA < blockA.end; findA += block_size)
+									if (compare(array[findA + 1], array[minA + 1]))
+										minA = findA;
+								min_value = array[minA];
+								
+							} else if (Range_length(blockB) < block_size) {
+								/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
+								/* the cache is disabled here since it might contain the contents of the previous A block */
+								Rotate(array, blockB.start - blockA.start, Range_new(blockA.start, blockB.end), cache, 0);
+								
+								lastB = Range_new(blockA.start, blockA.start + Range_length(blockB));
+								blockA.start += Range_length(blockB);
+								blockA.end += Range_length(blockB);
+								minA += Range_length(blockB);
+								blockB.end = blockB.start;
 							} else {
-								/* we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation */
-								Rotate(array, blockA.start - B_split, Range_new(B_split, blockA.start + block_size), cache, cache_size);
+								/* roll the leftmost A block to the end by swapping it with the next B block */
+								BlockSwap(array, blockA.start, blockB.start, block_size);
+								lastB = Range_new(blockA.start, blockA.start + block_size);
+								if (minA == blockA.start)
+									minA = blockA.end;
+								
+								blockA.start += block_size;
+								blockA.end += block_size;
+								blockB.start += block_size;
+								
+								if (blockB.end > B.end - block_size) blockB.end = B.end;
+								else blockB.end += block_size;
 							}
-							
-							/* update the range for the remaining A blocks, and the range remaining from the B block after it was split */
-							lastA = Range_new(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
-							lastB = Range_new(lastA.end, lastA.end + B_remaining);
-							
-							/* if there are no more A blocks remaining, this step is finished! */
-							blockA.start += block_size;
-							if (Range_length(blockA) == 0)
-								break;
-							
-							/* search the second value of the remaining A blocks to find the new minimum A block */
-							minA = blockA.start;
-							for (findA = minA + block_size; findA < blockA.end; findA += block_size)
-								if (compare(array[findA + 1], array[minA + 1]))
-									minA = findA;
-							min_value = array[minA];
-							
-						} else if (Range_length(blockB) < block_size) {
-							/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
-							/* the cache is disabled here since it might contain the contents of the previous A block */
-							Rotate(array, blockB.start - blockA.start, Range_new(blockA.start, blockB.end), cache, 0);
-							
-							lastB = Range_new(blockA.start, blockA.start + Range_length(blockB));
-							blockA.start += Range_length(blockB);
-							blockA.end += Range_length(blockB);
-							minA += Range_length(blockB);
-							blockB.end = blockB.start;
-						} else {
-							/* roll the leftmost A block to the end by swapping it with the next B block */
-							BlockSwap(array, blockA.start, blockB.start, block_size);
-							lastB = Range_new(blockA.start, blockA.start + block_size);
-							if (minA == blockA.start)
-								minA = blockA.end;
-							
-							blockA.start += block_size;
-							blockA.end += block_size;
-							blockB.start += block_size;
-							
-							if (blockB.end > B.end - block_size) blockB.end = B.end;
-							else blockB.end += block_size;
 						}
 					}
 					
