@@ -780,7 +780,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						break;
 					} else if (find_separately) {
 						/* found one buffer, but now find the other one */
-						buffer1 = Range_new(B.start - count, B.end);
+						buffer1 = Range_new(B.end - count, B.end);
 						find_separately = false;
 					} else {
 						/* buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray, */
@@ -953,7 +953,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 							
 							/* search the second value of the remaining A blocks to find the new minimum A block */
 							minA = blockA.start;
-							for (findA = minA + block_size; findA < blockA.end - 1; findA += block_size)
+							for (findA = minA + block_size; findA < blockA.end; findA += block_size)
 								if (compare(array[findA + 1], array[minA + 1]))
 									minA = findA;
 							min_value = array[minA];

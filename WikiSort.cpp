@@ -713,7 +713,7 @@ namespace Wiki {
 							break;
 						} else if (find_separately) {
 							// found one buffer, but now find the other one
-							buffer1 = Range(B.start - count, B.end);
+							buffer1 = Range(B.end - count, B.end);
 							find_separately = false;
 						} else {
 							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
@@ -879,7 +879,7 @@ namespace Wiki {
 								
 								// search the second value of the remaining A blocks to find the new minimum A block
 								minA = blockA.start;
-								for (size_t findA = minA + block_size; findA < blockA.end - 1; findA += block_size)
+								for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
 									if (compare(array[findA + 1], array[minA + 1]))
 										minA = findA;
 								min_value = array[minA];

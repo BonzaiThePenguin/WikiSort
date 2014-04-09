@@ -763,7 +763,7 @@ class WikiSorter<T> {
 							break;
 						} else if (find_separately) {
 							// found one buffer, but now find the other one
-							buffer1 = new Range(B.start - count, B.end);
+							buffer1 = new Range(B.end - count, B.end);
 							find_separately = false;
 						} else {
 							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
@@ -942,7 +942,7 @@ class WikiSorter<T> {
 								
 								// search the second value of the remaining A blocks to find the new minimum A block
 								minA = blockA.start + 1;
-								for (int findA = minA + block_size; findA < blockA.end - 1; findA += block_size)
+								for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
 									if (comp.compare(array[findA], array[minA]) < 0)
 										minA = findA;
 								minA = minA - 1; // decrement once to get back to the start of that A block
