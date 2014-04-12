@@ -306,6 +306,37 @@ class WikiSorter<T> {
 		Reverse(array, range);
 	}
 	
+	// merge two ranges from one array and save the results into a different array
+	void MergeInto(T from[], Range A, Range B, Comparator<T> comp, T into[], int at_index) {
+		int A_index = A.start;
+		int B_index = B.start;
+		int insert_index = at_index;
+		int A_last = A.end;
+		int B_last = B.end;
+		
+		while (true) {
+			if (comp.compare(from[B_index], from[A_index]) >= 0) {
+				into[insert_index] = from[A_index];
+				A_index++;
+				insert_index++;
+				if (A_index == A_last) {
+					// copy the remainder of B into the final array
+					java.lang.System.arraycopy(from, B_index, into, insert_index, B_last - B_index);
+					break;
+				}
+			} else {
+				into[insert_index] = from[B_index];
+				B_index++;
+				insert_index++;
+				if (B_index == B_last) {
+					// copy the remainder of A into the final array
+					java.lang.System.arraycopy(from, A_index, into, insert_index, A_last - A_index);
+					break;
+				}
+			}
+		}
+	}
+	
 	// merge operation using an external buffer,
 	void MergeExternal(T array[], Range A, Range B, Comparator<T> comp) {
 		// A fits into the cache, so use that instead of the internal buffer
@@ -333,36 +364,6 @@ class WikiSorter<T> {
 		
 		// copy the remainder of A into the final array
 		if (cache != null) java.lang.System.arraycopy(cache, A_index, array, insert_index, A_last - A_index);
-	}
-	
-	// merge two ranges from one array and save the results into a different array
-	void MergeInto(T from[], Range A, Range B, Comparator<T> comp, T into[], int at_index) {
-		int A_index = A.start;
-		int B_index = B.start;
-		int insert_index = at_index;
-		int A_last = A.end;
-		int B_last = B.end;
-		
-		if (B.length() > 0 && A.length() > 0) {
-			while (true) {
-				if (comp.compare(from[B_index], from[A_index]) >= 0) {
-					into[insert_index] = from[A_index];
-					A_index++;
-					insert_index++;
-					if (A_index == A_last) break;
-				} else {
-					into[insert_index] = from[B_index];
-					B_index++;
-					insert_index++;
-					if (B_index == B_last) break;
-				}
-			}
-		}
-		
-		// copy the remainder of A and B into the final array
-		java.lang.System.arraycopy(from, A_index, into, insert_index, A_last - A_index);
-		insert_index += (A_last - A_index);
-		java.lang.System.arraycopy(from, B_index, into, insert_index, B_last - B_index);
 	}
 	
 	// merge operation using an internal buffer
@@ -397,6 +398,8 @@ class WikiSorter<T> {
 	
 	// merge operation without a buffer
 	void MergeInPlace(T array[], Range A, Range B, Comparator<T> comp) {
+		if (A.length() == 0 || B.length() == 0) return;
+		
 		/*
 		 this just repeatedly binary searches into B and rotates A into position.
 		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
@@ -420,18 +423,20 @@ class WikiSorter<T> {
 		A = new Range(A.start, A.end);
 		B = new Range(B.start, B.end);
 		
-		while (A.length() > 0 && B.length() > 0) {
+		while (true) {
 			// find the first place in B where the first item in A needs to be inserted
 			int mid = BinaryFirst(array, array[A.start], B, comp);
 			
 			// rotate A into place
 			int amount = mid - A.end;
 			Rotate(array, -amount, new Range(A.start, mid), true);
+			if (B.end == mid) break;
 			
 			// calculate the new A and B ranges
 			B.start = mid;
 			A.set(A.start + amount, B.start);
 			A.start = BinaryLast(array, array[A.start], A, comp);
+			if (A.length() == 0) break;
 		}
 	}
 	
@@ -626,7 +631,7 @@ class WikiSorter<T> {
 						
 						if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
 							// the two ranges are in reverse order, so a simple rotation should fix it
-							Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
+							Rotate(array, A.length(), new Range(A.start, B.end), true);
 						} else if (comp.compare(array[B.start], array[A.end - 1]) < 0) {
 							// these two ranges weren't already in order, so we'll need to merge them!
 							java.lang.System.arraycopy(array, A.start, cache, 0, A.length());
@@ -642,7 +647,7 @@ class WikiSorter<T> {
 				//     3. break A and B into blocks of size 'block_size'
 				//     4. "tag" each of the A blocks with values from the first internal buffer
 				//     5. roll the A blocks through the B blocks and drop/rotate them where they belong
-				//     6. merge each A block with any B values that follow, using the cache or second the internal buffer
+				//     6. merge each A block with any B values that follow, using the cache or the second internal buffer
 				// 7. sort the second internal buffer if it exists
 				// 8. redistribute the two internal buffers back into the array
 				
@@ -855,7 +860,7 @@ class WikiSorter<T> {
 					
 					if (comp.compare(array[B.end - 1], array[A.start]) < 0) {
 						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, new Range(A.start, B.end), true);
+						Rotate(array, A.length(), new Range(A.start, B.end), true);
 					} else if (comp.compare(array[A.end], array[A.end - 1]) < 0) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						
@@ -863,13 +868,13 @@ class WikiSorter<T> {
 						blockA.set(A.start, A.end);
 						firstA.set(A.start, A.start + blockA.length() % block_size);
 						
-						// swap the second value of each A block with the value in buffer1
-						index = 0;
-						for (int indexA = firstA.end + 1; indexA < blockA.end; indexA += block_size)  {
-							T swap = array[buffer1.start + index];
-							array[buffer1.start + index] = array[indexA];
-							array[indexA] = swap;
-							index++;
+						// swap the first value of each A block with the value in buffer1
+						int indexA = buffer1.start;
+						for (index = firstA.end; index < blockA.end; index += block_size)  {
+							T swap = array[indexA];
+							array[indexA] = array[index];
+							array[index] = swap;
+							indexA++;
 						}
 						
 						// start rolling the A blocks through the B blocks!
@@ -878,10 +883,7 @@ class WikiSorter<T> {
 						lastB.set(0, 0);
 						blockB.set(B.start, B.start + Math.min(block_size, B.length()));
 						blockA.start += firstA.length();
-						
-						int minA = blockA.start;
-						int indexA = 0;
-						T min_value = array[minA];
+						indexA = buffer1.start;
 						
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
@@ -894,18 +896,22 @@ class WikiSorter<T> {
 							while (true) {
 								// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
 								// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
-								if ((lastB.length() > 0 && comp.compare(array[lastB.end - 1], min_value) >= 0) || blockB.length() == 0) {
+								if ((lastB.length() > 0 && comp.compare(array[lastB.end - 1], array[indexA]) >= 0) || blockB.length() == 0) {
 									// figure out where to split the previous B block, and rotate it at the split
-									int B_split = BinaryFirst(array, min_value, lastB, comp);
+									int B_split = BinaryFirst(array, array[indexA], lastB, comp);
 									int B_remaining = lastB.end - B_split;
 									
 									// swap the minimum A block to the beginning of the rolling A blocks
+									int minA = blockA.start;
+									for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
+										if (comp.compare(array[findA], array[minA]) < 0)
+											minA = findA;
 									BlockSwap(array, blockA.start, minA, block_size);
 									
-									// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
-									T swap = array[blockA.start + 1];
-									array[blockA.start + 1] = array[buffer1.start + indexA];
-									array[buffer1.start + indexA] = swap;
+									// swap the first item of the previous A block back with its original value, which is stored in buffer1
+									T swap = array[blockA.start];
+									array[blockA.start] = array[indexA];
+									array[indexA] = swap;
 									indexA++;
 									
 									// locally merge the previous A block with the B values that follow it
@@ -944,14 +950,6 @@ class WikiSorter<T> {
 									if (blockA.length() == 0)
 										break;
 									
-									// search the second value of the remaining A blocks to find the new minimum A block
-									minA = blockA.start + 1;
-									for (int findA = minA + block_size; findA < blockA.end; findA += block_size)
-										if (comp.compare(array[findA], array[minA]) < 0)
-											minA = findA;
-									minA = minA - 1; // decrement once to get back to the start of that A block
-									min_value = array[minA];
-									
 								} else if (blockB.length() < block_size) {
 									// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
 									// the cache is disabled here since it might contain the contents of the previous A block
@@ -960,14 +958,11 @@ class WikiSorter<T> {
 									lastB.set(blockA.start, blockA.start + blockB.length());
 									blockA.start += blockB.length();
 									blockA.end += blockB.length();
-									minA += blockB.length();
 									blockB.end = blockB.start;
 								} else {
 									// roll the leftmost A block to the end by swapping it with the next B block
 									BlockSwap(array, blockA.start, blockB.start, block_size);
 									lastB.set(blockA.start, blockA.start + block_size);
-									if (minA == blockA.start)
-										minA = blockA.end;
 									
 									blockA.start += block_size;
 									blockA.end += block_size;
