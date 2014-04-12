@@ -176,6 +176,7 @@ namespace Wiki {
 				A_index++;
 				insert_index++;
 				if (A_index == A_last) {
+					// copy the remainder of B into the final array
 					std::copy(B_index, B_last, insert_index);
 					break;
 				}
@@ -184,6 +185,7 @@ namespace Wiki {
 				B_index++;
 				insert_index++;
 				if (B_index == B_last) {
+					// copy the remainder of A into the final array
 					std::copy(A_index, A_last, insert_index);
 					break;
 				}
@@ -461,7 +463,6 @@ namespace Wiki {
 				SWAP(0, 1); SWAP(2, 3);
 				SWAP(0, 2); SWAP(1, 3);
 				SWAP(1, 2);
-				
 			}
 		}
 		if (size < 8) return;
@@ -791,8 +792,8 @@ namespace Wiki {
 						Range firstA = Range(A.start, A.start + blockA.length() % block_size);
 						
 						// swap the first value of each A block with the values in buffer1
-						for (size_t indexA = 0, index = firstA.end; index < blockA.end; indexA++, index += block_size) 
-							std::swap(array[buffer1.start + indexA], array[index]);
+						for (size_t indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size) 
+							std::swap(array[indexA], array[index]);
 						
 						// start rolling the A blocks through the B blocks!
 						// when we leave an A block behind we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
@@ -800,9 +801,7 @@ namespace Wiki {
 						Range lastB = Range(0, 0);
 						Range blockB = Range(B.start, B.start + std::min(block_size, B.length()));
 						blockA.start += firstA.length();
-						
 						size_t indexA = buffer1.start;
-						T min_value = array[indexA];
 						
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
@@ -815,9 +814,9 @@ namespace Wiki {
 							while (true) {
 								// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
 								// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
-								if ((lastB.length() > 0 && !compare(array[lastB.end - 1], min_value)) || blockB.length() == 0) {
+								if ((lastB.length() > 0 && !compare(array[lastB.end - 1], array[indexA])) || blockB.length() == 0) {
 									// figure out where to split the previous B block, and rotate it at the split
-									size_t B_split = BinaryFirst(array, min_value, lastB, compare);
+									size_t B_split = BinaryFirst(array, array[indexA], lastB, compare);
 									size_t B_remaining = lastB.end - B_split;
 									
 									// swap the minimum A block to the beginning of the rolling A blocks
@@ -827,11 +826,9 @@ namespace Wiki {
 											minA = findA;
 									BlockSwap(array, blockA.start, minA, block_size);
 									
-									// we need to swap the first item of the previous A block back with its original value, which is stored in buffer1
-									array[indexA] = array[blockA.start];
-									array[blockA.start] = min_value;
+									// swap the first item of the previous A block back with its original value, which is stored in buffer1
+									std::swap(array[blockA.start], array[indexA]);
 									indexA++;
-									min_value = array[indexA];
 									
 									// locally merge the previous A block with the B values that follow it
 									// if lastA fits into the external cache we'll use that (with MergeExternal),
