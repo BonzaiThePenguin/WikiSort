@@ -25,16 +25,16 @@ Or you can check out the work-in-progress version of the [Wikipedia page](https:
 Using a 512-item fixed-size cache for O(1) memory:
 
     Test             Fast comparisons   Slow comparisons   150,000,000 items    0-32 items
-    Random               6% faster        95% as fast         36% faster        45% faster
+    Random               6% faster        95% as fast         35% faster        45% faster
     RandomFew            5% faster        16% faster          20% faster        45% faster
-    MostlyDescending    97% as fast       13% faster          96% as fast       53% faster
-    MostlyAscending    149% faster       117% faster         313% faster        47% faster
-    Ascending         1280% faster       518% faster          77% faster       242% faster
-    Descending          23% faster       121% faster          23% faster       164% faster
-    Equal             1202% faster       418% faster         831% faster       227% faster
-    Jittered           526% faster       298% faster         565% faster        70% faster
-    MostlyEqual         15% faster        57% faster          19% faster        42% faster
-    Append             153% faster        90% faster           1% faster       112% faster
+    MostlyDescending    97% as fast       13% faster          99% as fast       53% faster
+    MostlyAscending    149% faster       117% faster         286% faster        47% faster
+    Ascending         1280% faster       518% faster        1101% faster       242% faster
+    Descending          23% faster       121% faster          12% faster       164% faster
+    Equal             1202% faster       418% faster        1031% faster       227% faster
+    Jittered           526% faster       298% faster         733% faster        70% faster
+    MostlyEqual         15% faster        57% faster          10% faster        42% faster
+    Append             153% faster        90% faster         348% faster       112% faster
 
 Using a dynamically allocated half-size cache:
 
