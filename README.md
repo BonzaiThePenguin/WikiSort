@@ -25,27 +25,27 @@ Or you can check out the work-in-progress version of the [Wikipedia page](https:
 Using a 512-item fixed-size cache for O(1) memory:
 
     Test             Fast comparisons   Slow comparisons   150,000,000 items    0-32 items
-    Random               6% faster        95% as fast         36% faster        42% faster
-    RandomFew            5% faster        16% faster          20% faster        40% faster
-    MostlyDescending    97% as fast       13% faster          96% as fast       48% faster
-    MostlyAscending    149% faster       117% faster         313% faster        46% faster
-    Ascending         1280% faster       518% faster          77% faster       233% faster
-    Descending          23% faster       121% faster          23% faster       172% faster
-    Equal             1202% faster       418% faster         831% faster       241% faster
-    Jittered           526% faster       298% faster         565% faster        66% faster
-    MostlyEqual         15% faster        57% faster          19% faster        39% faster
-    Append             153% faster        90% faster           1% faster       107% faster
+    Random               6% faster        95% as fast         36% faster        45% faster
+    RandomFew            5% faster        16% faster          20% faster        45% faster
+    MostlyDescending    97% as fast       13% faster          96% as fast       53% faster
+    MostlyAscending    149% faster       117% faster         313% faster        47% faster
+    Ascending         1280% faster       518% faster          77% faster       242% faster
+    Descending          23% faster       121% faster          23% faster       164% faster
+    Equal             1202% faster       418% faster         831% faster       227% faster
+    Jittered           526% faster       298% faster         565% faster        70% faster
+    MostlyEqual         15% faster        57% faster          19% faster        42% faster
+    Append             153% faster        90% faster           1% faster       112% faster
 
 Using a dynamically allocated half-size cache:
 
     Test             Fast comparisons   Slow comparisons
-    Random              11% faster         2% faster
-    RandomFew           15% faster         6% faster
-    MostlyDescending    38% faster        35% faster
-    MostlyAscending     96% faster        80% faster
-    Ascending          812% faster       450% faster
-    Descending          75% faster       176% faster
-    Equal              822% faster       462% faster
-    Jittered           321% faster       244% faster
-    MostlyEqual         18% faster         5% faster
-    Append             155% faster        98% faster
+    Random              11% faster         3% faster
+    RandomFew           10% faster         5% faster
+    MostlyDescending    19% faster        26% faster
+    MostlyAscending     98% faster        79% faster
+    Ascending          861% faster       463% faster
+    Descending          39% faster       142% faster
+    Equal              837% faster       460% faster
+    Jittered           326% faster       243% faster
+    MostlyEqual         15% faster         2% faster
+    Append             159% faster        94% faster
