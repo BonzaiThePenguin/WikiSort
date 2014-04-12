@@ -331,8 +331,37 @@ WikiIterator WikiIterator_new(size_t size2, size_t min_level) {
 	return me;
 }
 
+/* merge two ranges from one array and save the results into a different array */
+void MergeInto(Test from[], const Range A, const Range B, const Comparison compare, Test into[]) {
+	Test *A_index = &from[A.start], *B_index = &from[B.start];
+	Test *A_last = &from[A.end], *B_last = &from[B.end];
+	Test *insert_index = &into[0];
+	
+	while (true) {
+		if (!compare(*B_index, *A_index)) {
+			*insert_index = *A_index;
+			A_index++;
+			insert_index++;
+			if (A_index == A_last) {
+				/* copy the remainder of B into the final array */
+				memcpy(insert_index, B_index, (B_last - B_index) * sizeof(from[0]));
+				break;
+			}
+		} else {
+			*insert_index = *B_index;
+			B_index++;
+			insert_index++;
+			if (B_index == B_last) {
+				/* copy the remainder of A into the final array */
+				memcpy(insert_index, A_index, (A_last - A_index) * sizeof(from[0]));
+				break;
+			}
+		}
+	}
+}
+
 /* merge operation using an external buffer, */
-void MergeExternal(Test array[], const Range A, const Range B, const Comparison compare, Test cache[], const size_t cache_size) {
+void MergeExternal(Test array[], const Range A, const Range B, const Comparison compare, Test cache[]) {
 	/* A fits into the cache, so use that instead of the internal buffer */
 	Test *A_index = &cache[0];
 	Test *B_index = &array[B.start];
@@ -358,34 +387,6 @@ void MergeExternal(Test array[], const Range A, const Range B, const Comparison 
 	
 	/* copy the remainder of A into the final array */
 	memcpy(insert_index, A_index, (A_last - A_index) * sizeof(array[0]));
-}
-
-/* merge two ranges from one array and save the results into a different array */
-void MergeInto(Test from[], const Range A, const Range B, const Comparison compare, Test into[]) {
-	Test *A_index = &from[A.start], *B_index = &from[B.start];
-	Test *A_last = &from[A.end], *B_last = &from[B.end];
-	Test *insert_index = &into[0];
-	
-	if (Range_length(B) > 0 && Range_length(A) > 0) {
-		while (true) {
-			if (!compare(*B_index, *A_index)) {
-				*insert_index = *A_index;
-				A_index++;
-				insert_index++;
-				if (A_index == A_last) break;
-			} else {
-				*insert_index = *B_index;
-				B_index++;
-				insert_index++;
-				if (B_index == B_last) break;
-			}
-		}
-	}
-	
-	/* copy the remainder of A and B into the final array */
-	memcpy(insert_index, A_index, (A_last - A_index) * sizeof(from[0]));
-	insert_index += (A_last - A_index);
-	memcpy(insert_index, B_index, (B_last - B_index) * sizeof(from[0]));
 }
 
 /* merge operation using an internal buffer */
@@ -416,6 +417,8 @@ void MergeInternal(Test array[], const Range A, const Range B, const Comparison 
 
 /* merge operation without a buffer */
 void MergeInPlace(Test array[], Range A, Range B, const Comparison compare, Test cache[], const size_t cache_size) {
+	if (Range_length(A) == 0 || Range_length(B) == 0) return;
+	
 	/*
 	 this just repeatedly binary searches into B and rotates A into position.
 	 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
@@ -436,18 +439,20 @@ void MergeInPlace(Test array[], Range A, Range B, const Comparison compare, Test
 	 kind of like how the O(n^2) insertion sort is used in some places
 	 */
 	
-	while (Range_length(A) > 0 && Range_length(B) > 0) {
+	while (true) {
 		/* find the first place in B where the first item in A needs to be inserted */
 		size_t mid = BinaryFirst(array, array[A.start], B, compare);
 		
 		/* rotate A into place */
 		size_t amount = mid - A.end;
 		Rotate(array, Range_length(A), Range_new(A.start, mid), cache, cache_size);
+		if (B.end == mid) break;
 		
 		/* calculate the new A and B ranges */
 		B.start = mid;
 		A = Range_new(A.start + amount, B.start);
 		A.start = BinaryLast(array, array[A.start], A, compare);
+		if (Range_length(A) == 0) break;
 	}
 }
 
@@ -541,7 +546,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 	}
 	if (size < 8) return;
 	
-	#if	DYNAMIC_CACHE
+	#if DYNAMIC_CACHE
 		/* good choices for the cache size are: */
 		/* (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache */
 		cache_size = (size + 1)/2;
@@ -647,11 +652,11 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					
 					if (compare(array[B.end - 1], array[A.start])) {
 						/* the two ranges are in reverse order, so a simple rotation should fix it */
-						Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
+						Rotate(array, Range_length(A), Range_new(A.start, B.end), cache, cache_size);
 					} else if (compare(array[B.start], array[A.end - 1])) {
 						/* these two ranges weren't already in order, so we'll need to merge them! */
 						memcpy(&cache[0], &array[A.start], Range_length(A) * sizeof(array[0]));
-						MergeExternal(array, A, B, compare, cache, cache_size);
+						MergeExternal(array, A, B, compare, cache);
 					}
 				}
 			}
@@ -663,7 +668,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			 3. break A and B into blocks of size 'block_size'
 			 4. "tag" each of the A blocks with values from the first internal buffer
 			 5. roll the A blocks through the B blocks and drop/rotate them where they belong
-			 6. merge each A block with any B values that follow, using the cache or second the internal buffer
+			 6. merge each A block with any B values that follow, using the cache or the second internal buffer
 			 7. sort the second internal buffer if it exists
 			 8. redistribute the two internal buffers back into the array */
 			
@@ -870,20 +875,19 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 				
 				if (compare(array[B.end - 1], array[A.start])) {
 					/* the two ranges are in reverse order, so a simple rotation should fix it */
-					Rotate(array, A.end - A.start, Range_new(A.start, B.end), cache, cache_size);
+					Rotate(array, Range_length(A), Range_new(A.start, B.end), cache, cache_size);
 				} else if (compare(array[A.end], array[A.end - 1])) {
 					/* these two ranges weren't already in order, so we'll need to merge them! */
 					Range blockA, firstA, lastA, lastB, blockB;
-					size_t minA, indexA, findA;
-					__typeof__(array[0]) min_value;
+					size_t indexA, findA;
 					
 					/* break the remainder of A into blocks. firstA is the uneven-sized first A block */
 					blockA = Range_new(A.start, A.end);
 					firstA = Range_new(A.start, A.start + Range_length(blockA) % block_size);
 					
-					/* swap the second value of each A block with the value in buffer1 */
-					for (index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
-						Swap(array[buffer1.start + index], array[indexA]);
+					/* swap the first value of each A block with the value in buffer1 */
+					for (indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size) 
+						Swap(array[indexA], array[index]);
 					
 					/* start rolling the A blocks through the B blocks! */
 					/* whenever we leave an A block behind, we'll need to merge the previous A block with any B blocks that follow it, so track that information as well */
@@ -891,10 +895,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					lastB = Range_new(0, 0);
 					blockB = Range_new(B.start, B.start + Min(block_size, Range_length(B)));
 					blockA.start += Range_length(firstA);
-					
-					minA = blockA.start;
-					indexA = 0;
-					min_value = array[minA];
+					indexA = buffer1.start;
 					
 					/* if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it */
 					/* otherwise, if the second buffer is available, block swap the contents into that */
@@ -907,16 +908,21 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 						while (true) {
 							/* if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block, */
 							/* then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks. */
-							if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], min_value)) || Range_length(blockB) == 0) {
+							if ((Range_length(lastB) > 0 && !compare(array[lastB.end - 1], array[indexA])) || Range_length(blockB) == 0) {
 								/* figure out where to split the previous B block, and rotate it at the split */
-								size_t B_split = BinaryFirst(array, min_value, lastB, compare);
+								size_t B_split = BinaryFirst(array, array[indexA], lastB, compare);
 								size_t B_remaining = lastB.end - B_split;
 								
 								/* swap the minimum A block to the beginning of the rolling A blocks */
+								size_t minA = blockA.start;
+								for (findA = minA + block_size; findA < blockA.end; findA += block_size)
+									if (compare(array[findA], array[minA]))
+										minA = findA;
 								BlockSwap(array, blockA.start, minA, block_size);
 								
-								/* swap the second item of the previous A block back with its original value, which is stored in buffer1 */
-								Swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
+								/* swap the first item of the previous A block back with its original value, which is stored in buffer1 */
+								Swap(array[blockA.start], array[indexA]);
+								indexA++;
 								
 								/*
 								 locally merge the previous A block with the B values that follow it
@@ -925,7 +931,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 								 or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
 								 */
 								if (Range_length(lastA) <= cache_size)
-									MergeExternal(array, lastA, Range_new(lastA.end, B_split), compare, cache, cache_size);
+									MergeExternal(array, lastA, Range_new(lastA.end, B_split), compare, cache);
 								else if (Range_length(buffer2) > 0)
 									MergeInternal(array, lastA, Range_new(lastA.end, B_split), compare, buffer2);
 								else
@@ -956,13 +962,6 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 								if (Range_length(blockA) == 0)
 									break;
 								
-								/* search the second value of the remaining A blocks to find the new minimum A block */
-								minA = blockA.start;
-								for (findA = minA + block_size; findA < blockA.end; findA += block_size)
-									if (compare(array[findA + 1], array[minA + 1]))
-										minA = findA;
-								min_value = array[minA];
-								
 							} else if (Range_length(blockB) < block_size) {
 								/* move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation */
 								/* the cache is disabled here since it might contain the contents of the previous A block */
@@ -971,14 +970,11 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 								lastB = Range_new(blockA.start, blockA.start + Range_length(blockB));
 								blockA.start += Range_length(blockB);
 								blockA.end += Range_length(blockB);
-								minA += Range_length(blockB);
 								blockB.end = blockB.start;
 							} else {
 								/* roll the leftmost A block to the end by swapping it with the next B block */
 								BlockSwap(array, blockA.start, blockB.start, block_size);
 								lastB = Range_new(blockA.start, blockA.start + block_size);
-								if (minA == blockA.start)
-									minA = blockA.end;
 								
 								blockA.start += block_size;
 								blockA.end += block_size;
@@ -992,7 +988,7 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 					
 					/* merge the last A block with the remaining B values */
 					if (Range_length(lastA) <= cache_size)
-						MergeExternal(array, lastA, Range_new(lastA.end, B.end), compare, cache, cache_size);
+						MergeExternal(array, lastA, Range_new(lastA.end, B.end), compare, cache);
 					else if (Range_length(buffer2) > 0)
 						MergeInternal(array, lastA, Range_new(lastA.end, B.end), compare, buffer2);
 					else
