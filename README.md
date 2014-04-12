@@ -25,7 +25,7 @@ Or you can check out the work-in-progress version of the [Wikipedia page](https:
 Using a 512-item fixed-size cache for O(1) memory:
 
     Test             Fast comparisons   Slow comparisons   150,000,000 items    0-32 items
-    Random               3% faster        95% as fast         21% faster        42% faster
+    Random               7% faster        95% as fast         39% faster        42% faster
     RandomFew            1% faster        19% faster          28% faster        40% faster
     MostlyDescending    98% as fast       16% faster          96% as fast       48% faster
     MostlyAscending    150% faster       116% faster         313% faster        46% faster
