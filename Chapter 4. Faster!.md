@@ -130,6 +130,21 @@ A fits within the cache:
     >       else
                 merge A and B using the second buffer
 
+
+And of course we can go through and write cached versions of the tool functions
+from [Chapter 1]
+(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%201.%20Tools.md):
+
+    Rotate(array, range, amount)
+    >   if the smaller of the two ranges that will be reversed below fits into the cache
+    >       copy that range into the cache
+    >       shift the values in the other range over to its destination
+    >       copy the first range from the cache to where it belongs
+        else
+            Reverse(array, MakeRange(range.start, amount))
+            Reverse(array, MakeRange(range.start + amount, range.end))
+            Reverse(array, range)
+
 * * *
 
 This should get the performance up to about **75%** of a standard merge sort.
