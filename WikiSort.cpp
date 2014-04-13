@@ -158,37 +158,44 @@ void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 // this assumes that 0 <= amount <= range.length()
 template <typename T>
-void Rotate(T array[], size_t amount, Range range, T cache[], const size_t cache_size) {
-	if (range.length() == amount) return;
-	
-	size_t split = range.start + amount;
-	Range range1 = Range(range.start, split);
-	Range range2 = Range(split, range.end);
-	
-	// if the smaller of the two ranges fits into the cache, it's *slightly* faster copying it there and shifting the elements over
-	if (range1.length() <= range2.length()) {
-		if (range1.length() <= cache_size) {
-			std::copy(&array[range1.start], &array[range1.end], cache);
-			std::copy(&array[range2.start], &array[range2.end], &array[range1.start]);
-			std::copy(cache, &cache[range1.length()], &array[range1.start + range2.length()]);
-			return;
-		}
-	} else {
-		if (range2.length() <= cache_size) {
-			std::copy(&array[range2.start], &array[range2.end], cache);
-			std::copy_backward(&array[range1.start], &array[range1.end], &array[range2.end]);
-			std::copy(cache, &cache[range2.length()], &array[range1.start]);
-			return;
-		}
-	}
-	
-	std::rotate(&array[range1.start], &array[range2.start], &array[range2.end]);
+void Rotate(T array[], size_t amount, Range range) {
+	std::rotate(&array[range.start], &array[range.start + amount], &array[range.end]);
 }
 
 namespace Wiki {
+	// merge two ranges from one array and save the results into a different array
+	template <typename T, typename Comparison>
+	void MergeInto(T from[], const Range & A, const Range & B, const Comparison compare, T into[]) {
+		T *A_index = &from[A.start], *B_index = &from[B.start];
+		T *A_last = &from[A.end], *B_last = &from[B.end];
+		T *insert_index = &into[0];
+		
+		while (true) {
+			if (!compare(*B_index, *A_index)) {
+				*insert_index = *A_index;
+				A_index++;
+				insert_index++;
+				if (A_index == A_last) {
+					// copy the remainder of B into the final array
+					std::copy(B_index, B_last, insert_index);
+					break;
+				}
+			} else {
+				*insert_index = *B_index;
+				B_index++;
+				insert_index++;
+				if (B_index == B_last) {
+					// copy the remainder of A into the final array
+					std::copy(A_index, A_last, insert_index);
+					break;
+				}
+			}
+		}
+	}
+	
 	// merge operation using an external buffer
 	template <typename T, typename Comparison>
-	void MergeExternal(T array[], const Range & A, const Range & B, const Comparison compare, T cache[], const size_t cache_size) {
+	void MergeExternal(T array[], const Range & A, const Range & B, const Comparison compare, T cache[]) {
 		// A fits into the cache, so use that instead of the internal buffer
 		T *A_index = &cache[0], *B_index = &array[B.start];
 		T *A_last = &cache[A.length()], *B_last = &array[B.end];
@@ -212,35 +219,6 @@ namespace Wiki {
 		
 		// copy the remainder of A into the final array
 		std::copy(A_index, A_last, insert_index);
-	}
-	
-	// merge two ranges from one array and save the results into a different array
-	template <typename T, typename Comparison>
-	void MergeInto(T from[], const Range & A, const Range & B, const Comparison compare, T into[]) {
-		T *A_index = &from[A.start], *B_index = &from[B.start];
-		T *A_last = &from[A.end], *B_last = &from[B.end];
-		T *insert_index = &into[0];
-		
-		if (B.length() > 0 && A.length() > 0) {
-			while (true) {
-				if (!compare(*B_index, *A_index)) {
-					*insert_index = *A_index;
-					A_index++;
-					insert_index++;
-					if (A_index == A_last) break;
-				} else {
-					*insert_index = *B_index;
-					B_index++;
-					insert_index++;
-					if (B_index == B_last) break;
-				}
-			}
-		}
-		
-		// copy the remainder of A and B into the final array
-		std::copy(A_index, A_last, insert_index);
-		insert_index += (A_last - A_index);
-		std::copy(B_index, B_last, insert_index);
 	}
 	
 	// merge operation using an internal buffer
@@ -274,7 +252,9 @@ namespace Wiki {
 	
 	// merge operation without a buffer
 	template <typename T, typename Comparison>
-	void MergeInPlace(T array[], Range A, Range B, const Comparison compare, T cache[], const size_t cache_size) {
+	void MergeInPlace(T array[], Range A, Range B, const Comparison compare) {
+		if (A.length() == 0 || B.length() == 0) return;
+		
 		/*
 		 this just repeatedly binary searches into B and rotates A into position.
 		 the paper suggests using the 'rotation-based Hwang and Lin algorithm' here,
@@ -295,18 +275,20 @@ namespace Wiki {
 		 kind of like how the O(n^2) insertion sort is used in some places
 		 */
 		
-		while (A.length() > 0 && B.length() > 0) {
+		while (true) {
 			// find the first place in B where the first item in A needs to be inserted
 			size_t mid = BinaryFirst(array, array[A.start], B, compare);
 			
 			// rotate A into place
 			size_t amount = mid - A.end;
-			Rotate(array, A.length(), Range(A.start, mid), cache, cache_size);
+			Rotate(array, A.length(), Range(A.start, mid));
+			if (B.end == mid) break;
 			
 			// calculate the new A and B ranges
 			B.start = mid;
 			A = Range(A.start + amount, B.start);
 			A.start = BinaryLast(array, array[A.start], A, compare);
+			if (A.length() == 0) break;
 		}
 	}
 	
@@ -438,9 +420,10 @@ namespace Wiki {
 			uint8_t order[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 			Range range = iterator.nextRange();
 			
-			#define SWAP(x, y) if (compare(array[range.start + y], array[range.start + x]) || \
-									(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
-									std::swap(array[range.start + x], array[range.start + y]); std::swap(order[x], order[y]); }
+			#define SWAP(x, y) \
+				if (compare(array[range.start + y], array[range.start + x]) || \
+					(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
+					std::swap(array[range.start + x], array[range.start + y]); std::swap(order[x], order[y]); }
 			
 			if (range.length() == 8) {
 				SWAP(0, 1); SWAP(2, 3); SWAP(4, 5); SWAP(6, 7);
@@ -493,7 +476,7 @@ namespace Wiki {
 			// since the cache size is fixed, it's still O(1) memory!
 			// just keep in mind that making it too small ruins the point (nothing will fit into it),
 			// and making it too large also ruins the point (so much for "low memory"!)
-			// removing the cache entirely still gives 70% of the performance of a standard merge
+			// removing the cache entirely still gives 75% of the performance of a standard merge
 			const size_t cache_size = 512;
 			T cache[cache_size];
 		#endif
@@ -577,11 +560,11 @@ namespace Wiki {
 						
 						if (compare(array[B.end - 1], array[A.start])) {
 							// the two ranges are in reverse order, so a simple rotation should fix it
-							Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
+							Rotate(array, A.length(), Range(A.start, B.end));
 						} else if (compare(array[B.start], array[A.end - 1])) {
 							// these two ranges weren't already in order, so we'll need to merge them!
 							std::copy(&array[A.start], &array[A.end], &cache[0]);
-							MergeExternal(array, A, B, compare, cache, cache_size);
+							MergeExternal(array, A, B, compare, cache);
 						}
 					}
 				}
@@ -593,7 +576,7 @@ namespace Wiki {
 				//     3. break A and B into blocks of size 'block_size'
 				//     4. "tag" each of the A blocks with values from the first internal buffer
 				//     5. roll the A blocks through the B blocks and drop/rotate them where they belong
-				//     6. merge each A block with any B values that follow, using the cache or second the internal buffer
+				//     6. merge each A block with any B values that follow, using the cache or the second internal buffer
 				// 7. sort the second internal buffer if it exists
 				// 8. redistribute the two internal buffers back into the array
 				
@@ -607,6 +590,7 @@ namespace Wiki {
 				struct { size_t from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
 				
 				// find two internal buffers of size 'buffer_size' each
+				// let's try finding both buffers at the same time from a single A or B subarray
 				size_t find = buffer_size + buffer_size;
 				bool find_separately = false;
 				
@@ -743,7 +727,7 @@ namespace Wiki {
 						for (count = 1; count < length; count++) {
 							index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
 							Range range = Range(index + 1, pull[pull_index].from + 1);
-							Rotate(array, range.length() - count, range, cache, cache_size);
+							Rotate(array, range.length() - count, range);
 							pull[pull_index].from = index + count;
 						}
 					} else if (pull[pull_index].to > pull[pull_index].from) {
@@ -752,7 +736,7 @@ namespace Wiki {
 						for (count = 1; count < length; count++) {
 							index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
 							Range range = Range(pull[pull_index].from, index - 1);
-							Rotate(array, count, range, cache, cache_size);
+							Rotate(array, count, range);
 							pull[pull_index].from = index - 1 - count;
 						}
 					}
@@ -799,7 +783,7 @@ namespace Wiki {
 					
 					if (compare(array[B.end - 1], array[A.start])) {
 						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.end - A.start, Range(A.start, B.end), cache, cache_size);
+						Rotate(array, A.length(), Range(A.start, B.end));
 					} else if (compare(array[A.end], array[A.end - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
 						
@@ -807,9 +791,9 @@ namespace Wiki {
 						Range blockA = Range(A.start, A.end);
 						Range firstA = Range(A.start, A.start + blockA.length() % block_size);
 						
-						// swap the second value of each A block with the value in buffer1
-						for (size_t index = 0, indexA = firstA.end + 1; indexA < blockA.end; index++, indexA += block_size) 
-							std::swap(array[buffer1.start + index], array[indexA]);
+						// swap the first value of each A block with the values in buffer1
+						for (size_t indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size) 
+							std::swap(array[indexA], array[index]);
 						
 						// start rolling the A blocks through the B blocks!
 						// when we leave an A block behind we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
@@ -817,9 +801,7 @@ namespace Wiki {
 						Range lastB = Range(0, 0);
 						Range blockB = Range(B.start, B.start + std::min(block_size, B.length()));
 						blockA.start += firstA.length();
-						
-						size_t minA = blockA.start, indexA = 0;
-						T min_value = array[minA];
+						size_t indexA = buffer1.start;
 						
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
@@ -832,27 +814,32 @@ namespace Wiki {
 							while (true) {
 								// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
 								// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
-								if ((lastB.length() > 0 && !compare(array[lastB.end - 1], min_value)) || blockB.length() == 0) {
+								if ((lastB.length() > 0 && !compare(array[lastB.end - 1], array[indexA])) || blockB.length() == 0) {
 									// figure out where to split the previous B block, and rotate it at the split
-									size_t B_split = BinaryFirst(array, min_value, lastB, compare);
+									size_t B_split = BinaryFirst(array, array[indexA], lastB, compare);
 									size_t B_remaining = lastB.end - B_split;
 									
 									// swap the minimum A block to the beginning of the rolling A blocks
+									size_t minA = blockA.start;
+									for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
+										if (compare(array[findA], array[minA]))
+											minA = findA;
 									BlockSwap(array, blockA.start, minA, block_size);
 									
-									// we need to swap the second item of the previous A block back with its original value, which is stored in buffer1
-									std::swap(array[blockA.start + 1], array[buffer1.start + indexA++]);
+									// swap the first item of the previous A block back with its original value, which is stored in buffer1
+									std::swap(array[blockA.start], array[indexA]);
+									indexA++;
 									
 									// locally merge the previous A block with the B values that follow it
 									// if lastA fits into the external cache we'll use that (with MergeExternal),
 									// or if the second internal buffer exists we'll use that (with MergeInternal),
 									// or failing that we'll use a strictly in-place merge algorithm (MergeInPlace)
 									if (lastA.length() <= cache_size)
-										MergeExternal(array, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
+										MergeExternal(array, lastA, Range(lastA.end, B_split), compare, cache);
 									else if (buffer2.length() > 0)
 										MergeInternal(array, lastA, Range(lastA.end, B_split), compare, buffer2);
 									else
-										MergeInPlace(array, lastA, Range(lastA.end, B_split), compare, cache, cache_size);
+										MergeInPlace(array, lastA, Range(lastA.end, B_split), compare);
 									
 									if (buffer2.length() > 0 || block_size <= cache_size) {
 										// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
@@ -867,7 +854,7 @@ namespace Wiki {
 										BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
 									} else {
 										// we are unable to use the 'buffer2' trick to speed up the rotation operation since buffer2 doesn't exist, so perform a normal rotation
-										Rotate(array, blockA.start - B_split, Range(B_split, blockA.start + block_size), cache, cache_size);
+										Rotate(array, blockA.start - B_split, Range(B_split, blockA.start + block_size));
 									}
 									
 									// update the range for the remaining A blocks, and the range remaining from the B block after it was split
@@ -879,29 +866,18 @@ namespace Wiki {
 									if (blockA.length() == 0)
 										break;
 									
-									// search the second value of the remaining A blocks to find the new minimum A block
-									minA = blockA.start;
-									for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
-										if (compare(array[findA + 1], array[minA + 1]))
-											minA = findA;
-									min_value = array[minA];
-									
 								} else if (blockB.length() < block_size) {
 									// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
-									// the cache is disabled here since it might contain the contents of the previous A block
-									Rotate(array, blockB.start - blockA.start, Range(blockA.start, blockB.end), cache, 0);
+									Rotate(array, blockB.start - blockA.start, Range(blockA.start, blockB.end));
 									
 									lastB = Range(blockA.start, blockA.start + blockB.length());
 									blockA.start += blockB.length();
 									blockA.end += blockB.length();
-									minA += blockB.length();
 									blockB.end = blockB.start;
 								} else {
 									// roll the leftmost A block to the end by swapping it with the next B block
 									BlockSwap(array, blockA.start, blockB.start, block_size);
 									lastB = Range(blockA.start, blockA.start + block_size);
-									if (minA == blockA.start)
-										minA = blockA.end;
 									
 									blockA.start += block_size;
 									blockA.end += block_size;
@@ -915,11 +891,11 @@ namespace Wiki {
 						
 						// merge the last A block with the remaining B values
 						if (lastA.length() <= cache_size)
-							MergeExternal(array, lastA, Range(lastA.end, B.end), compare, cache, cache_size);
+							MergeExternal(array, lastA, Range(lastA.end, B.end), compare, cache);
 						else if (buffer2.length() > 0)
 							MergeInternal(array, lastA, Range(lastA.end, B.end), compare, buffer2);
 						else
-							MergeInPlace(array, lastA, Range(lastA.end, B.end), compare, cache, cache_size);
+							MergeInPlace(array, lastA, Range(lastA.end, B.end), compare);
 					}
 				}
 				
@@ -938,7 +914,7 @@ namespace Wiki {
 						while (buffer.length() > 0) {
 							index = FindFirstForward(array, array[buffer.start], Range(buffer.end, pull[pull_index].range.end), compare, unique);
 							size_t amount = index - buffer.end;
-							Rotate(array, buffer.length(), Range(buffer.start, index), cache, cache_size);
+							Rotate(array, buffer.length(), Range(buffer.start, index));
 							buffer.start += (amount + 1);
 							buffer.end += amount;
 							unique -= 2;
@@ -949,7 +925,7 @@ namespace Wiki {
 						while (buffer.length() > 0) {
 							index = FindLastBackward(array, array[buffer.end - 1], Range(pull[pull_index].range.start, buffer.start), compare, unique);
 							size_t amount = buffer.start - index;
-							Rotate(array, amount, Range(index, buffer.end), cache, cache_size);
+							Rotate(array, amount, Range(index, buffer.end));
 							buffer.start -= amount;
 							buffer.end -= (amount + 1);
 							unique -= 2;
@@ -1087,8 +1063,8 @@ int main() {
 	#endif
 	
 	// initialize the random-number generator
-	srand(time(NULL));
-	//srand(10141985); // in case you want the same random numbers
+	//srand(time(NULL));
+	srand(10141985); // in case you want the same random numbers
 	
 	size_t total = max_size;
 	

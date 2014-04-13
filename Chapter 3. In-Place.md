@@ -186,7 +186,7 @@ The next trick is to use *another* A block to store *another* set of unique
 values. While the first block is used as a buffer for the merging, *these*
 unique values will be used to "tag" each A block so we have some way of
 comparing them to determine their order. Once we pull out the unique values,
-loop over the remaining A blocks and swap the *second* value in each block
+loop over the remaining A blocks and swap the first value in each block
 with one of the unique values from this second buffer.
 
     1. we already pulled out unique values for the first block, but now we need another one
@@ -200,29 +200,28 @@ with one of the unique values from this second buffer.
     3. notice that the last B block was resized, to make room for this reserved block
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
 
-    4. anyway, now tag the A blocks with these unique values, by swapping the second value with one from the buffer
+    4. anyway, now tag the A blocks with these unique values, by swapping the first value with one from the buffer
     [ 1 2 3 4 ]  [ 1 1 2 3 ][ 4 5 5 5 ][ 5 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 7 8 9 10 ]
-                     ^          ^          ^                                                  ^ ^ ^
+                   ^          ^          ^                                                    ^ ^ ^
 
     5. all done!
-    [ 1 2 3 4 ]  [ 1 7 2 3 ][ 4 8 5 5 ][ 5 9 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 1 5 5 10 ]
-                     ^          ^          ^                                                  ^ ^ ^
+    [ 1 2 3 4 ]  [ 7 1 2 3 ][ 8 5 5 5 ][ 9 5 5 6 ]  [ 2 2 3 3 ][ 3 4 4 5 ][ 5 6 8 9 ][ 9 ]  [ 1 4 5 10 ]
+                   ^          ^          ^                                                    ^ ^ ^
 
-The reason we tag the second value of each A block, rather than the first or
-last, is because we use A[first] to decide where to drop the smallest A block.
-We currently don't use the last value of A for anything, but it could be useful
-for detecting contiguous A blocks (the last value of one A block equals the
-first value of the next, meaning B won't break them apart).
+Since the first value of each block is needed to decide where to drop an A
+block behind – A[first] <= B[last] – the value will need to be read from the
+second internal buffer since it was swapped over to there. The first minimum
+A block is at index 0 in the buffer, the next smallest is at index 1, etc.
 
 Anyway, when we go to merge an A block with the B values that follow it, just
-swap the second value in the A block back with its actual value in the buffer,
+swap the first value in the A block back with its actual value in the buffer,
 so the original data is restored. Unlike the first buffer, the values in this
 one will still be in order by the time we're finished, so we never need to sort
 this section. The values *will* need to be redistributed into the merged array
 when we're finished, exactly the same as with the first block.
 
 And of course once the smallest A block is dropped behind, you can find the
-new smallest A block by looping over the second values in the remaining A
+new smallest A block by looping over the first values in the remaining A
 blocks and find the smallest one.
 
 * * *
