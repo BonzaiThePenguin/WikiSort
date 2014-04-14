@@ -679,7 +679,9 @@ void WikiSort(Test array[], const size_t size, const Comparison compare) {
 			/* after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level */
 			Range buffer1, buffer2, A, B; bool find_separately;
 			size_t index, last, count, find, start, pull_index = 0;
-			struct { size_t from, to, count; Range range; } pull[2] = { { 0 }, { 0 } };
+			struct { size_t from, to, count; Range range; } pull[2];
+			pull[0].from = pull[0].to = pull[0].count = 0; pull[0].range = Range(0, 0);
+			pull[1].from = pull[1].to = pull[1].count = 0; pull[1].range = Range(0, 0);
 			
 			buffer1 = Range_new(0, 0);
 			buffer2 = Range_new(0, 0);
