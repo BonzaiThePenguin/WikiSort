@@ -386,6 +386,285 @@ namespace Wiki {
 	};
 #endif
 	
+	template <typename Iterator, typename Comparison>
+	void Merge(Iterator first, Iterator middle, Iterator last, const Comparison compare) {
+		typedef typename std::iterator_traits<Iterator>::value_type T;
+		T *array = &first[0];
+		Range A = Range(0, middle - first);
+		Range B = Range(middle - first, last - middle);
+		
+		if (!compare(array[A.end], array[A.end - 1])) return;
+		if (compare(array[B.end - 1], array[A.start])) {
+			// the two ranges are in reverse order, so a simple rotation should fix it
+			Rotate(array, A.length(), Range(A.start, B.end));
+			return;
+		}
+		
+		Range buffer1 = Range(0, 0), buffer2 = Range(0, 0);
+		size_t index, index2, count, pull_index = 0;
+		struct { size_t from, to, count; Range range; } pull[2];
+		pull[0].from = pull[0].to = pull[0].count = 0; pull[0].range = Range(0, 0);
+		pull[1].from = pull[1].to = pull[1].count = 0; pull[1].range = Range(0, 0);
+		
+		size_t block_size = sqrt(A.length());
+		size_t buffer_size = A.length()/block_size + 1;
+		
+		size_t find = buffer_size + buffer_size;
+		if (find > A.length()) find = buffer_size;
+		
+		// just store information about where the values will be pulled from and to,
+		// as well as how many values there are, to create the two internal buffers
+		#define PULL(_to) \
+			pull[pull_index].range = Range(A.start, B.end); \
+			pull[pull_index].count = count; \
+			pull[pull_index].from = index; \
+			pull[pull_index].to = _to
+		
+		// check A for the number of unique values we need to fill an internal buffer
+		// these values will be pulled out to the start of A
+		for (index2 = A.start, count = 1; count < find; index2 = index, count++) {
+			index = FindLastForward(array, array[index2], Range(index2 + 1, A.end), compare, find - count);
+			if (index == A.end) break;
+		}
+		index = index2;
+		
+		if (count >= buffer_size) {
+			// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
+			PULL(A.start);
+			pull_index = 1;
+			
+			if (count == buffer_size + buffer_size) {
+				// we were able to find a single contiguous section containing 2√A unique values,
+				// so this section can be used to contain both of the internal buffers we'll need
+				buffer1 = Range(A.start, A.start + buffer_size);
+				buffer2 = Range(A.start + buffer_size, A.start + count);
+				goto found_buffers;
+			} else if (find == buffer_size + buffer_size) {
+				// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
+				// so we still need to find a second separate buffer of at least √A unique values
+				buffer1 = Range(A.start, A.start + count);
+				find = buffer_size;
+			} else {
+				// found one buffer, but now find the other one
+				buffer1 = Range(A.start, A.start + count);
+			}
+		} else if (pull_index == 0 && count > buffer1.length()) {
+			// keep track of the largest buffer we were able to find
+			buffer1 = Range(A.start, A.start + count);
+			PULL(A.start);
+		}
+		
+		// check B for the number of unique values we need to fill an internal buffer
+		// these values will be pulled out to the end of B
+		for (index2 = B.end - 1, count = 1; count < find; index2 = index - 1, count++) {
+			index = FindFirstBackward(array, array[index2], Range(B.start, index2), compare, find - count);
+			if (index == B.start) break;
+		}
+		index = index2;
+		
+		if (count >= buffer_size) {
+			// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
+			PULL(B.end);
+			pull_index = 1;
+			
+			if (count == buffer_size + buffer_size) {
+				// we were able to find a single contiguous section containing 2√A unique values,
+				// so this section can be used to contain both of the internal buffers we'll need
+				buffer1 = Range(B.end - count, B.end - buffer_size);
+				buffer2 = Range(B.end - buffer_size, B.end);
+				goto found_buffers;
+			} else if (find == buffer_size + buffer_size) {
+				// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
+				// so we still need to find a second separate buffer of at least √A unique values
+				buffer1 = Range(B.end - count, B.end);
+				find = buffer_size;
+			} else {
+				buffer1 = Range(B.end - count, B.end);
+			}
+		} else if (pull_index == 0 && count > buffer1.length()) {
+			buffer1 = Range(B.end - count, B.end);
+			PULL(B.end);
+		}
+		
+	found_buffers:
+		// pull out the two ranges so we can use them as internal buffers
+		for (pull_index = 0; pull_index < 2; pull_index++) {
+			size_t length = pull[pull_index].count;
+			
+			if (pull[pull_index].to < pull[pull_index].from) {
+				// we're pulling the values out to the left, which means the start of an A subarray
+				index = pull[pull_index].from;
+				for (count = 1; count < length; count++) {
+					index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
+					Range range = Range(index + 1, pull[pull_index].from + 1);
+					Rotate(array, range.length() - count, range);
+					pull[pull_index].from = index + count;
+				}
+			} else if (pull[pull_index].to > pull[pull_index].from) {
+				// we're pulling values out to the right, which means the end of a B subarray
+				index = pull[pull_index].from + 1;
+				for (count = 1; count < length; count++) {
+					index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
+					Range range = Range(pull[pull_index].from, index - 1);
+					Rotate(array, count, range);
+					pull[pull_index].from = index - 1 - count;
+				}
+			}
+		}
+		
+		// adjust block_size and buffer_size based on the values we were able to pull out
+		buffer_size = buffer1.length();
+		block_size = A.length()/buffer_size + 1;
+		
+		// remove any parts of A or B that are being used by the internal buffers
+		size_t start = A.start;
+		if (start == pull[0].range.start) {
+			if (pull[0].from > pull[0].to) {
+				A.start += pull[0].count;
+				if (A.length() == 0) return;
+			} else if (pull[0].from < pull[0].to) {
+				B.end -= pull[0].count;
+				if (B.length() == 0) return;
+			}
+		}
+		if (start == pull[1].range.start) {
+			if (pull[1].from > pull[1].to) {
+				A.start += pull[1].count;
+				if (A.length() == 0) return;
+			} else if (pull[1].from < pull[1].to) {
+				B.end -= pull[1].count;
+				if (B.length() == 0) return;
+			}
+		}
+		
+		if (!compare(array[A.end], array[A.end - 1])) return;
+		if (compare(array[B.end - 1], array[A.start])) {
+			// the two ranges are in reverse order, so a simple rotation should fix it
+			Rotate(array, A.length(), Range(A.start, B.end));
+			return;
+		}
+		
+		// break the remainder of A into blocks. firstA is the uneven-sized first A block
+		Range blockA = Range(A.start, A.end);
+		Range firstA = Range(A.start, A.start + blockA.length() % block_size);
+		
+		// swap the first value of each A block with the values in buffer1
+		for (size_t indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size) 
+			std::swap(array[indexA], array[index]);
+		
+		// start rolling the A blocks through the B blocks!
+		// when we leave an A block behind we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
+		Range lastA = firstA;
+		Range lastB = Range(0, 0);
+		Range blockB = Range(B.start, B.start + std::min(block_size, B.length()));
+		blockA.start += firstA.length();
+		size_t indexA = buffer1.start;
+		
+		// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
+		// otherwise, if the second buffer is available, block swap the contents into that
+		if (buffer2.length() > 0)
+			BlockSwap(array, lastA.start, buffer2.start, lastA.length());
+		
+		if (blockA.length() > 0) {
+			while (true) {
+				// if there's a previous B block and the first value of the minimum A block is <= the last value of the previous B block,
+				// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
+				if ((lastB.length() > 0 && !compare(array[lastB.end - 1], array[indexA])) || blockB.length() == 0) {
+					// figure out where to split the previous B block, and rotate it at the split
+					size_t B_split = BinaryFirst(array, array[indexA], lastB, compare);
+					size_t B_remaining = lastB.end - B_split;
+					
+					// swap the minimum A block to the beginning of the rolling A blocks
+					size_t minA = blockA.start;
+					for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
+						if (compare(array[findA], array[minA]))
+							minA = findA;
+					BlockSwap(array, blockA.start, minA, block_size);
+					
+					// swap the first item of the previous A block back with its original value, which is stored in buffer1
+					std::swap(array[blockA.start], array[indexA]);
+					indexA++;
+					
+					if (buffer2.length() > 0)
+						MergeInternal(array, lastA, Range(lastA.end, B_split), compare, buffer2);
+					else
+						MergeInPlace(array, lastA, Range(lastA.end, B_split), compare);
+					
+					if (buffer2.length() > 0) {
+						BlockSwap(array, blockA.start, buffer2.start, block_size);
+						BlockSwap(array, B_split, blockA.start + block_size - B_remaining, B_remaining);
+					} else {
+						Rotate(array, blockA.start - B_split, Range(B_split, blockA.start + block_size));
+					}
+					
+					// update the range for the remaining A blocks, and the range remaining from the B block after it was split
+					lastA = Range(blockA.start - B_remaining, blockA.start - B_remaining + block_size);
+					lastB = Range(lastA.end, lastA.end + B_remaining);
+					
+					// if there are no more A blocks remaining, this step is finished!
+					blockA.start += block_size;
+					if (blockA.length() == 0)
+						break;
+					
+				} else if (blockB.length() < block_size) {
+					// move the last B block, which is unevenly sized, to before the remaining A blocks, by using a rotation
+					Rotate(array, blockB.start - blockA.start, Range(blockA.start, blockB.end));
+					
+					lastB = Range(blockA.start, blockA.start + blockB.length());
+					blockA.start += blockB.length();
+					blockA.end += blockB.length();
+					blockB.end = blockB.start;
+				} else {
+					// roll the leftmost A block to the end by swapping it with the next B block
+					BlockSwap(array, blockA.start, blockB.start, block_size);
+					lastB = Range(blockA.start, blockA.start + block_size);
+					
+					blockA.start += block_size;
+					blockA.end += block_size;
+					blockB.start += block_size;
+					
+					if (blockB.end > B.end - block_size) blockB.end = B.end;
+					else blockB.end += block_size;
+				}
+			}
+		}
+		
+		// merge the last A block with the remaining B values
+		if (buffer2.length() > 0)
+			MergeInternal(array, lastA, Range(lastA.end, B.end), compare, buffer2);
+		else
+			MergeInPlace(array, lastA, Range(lastA.end, B.end), compare);
+		
+		InsertionSort(array, buffer2, compare);
+		
+		for (pull_index = 0; pull_index < 2; pull_index++) {
+			size_t unique = pull[pull_index].count * 2;
+			if (pull[pull_index].from > pull[pull_index].to) {
+				// the values were pulled out to the left, so redistribute them back to the right
+				Range buffer = Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
+				while (buffer.length() > 0) {
+					index = FindFirstForward(array, array[buffer.start], Range(buffer.end, pull[pull_index].range.end), compare, unique);
+					size_t amount = index - buffer.end;
+					Rotate(array, buffer.length(), Range(buffer.start, index));
+					buffer.start += (amount + 1);
+					buffer.end += amount;
+					unique -= 2;
+				}
+			} else if (pull[pull_index].from < pull[pull_index].to) {
+				// the values were pulled out to the right, so redistribute them back to the left
+				Range buffer = Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
+				while (buffer.length() > 0) {
+					index = FindLastBackward(array, array[buffer.end - 1], Range(pull[pull_index].range.start, buffer.start), compare, unique);
+					size_t amount = buffer.start - index;
+					Rotate(array, amount, Range(index, buffer.end));
+					buffer.start -= amount;
+					buffer.end -= (amount + 1);
+					unique -= 2;
+				}
+			}
+		}
+	}
+	
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
 	template <typename Iterator, typename Comparison>
 	void Sort(Iterator first, Iterator last, const Comparison compare) {
@@ -498,13 +777,15 @@ namespace Wiki {
 						Range A2 = iterator.nextRange();
 						Range B2 = iterator.nextRange();
 						
-						if (compare(array[B1.end - 1], array[A1.start])) {
-							// the two ranges are in reverse order, so copy them in reverse order into the cache
-							std::copy(&array[A1.start], &array[A1.end], &cache[B1.length()]);
-							std::copy(&array[B1.start], &array[B1.end], &cache[0]);
-						} else if (compare(array[B1.start], array[A1.end - 1])) {
-							// these two ranges weren't already in order, so merge them into the cache
-							MergeInto(array, A1, B1, compare, &cache[0]);
+						if (compare(array[B1.start], array[A1.end - 1])) {
+							if (compare(array[B1.end - 1], array[A1.start])) {
+								// the two ranges are in reverse order, so copy them in reverse order into the cache
+								std::copy(&array[A1.start], &array[A1.end], &cache[B1.length()]);
+								std::copy(&array[B1.start], &array[B1.end], &cache[0]);
+							} else {
+								// these two ranges weren't already in order, so merge them into the cache
+								MergeInto(array, A1, B1, compare, &cache[0]);
+							}
 						} else {
 							// if A1, B1, A2, and B2 are all in order, skip doing anything else
 							if (!compare(array[B2.start], array[A2.end - 1]) && !compare(array[A2.start], array[B1.end - 1])) continue;
@@ -516,13 +797,15 @@ namespace Wiki {
 						A1 = Range(A1.start, B1.end);
 						
 						// merge A2 and B2 into the cache
-						if (compare(array[B2.end - 1], array[A2.start])) {
-							// the two ranges are in reverse order, so copy them in reverse order into the cache
-							std::copy(&array[A2.start], &array[A2.end], &cache[A1.length() + B2.length()]);
-							std::copy(&array[B2.start], &array[B2.end], &cache[A1.length()]);
-						} else if (compare(array[B2.start], array[A2.end - 1])) {
-							// these two ranges weren't already in order, so merge them into the cache
-							MergeInto(array, A2, B2, compare, &cache[A1.length()]);
+						if (compare(array[B2.start], array[A2.end - 1])) {
+							if (compare(array[B2.end - 1], array[A2.start])) {
+								// the two ranges are in reverse order, so copy them in reverse order into the cache
+								std::copy(&array[A2.start], &array[A2.end], &cache[A1.length() + B2.length()]);
+								std::copy(&array[B2.start], &array[B2.end], &cache[A1.length()]);
+							} else {
+								// these two ranges weren't already in order, so merge them into the cache
+								MergeInto(array, A2, B2, compare, &cache[A1.length()]);
+							}
 						} else {
 							// copy A2 and B2 into the cache in the same order
 							std::copy(&array[A2.start], &array[A2.end], &cache[A1.length()]);
@@ -534,13 +817,15 @@ namespace Wiki {
 						Range A3 = Range(0, A1.length());
 						Range B3 = Range(A1.length(), A1.length() + A2.length());
 						
-						if (compare(cache[B3.end - 1], cache[A3.start])) {
-							// the two ranges are in reverse order, so copy them in reverse order into the array
-							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start + A2.length()]);
-							std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start]);
-						} else if (compare(cache[B3.start], cache[A3.end - 1])) {
-							// these two ranges weren't already in order, so merge them back into the array
-							MergeInto(cache, A3, B3, compare, &array[A1.start]);
+						if (compare(cache[B3.start], cache[A3.end - 1])) {
+							if (compare(cache[B3.end - 1], cache[A3.start])) {
+								// the two ranges are in reverse order, so copy them in reverse order into the array
+								std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start + A2.length()]);
+								std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start]);
+							} else {
+								// these two ranges weren't already in order, so merge them back into the array
+								MergeInto(cache, A3, B3, compare, &array[A1.start]);
+							}
 						} else {
 							// copy A3 and B3 into the array in the same order
 							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start]);
@@ -558,13 +843,15 @@ namespace Wiki {
 						Range A = iterator.nextRange();
 						Range B = iterator.nextRange();
 						
-						if (compare(array[B.end - 1], array[A.start])) {
-							// the two ranges are in reverse order, so a simple rotation should fix it
-							Rotate(array, A.length(), Range(A.start, B.end));
-						} else if (compare(array[B.start], array[A.end - 1])) {
-							// these two ranges weren't already in order, so we'll need to merge them!
-							std::copy(&array[A.start], &array[A.end], &cache[0]);
-							MergeExternal(array, A, B, compare, cache);
+						if (compare(array[B.start], array[A.end - 1])) {
+							if (compare(array[B.end - 1], array[A.start])) {
+								// the two ranges are in reverse order, so a simple rotation should fix it
+								Rotate(array, A.length(), Range(A.start, B.end));
+							} else {
+								// these two ranges weren't already in order, so we'll need to merge them!
+								std::copy(&array[A.start], &array[A.end], &cache[0]);
+								MergeExternal(array, A, B, compare, cache);
+							}
 						}
 					}
 				}
@@ -580,214 +867,233 @@ namespace Wiki {
 				// 7. sort the second internal buffer if it exists
 				// 8. redistribute the two internal buffers back into the array
 				
-				size_t block_size = sqrt(iterator.length());
-				size_t buffer_size = iterator.length()/block_size + 1;
-				
-				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
-				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
 				Range buffer1 = Range(0, 0), buffer2 = Range(0, 0);
 				size_t index, last, count, pull_index = 0;
 				struct { size_t from, to, count; Range range; } pull[2];
 				pull[0].from = pull[0].to = pull[0].count = 0; pull[0].range = Range(0, 0);
 				pull[1].from = pull[1].to = pull[1].count = 0; pull[1].range = Range(0, 0);
 				
-				// find two internal buffers of size 'buffer_size' each
-				// let's try finding both buffers at the same time from a single A or B subarray
-				size_t find = buffer_size + buffer_size;
-				bool find_separately = false;
-				
-				if (block_size <= cache_size) {
-					// if every A block fits into the cache then we won't need the second internal buffer,
-					// so we really only need to find 'buffer_size' unique values
-					find = buffer_size;
-				} else if (find > iterator.length()) {
-					// we can't fit both buffers into the same A or B subarray, so find two buffers separately
-					find = buffer_size;
-					find_separately = true;
-				}
-				
-				// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
-				// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
-				// OR if we couldn't find that many unique values, we need the largest possible buffer we can get
-				
-				// in the case where it couldn't find a single buffer of at least √A unique values,
-				// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
+				// instead of extracting the internal buffers right away, let's wait until they're actually needed.
+				// this way we can skip the extraction and redistribution process for ascending and descending data,
+				// which will make it faster without affecting the speed for other arrangements of data
+				size_t block_size, buffer_size;
+				bool extracted = false;
 				
 				iterator.begin();
 				while (!iterator.finished()) {
 					Range A = iterator.nextRange();
 					Range B = iterator.nextRange();
 					
-					// just store information about where the values will be pulled from and to,
-					// as well as how many values there are, to create the two internal buffers
-					#define PULL(_to) \
-						pull[pull_index].range = Range(A.start, B.end); \
-						pull[pull_index].count = count; \
-						pull[pull_index].from = index; \
-						pull[pull_index].to = _to
-					
-					// check A for the number of unique values we need to fill an internal buffer
-					// these values will be pulled out to the start of A
-					for (last = A.start, count = 1; count < find; last = index, count++) {
-						index = FindLastForward(array, array[last], Range(last + 1, A.end), compare, find - count);
-						if (index == A.end) break;
-						assert(index < A.end);
-					}
-					index = last;
-					
-					if (count >= buffer_size) {
-						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						PULL(A.start);
-						pull_index = 1;
-						
-						if (count == buffer_size + buffer_size) {
-							// we were able to find a single contiguous section containing 2√A unique values,
-							// so this section can be used to contain both of the internal buffers we'll need
-							buffer1 = Range(A.start, A.start + buffer_size);
-							buffer2 = Range(A.start + buffer_size, A.start + count);
-							break;
-						} else if (find == buffer_size + buffer_size) {
-							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
-							// so we still need to find a second separate buffer of at least √A unique values
-							buffer1 = Range(A.start, A.start + count);
-							find = buffer_size;
-						} else if (block_size <= cache_size) {
-							// we found the first and only internal buffer that we need, so we're done!
-							buffer1 = Range(A.start, A.start + count);
-							break;
-						} else if (find_separately) {
-							// found one buffer, but now find the other one
-							buffer1 = Range(A.start, A.start + count);
-							find_separately = false;
-						} else {
-							// we found a second buffer in an 'A' subarray containing √A unique values, so we're done!
-							buffer2 = Range(A.start, A.start + count);
-							break;
+					if (extracted) {
+					just_extracted:;
+						// remove any parts of A or B that are being used by the internal buffers
+						size_t start = A.start;
+						if (start == pull[0].range.start) {
+							if (pull[0].from > pull[0].to) {
+								A.start += pull[0].count;
+								
+								// if the internal buffer takes up the entire A or B subarray, then there's nothing to merge
+								// this only happens for very small subarrays, like √4 = 2, 2 * (2 internal buffers) = 4,
+								// which also only happens when cache_size is small or 0 since it'd otherwise use MergeExternal
+								if (A.length() == 0) continue;
+							} else if (pull[0].from < pull[0].to) {
+								B.end -= pull[0].count;
+								if (B.length() == 0) continue;
+							}
 						}
-					} else if (pull_index == 0 && count > buffer1.length()) {
-						// keep track of the largest buffer we were able to find
-						buffer1 = Range(A.start, A.start + count);
-						PULL(A.start);
-					}
-					
-					// check B for the number of unique values we need to fill an internal buffer
-					// these values will be pulled out to the end of B
-					for (last = B.end - 1, count = 1; count < find; last = index - 1, count++) {
-						index = FindFirstBackward(array, array[last], Range(B.start, last), compare, find - count);
-						if (index == B.start) break;
-						assert(index > B.start);
-					}
-					index = last;
-					
-					if (count >= buffer_size) {
-						// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
-						PULL(B.end);
-						pull_index = 1;
-						
-						if (count == buffer_size + buffer_size) {
-							// we were able to find a single contiguous section containing 2√A unique values,
-							// so this section can be used to contain both of the internal buffers we'll need
-							buffer1 = Range(B.end - count, B.end - buffer_size);
-							buffer2 = Range(B.end - buffer_size, B.end);
-							break;
-						} else if (find == buffer_size + buffer_size) {
-							// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
-							// so we still need to find a second separate buffer of at least √A unique values
-							buffer1 = Range(B.end - count, B.end);
-							find = buffer_size;
-						} else if (block_size <= cache_size) {
-							// we found the first and only internal buffer that we need, so we're done!
-							buffer1 = Range(B.end - count, B.end);
-							break;
-						} else if (find_separately) {
-							// found one buffer, but now find the other one
-							buffer1 = Range(B.end - count, B.end);
-							find_separately = false;
-						} else {
-							// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
-							// we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2
-							if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
-							
-							// we found a second buffer in a 'B' subarray containing √A unique values, so we're done!
-							buffer2 = Range(B.end - count, B.end);
-							break;
-						}
-					} else if (pull_index == 0 && count > buffer1.length()) {
-						// keep track of the largest buffer we were able to find
-						buffer1 = Range(B.end - count, B.end);
-						PULL(B.end);
-					}
-				}
-				
-				// pull out the two ranges so we can use them as internal buffers
-				for (pull_index = 0; pull_index < 2; pull_index++) {
-					size_t length = pull[pull_index].count;
-					
-					if (pull[pull_index].to < pull[pull_index].from) {
-						// we're pulling the values out to the left, which means the start of an A subarray
-						index = pull[pull_index].from;
-						for (count = 1; count < length; count++) {
-							index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
-							Range range = Range(index + 1, pull[pull_index].from + 1);
-							Rotate(array, range.length() - count, range);
-							pull[pull_index].from = index + count;
-						}
-					} else if (pull[pull_index].to > pull[pull_index].from) {
-						// we're pulling values out to the right, which means the end of a B subarray
-						index = pull[pull_index].from + 1;
-						for (count = 1; count < length; count++) {
-							index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
-							Range range = Range(pull[pull_index].from, index - 1);
-							Rotate(array, count, range);
-							pull[pull_index].from = index - 1 - count;
-						}
-					}
-				}
-				
-				// adjust block_size and buffer_size based on the values we were able to pull out
-				buffer_size = buffer1.length();
-				block_size = iterator.length()/buffer_size + 1;
-				
-				// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
-				// so this was originally here to test the math for adjusting block_size above
-				//assert((iterator.length() + 1)/block_size <= buffer_size);
-				
-				// now that the two internal buffers have been created, it's time to merge each A+B combination at this level of the merge sort!
-				iterator.begin();
-				while (!iterator.finished()) {
-					Range A = iterator.nextRange();
-					Range B = iterator.nextRange();
-					
-					// remove any parts of A or B that are being used by the internal buffers
-					size_t start = A.start;
-					if (start == pull[0].range.start) {
-						if (pull[0].from > pull[0].to) {
-							A.start += pull[0].count;
-							
-							// if the internal buffer takes up the entire A or B subarray, then there's nothing to merge
-							// this only happens for very small subarrays, like √4 = 2, 2 * (2 internal buffers) = 4,
-							// which also only happens when cache_size is small or 0 since it'd otherwise use MergeExternal
-							if (A.length() == 0) continue;
-						} else if (pull[0].from < pull[0].to) {
-							B.end -= pull[0].count;
-							if (B.length() == 0) continue;
-						}
-					}
-					if (start == pull[1].range.start) {
-						if (pull[1].from > pull[1].to) {
-							A.start += pull[1].count;
-							if (A.length() == 0) continue;
-						} else if (pull[1].from < pull[1].to) {
-							B.end -= pull[1].count;
-							if (B.length() == 0) continue;
+						if (start == pull[1].range.start) {
+							if (pull[1].from > pull[1].to) {
+								A.start += pull[1].count;
+								if (A.length() == 0) continue;
+							} else if (pull[1].from < pull[1].to) {
+								B.end -= pull[1].count;
+								if (B.length() == 0) continue;
+							}
 						}
 					}
 					
-					if (compare(array[B.end - 1], array[A.start])) {
-						// the two ranges are in reverse order, so a simple rotation should fix it
-						Rotate(array, A.length(), Range(A.start, B.end));
-					} else if (compare(array[A.end], array[A.end - 1])) {
+					if (compare(array[A.end], array[A.end - 1])) {
 						// these two ranges weren't already in order, so we'll need to merge them!
+						if (compare(array[B.end - 1], array[A.start])) {
+							// the two ranges are in reverse order, so a simple rotation should fix it
+							Rotate(array, A.length(), Range(A.start, B.end));
+							continue;
+						}
+						
+						if (!extracted) {
+							Wiki::Iterator old_iterator = iterator;
+							Range old_A = A, old_B = B;
+							
+							block_size = sqrt(iterator.length());
+							buffer_size = iterator.length()/block_size + 1;
+							
+							// find two internal buffers of size 'buffer_size' each
+							// let's try finding both buffers at the same time from a single A or B subarray
+							size_t find = buffer_size + buffer_size;
+							bool find_separately = false;
+							
+							if (block_size <= cache_size) {
+								// if every A block fits into the cache then we won't need the second internal buffer,
+								// so we really only need to find 'buffer_size' unique values
+								find = buffer_size;
+							} else if (find > iterator.length()) {
+								// we can't fit both buffers into the same A or B subarray, so find two buffers separately
+								find = buffer_size;
+								find_separately = true;
+							}
+							
+							// we need to find either a single contiguous space containing 2√A unique values (which will be split up into two buffers of size √A each),
+							// or we need to find one buffer of < 2√A unique values, and a second buffer of √A unique values,
+							// OR if we couldn't find that many unique values, we need the largest possible buffer we can get
+							
+							// in the case where it couldn't find a single buffer of at least √A unique values,
+							// all of the Merge steps must be replaced by a different merge algorithm (MergeInPlace)
+							
+							iterator.begin();
+							while (!iterator.finished()) {
+								Range A = iterator.nextRange();
+								Range B = iterator.nextRange();
+								
+								// just store information about where the values will be pulled from and to,
+								// as well as how many values there are, to create the two internal buffers
+								#define PULL(_to) \
+									pull[pull_index].range = Range(A.start, B.end); \
+									pull[pull_index].count = count; \
+									pull[pull_index].from = index; \
+									pull[pull_index].to = _to
+								
+								// check A for the number of unique values we need to fill an internal buffer
+								// these values will be pulled out to the start of A
+								for (last = A.start, count = 1; count < find; last = index, count++) {
+									index = FindLastForward(array, array[last], Range(last + 1, A.end), compare, find - count);
+									if (index == A.end) break;
+								}
+								index = last;
+								
+								if (count >= buffer_size) {
+									// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
+									PULL(A.start);
+									pull_index = 1;
+									
+									if (count == buffer_size + buffer_size) {
+										// we were able to find a single contiguous section containing 2√A unique values,
+										// so this section can be used to contain both of the internal buffers we'll need
+										buffer1 = Range(A.start, A.start + buffer_size);
+										buffer2 = Range(A.start + buffer_size, A.start + count);
+										break;
+									} else if (find == buffer_size + buffer_size) {
+										// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
+										// so we still need to find a second separate buffer of at least √A unique values
+										buffer1 = Range(A.start, A.start + count);
+										find = buffer_size;
+									} else if (block_size <= cache_size) {
+										// we found the first and only internal buffer that we need, so we're done!
+										buffer1 = Range(A.start, A.start + count);
+										break;
+									} else if (find_separately) {
+										// found one buffer, but now find the other one
+										buffer1 = Range(A.start, A.start + count);
+										find_separately = false;
+									} else {
+										// we found a second buffer in an 'A' subarray containing √A unique values, so we're done!
+										buffer2 = Range(A.start, A.start + count);
+										break;
+									}
+								} else if (pull_index == 0 && count > buffer1.length()) {
+									// keep track of the largest buffer we were able to find
+									buffer1 = Range(A.start, A.start + count);
+									PULL(A.start);
+								}
+								
+								// check B for the number of unique values we need to fill an internal buffer
+								// these values will be pulled out to the end of B
+								for (last = B.end - 1, count = 1; count < find; last = index - 1, count++) {
+									index = FindFirstBackward(array, array[last], Range(B.start, last), compare, find - count);
+									if (index == B.start) break;
+								}
+								index = last;
+								
+								if (count >= buffer_size) {
+									// keep track of the range within the array where we'll need to "pull out" these values to create the internal buffer
+									PULL(B.end);
+									pull_index = 1;
+									
+									if (count == buffer_size + buffer_size) {
+										// we were able to find a single contiguous section containing 2√A unique values,
+										// so this section can be used to contain both of the internal buffers we'll need
+										buffer1 = Range(B.end - count, B.end - buffer_size);
+										buffer2 = Range(B.end - buffer_size, B.end);
+										break;
+									} else if (find == buffer_size + buffer_size) {
+										// we found a buffer that contains at least √A unique values, but did not contain the full 2√A unique values,
+										// so we still need to find a second separate buffer of at least √A unique values
+										buffer1 = Range(B.end - count, B.end);
+										find = buffer_size;
+									} else if (block_size <= cache_size) {
+										// we found the first and only internal buffer that we need, so we're done!
+										buffer1 = Range(B.end - count, B.end);
+										break;
+									} else if (find_separately) {
+										// found one buffer, but now find the other one
+										buffer1 = Range(B.end - count, B.end);
+										find_separately = false;
+									} else {
+										// buffer2 will be pulled out from a 'B' subarray, so if the first buffer was pulled out from the corresponding 'A' subarray,
+										// we need to adjust the end point for that A subarray so it knows to stop redistributing its values before reaching buffer2
+										if (pull[0].range.start == A.start) pull[0].range.end -= pull[1].count;
+										
+										// we found a second buffer in a 'B' subarray containing √A unique values, so we're done!
+										buffer2 = Range(B.end - count, B.end);
+										break;
+									}
+								} else if (pull_index == 0 && count > buffer1.length()) {
+									// keep track of the largest buffer we were able to find
+									buffer1 = Range(B.end - count, B.end);
+									PULL(B.end);
+								}
+							}
+							
+							// pull out the two ranges so we can use them as internal buffers
+							for (pull_index = 0; pull_index < 2; pull_index++) {
+								size_t length = pull[pull_index].count;
+								
+								if (pull[pull_index].to < pull[pull_index].from) {
+									// we're pulling the values out to the left, which means the start of an A subarray
+									index = pull[pull_index].from;
+									for (count = 1; count < length; count++) {
+										index = FindFirstBackward(array, array[index - 1], Range(pull[pull_index].to, pull[pull_index].from - (count - 1)), compare, length - count);
+										Range range = Range(index + 1, pull[pull_index].from + 1);
+										Rotate(array, range.length() - count, range);
+										pull[pull_index].from = index + count;
+									}
+								} else if (pull[pull_index].to > pull[pull_index].from) {
+									// we're pulling values out to the right, which means the end of a B subarray
+									index = pull[pull_index].from + 1;
+									for (count = 1; count < length; count++) {
+										index = FindLastForward(array, array[index], Range(index, pull[pull_index].to), compare, length - count);
+										Range range = Range(pull[pull_index].from, index - 1);
+										Rotate(array, count, range);
+										pull[pull_index].from = index - 1 - count;
+									}
+								}
+							}
+							
+							// adjust block_size and buffer_size based on the values we were able to pull out
+							buffer_size = buffer1.length();
+							block_size = iterator.length()/buffer_size + 1;
+							
+							// the first buffer NEEDS to be large enough to tag each of the evenly sized A blocks,
+							// so this was originally here to test the math for adjusting block_size above
+							//assert((iterator.length() + 1)/block_size <= buffer_size);
+							
+							// now that the one or two buffers have been extracted, redo this iteration of the loop
+							// in case the new A and B ranges are now in order or in reverse order
+							iterator = old_iterator;
+							A = old_A;
+							B = old_B;
+							extracted = true;
+							goto just_extracted;
+						}
 						
 						// break the remainder of A into blocks. firstA is the uneven-sized first A block
 						Range blockA = Range(A.start, A.end);
@@ -1117,7 +1423,7 @@ int main() {
 			
 			// Random, RandomFew, MostlyDescending, MostlyAscending,
 			// Ascending, Descending, Equal, Jittered, MostlyEqual, Append
-			item.value = Testing::Random(index, total);
+			item.value = Testing::MostlyAscending(index, total);
 			#if VERIFY
 				item.index = index;
 			#endif
