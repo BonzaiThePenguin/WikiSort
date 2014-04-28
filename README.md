@@ -1,6 +1,10 @@
 WikiSort
 ======
 
+**Update** (04/28/14): Check out the [GrailSort project](https://github.com/Mrrl/GrailSort) on GitHub for a similar algorithm based on a paper by Huang and Langston. It's actually *faster* than WikiSort for the Random and RandomFew tests when you remove the 512-item cache! It goes to show that this is still an open area of research that could use your expertise.
+
+- - -
+
 WikiSort is an implementation of "block merge sort", or "block sort" for short, which is a stable merge sort based on the work described in ["Ratio based stable in-place merging", by Pok-Son Kim and Arne Kutzner](http://ak.hanyang.ac.kr/papers/tamc2008.pdf) [PDF].
 
 WikiSort is generally **as fast as a standard merge sort while using O(1) memory**, and is *even faster* when the input is partially ordered or as the arrays get larger. It can also be modified to use any additional memory *optionally* provided to it, which can further improve its speed.
