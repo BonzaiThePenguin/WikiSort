@@ -256,7 +256,7 @@ at that index:
                   ^
 
     5. lastly, rotate [1 2 3 4] to be next to the 0
-    [0 [0 0 1 2 3 4] 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
+    [0 0 [0 1 2 3 4] 1 3 3 4 5 6 6 6 6 6 7 7 8 9 ... ]
                ^
 
     6. here's our buffer!
