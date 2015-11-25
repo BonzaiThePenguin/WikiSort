@@ -9,12 +9,13 @@
 ***********************************************************/
 
 #include <algorithm>
-#include <iostream>
-#include <iterator>
-#include <cmath>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <ctime>
+#include <iostream>
+#include <iterator>
+#include <limits>
 #include <vector>
 
 // record the number of comparisons and assignments
@@ -58,17 +59,13 @@ public:
 
 // 63 -> 32, 64 -> 64, etc.
 // this comes from Hacker's Delight
-size_t FloorPowerOfTwo (const size_t value) {
-	size_t x = value;
-	x = x | (x >> 1);
-	x = x | (x >> 2);
-	x = x | (x >> 4);
-	x = x | (x >> 8);
-	x = x | (x >> 16);
-#if __LP64__
-	x = x | (x >> 32);
-#endif
-	return x - (x >> 1);
+template <typename Unsigned>
+Unsigned FloorPowerOfTwo (Unsigned value) {
+    for (std::size_t i = 1 ; i <= std::numeric_limits<Unsigned>::digits / 2 ; i <<= 1)
+    {
+        value |= (value >> i);
+    }
+	return value - (value >> 1);
 }
 
 // find the index of the first value within the range that is equal to array[index]
