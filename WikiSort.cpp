@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cstring>
 #include <ctime>
 #include <iostream>
 #include <iterator>
@@ -37,7 +36,7 @@
 #define DYNAMIC_CACHE false
 
 
-double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
+double Seconds() { return std::clock() * 1.0/CLOCKS_PER_SEC; }
 
 #if PROFILE
 	// global for testing how many comparisons are performed for each sorting algorithm
@@ -47,12 +46,12 @@ double Seconds() { return clock() * 1.0/CLOCKS_PER_SEC; }
 // structure to represent ranges within the array
 class Range {
 public:
-	size_t start;
-	size_t end;
+	std::size_t start;
+	std::size_t end;
 
 	Range() {}
-	Range(size_t start, size_t end) : start(start), end(end) {}
-	size_t length() const { return end - start; }
+	Range(std::size_t start, std::size_t end) : start(start), end(end) {}
+	std::size_t length() const { return end - start; }
 };
 
 // toolbox functions used by the sorter
@@ -70,23 +69,23 @@ Unsigned FloorPowerOfTwo (Unsigned value) {
 
 // find the index of the first value within the range that is equal to array[index]
 template <typename RandomAccessIterator, typename T, typename Comparison>
-size_t BinaryFirst(RandomAccessIterator array, const T & value, const Range & range, const Comparison compare) {
+std::size_t BinaryFirst(RandomAccessIterator array, const T & value, const Range & range, const Comparison compare) {
 	return std::lower_bound(array + range.start, array + range.end, value, compare) - array;
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
 template <typename RandomAccessIterator, typename T, typename Comparison>
-size_t BinaryLast(RandomAccessIterator array, const T & value, const Range & range, const Comparison compare) {
+std::size_t BinaryLast(RandomAccessIterator array, const T & value, const Range & range, const Comparison compare) {
 	return std::upper_bound(array + range.start, array + range.end, value, compare) - array;
 }
 
 // combine a linear search with a binary search to reduce the number of comparisons in situations
 // where have some idea as to how many unique values there are and where the next value might be
 template <typename RandomAccessIterator, typename T, typename Comparison>
-size_t FindFirstForward(RandomAccessIterator array, const T & value, const Range & range,
-                        const Comparison compare, const size_t unique) {
+std::size_t FindFirstForward(RandomAccessIterator array, const T & value, const Range & range,
+                             const Comparison compare, const std::size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	std::size_t index, skip = std::max(range.length()/unique, (std::size_t)1);
 
 	for (index = range.start + skip; compare(array[index - 1], value); index += skip)
 		if (index >= range.end - skip)
@@ -96,10 +95,11 @@ size_t FindFirstForward(RandomAccessIterator array, const T & value, const Range
 }
 
 template <typename RandomAccessIterator, typename T, typename Comparison>
-size_t FindLastForward(RandomAccessIterator array, const T & value, const Range & range,
-                       const Comparison compare, const size_t unique) {
+std::size_t FindLastForward(RandomAccessIterator array, const T & value, const Range & range,
+                            const Comparison compare, const std::size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+
+	std::size_t index, skip = std::max(range.length()/unique, (std::size_t)1);
 
 	for (index = range.start + skip; !compare(value, array[index - 1]); index += skip)
 		if (index >= range.end - skip)
@@ -109,10 +109,12 @@ size_t FindLastForward(RandomAccessIterator array, const T & value, const Range 
 }
 
 template <typename RandomAccessIterator, typename T, typename Comparison>
-size_t FindFirstBackward(RandomAccessIterator array, const T & value, const Range & range,
-                         const Comparison compare, const size_t unique) {
+
+std::size_t FindFirstBackward(RandomAccessIterator array, const T & value, const Range & range,
+                              const Comparison compare, const std::size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+
+	std::size_t index, skip = std::max(range.length()/unique, (std::size_t)1);
 
 	for (index = range.end - skip; index > range.start && !compare(array[index - 1], value); index -= skip)
 		if (index < range.start + skip)
@@ -122,10 +124,10 @@ size_t FindFirstBackward(RandomAccessIterator array, const T & value, const Rang
 }
 
 template <typename RandomAccessIterator, typename T, typename Comparison>
-size_t FindLastBackward(RandomAccessIterator array, const T & value, const Range & range,
-                        const Comparison compare, const size_t unique) {
+std::size_t FindLastBackward(RandomAccessIterator array, const T & value, const Range & range,
+                             const Comparison compare, const std::size_t unique) {
 	if (range.length() == 0) return range.start;
-	size_t index, skip = std::max(range.length()/unique, (size_t)1);
+	std::size_t index, skip = std::max(range.length()/unique, (std::size_t)1);
 
 	for (index = range.end - skip; index > range.start && compare(value, array[index - 1]); index -= skip)
 		if (index < range.start + skip)
@@ -138,7 +140,7 @@ size_t FindLastBackward(RandomAccessIterator array, const T & value, const Range
 template <typename RandomAccessIterator, typename Comparison>
 void InsertionSort(RandomAccessIterator array, const Range & range, const Comparison compare) {
     typedef typename std::iterator_traits<RandomAccessIterator>::value_type T;
-	for (size_t j, i = range.start + 1; i < range.end; i++) {
+	for (std::size_t j, i = range.start + 1; i < range.end; i++) {
 		const T temp = array[i];
 		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
 			array[j] = array[j - 1];
@@ -154,14 +156,14 @@ void Reverse(RandomAccessIterator array, const Range & range) {
 
 // swap a series of values in the array
 template <typename RandomAccessIterator>
-void BlockSwap(RandomAccessIterator array, const size_t start1, const size_t start2, const size_t block_size) {
+void BlockSwap(RandomAccessIterator array, const std::size_t start1, const std::size_t start2, const std::size_t block_size) {
 	std::swap_ranges(array + start1, array + start1 + block_size, array + start2);
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 // this assumes that 0 <= amount <= range.length()
 template <typename RandomAccessIterator>
-void Rotate(RandomAccessIterator array, size_t amount, Range range) {
+void Rotate(RandomAccessIterator array, std::size_t amount, Range range) {
 	std::rotate(array + range.start, array + range.start + amount, array + range.end);
 }
 
@@ -289,10 +291,10 @@ namespace Wiki {
 
 		while (true) {
 			// find the first place in B where the first item in A needs to be inserted
-			size_t mid = BinaryFirst(array, array[A.start], B, compare);
+			std::size_t mid = BinaryFirst(array, array[A.start], B, compare);
 
 			// rotate A into place
-			size_t amount = mid - A.end;
+			std::size_t amount = mid - A.end;
 			Rotate(array, A.length(), Range(A.start, mid));
 			if (B.end == mid) break;
 
@@ -308,26 +310,27 @@ namespace Wiki {
 	// the bottom-up merge sort only operates on values that are powers of two,
 	// so scale down to that power of two, then use a fraction to scale back again
 	class Iterator {
-		size_t size, power_of_two;
-		size_t decimal, numerator, denominator;
-		size_t decimal_step, numerator_step;
+		std::size_t size, power_of_two;
+		std::size_t decimal, numerator, denominator;
+		std::size_t decimal_step, numerator_step;
 
 	public:
-		Iterator(size_t size2, size_t min_level) {
-			size = size2;
-			power_of_two = FloorPowerOfTwo(size);
-			denominator = power_of_two/min_level;
-			numerator_step = size % denominator;
-			decimal_step = size/denominator;
-			begin();
-		}
+		Iterator(std::size_t size, std::size_t min_level):
+		    size(size),
+		    power_of_two(FloorPowerOfTwo(size)),
+		    decimal(0),
+		    numerator(0),
+		    denominator(power_of_two/min_level),
+		    decimal_step(size/denominator),
+		    numerator_step(size % denominator)
+		{}
 
 		void begin() {
 			numerator = decimal = 0;
 		}
 
 		Range nextRange() {
-			size_t start = decimal;
+			std::size_t start = decimal;
 
 			decimal += decimal_step;
 			numerator += numerator_step;
@@ -339,8 +342,8 @@ namespace Wiki {
 			return Range(start, decimal);
 		}
 
-		bool finished() {
-			return (decimal >= size);
+		bool finished() const {
+			return decimal >= size;
 		}
 
 		bool nextLevel() {
@@ -351,10 +354,10 @@ namespace Wiki {
 				decimal_step++;
 			}
 
-			return (decimal_step < size);
+			return decimal_step < size;
 		}
 
-		size_t length() {
+		std::size_t length() const {
 			return decimal_step;
 		}
 	};
@@ -366,13 +369,13 @@ namespace Wiki {
 	class Cache {
 	public:
 		T *cache;
-		size_t cache_size;
+		std::size_t cache_size;
 
 		~Cache() {
 			if (cache) delete[] cache;
 		}
 
-		Cache(size_t size) {
+		Cache(std::size_t size) {
 			// good choices for the cache size are:
 			// (size + 1)/2 – turns into a full-speed standard merge sort since everything fits into the cache
 			cache_size = (size + 1)/2;
@@ -381,7 +384,7 @@ namespace Wiki {
 
 			// sqrt((size + 1)/2) + 1 – this will be the size of the A blocks at the largest level of merges,
 			// so a buffer of this size would allow it to skip using internal or in-place merges for anything
-			cache_size = sqrt(cache_size) + 1;
+			cache_size = std::sqrt(cache_size) + 1;
 			cache = new (std::nothrow) T[cache_size];
 			if (cache) return;
 
@@ -404,7 +407,7 @@ namespace Wiki {
 		// map first and last to a C-style array, so we don't have to change the rest of the code
 		// (bit of a nasty hack, but it's good enough for now...)
 		typedef typename std::iterator_traits<RandomAccessIterator>::value_type T;
-		const size_t size = last - first;
+		const std::size_t size = last - first;
 		RandomAccessIterator array = first;
 
 		// if the array is of size 0, 1, 2, or 3, just sort them like so:
@@ -483,6 +486,8 @@ namespace Wiki {
 				SWAP(0, 2); SWAP(1, 3);
 				SWAP(1, 2);
 			}
+
+			#undef SWAP
 		}
 		if (size < 8) return;
 
@@ -490,13 +495,13 @@ namespace Wiki {
 		#if DYNAMIC_CACHE
 			Cache<T> cache_obj (size);
 			T *cache = cache_obj.cache;
-			const size_t cache_size = cache_obj.cache_size;
+			const std::size_t cache_size = cache_obj.cache_size;
 		#else
 			// since the cache size is fixed, it's still O(1) memory!
 			// just keep in mind that making it too small ruins the point (nothing will fit into it),
 			// and making it too large also ruins the point (so much for "low memory"!)
 			// removing the cache entirely still gives 75% of the performance of a standard merge
-			const size_t cache_size = 512;
+			const std::size_t cache_size = 512;
 			T cache[cache_size];
 		#endif
 
@@ -599,20 +604,20 @@ namespace Wiki {
 				// 7. sort the second internal buffer if it exists
 				// 8. redistribute the two internal buffers back into the array
 
-				size_t block_size = sqrt(iterator.length());
-				size_t buffer_size = iterator.length()/block_size + 1;
+				std::size_t block_size = std::sqrt(iterator.length());
+				std::size_t buffer_size = iterator.length()/block_size + 1;
 
 				// as an optimization, we really only need to pull out the internal buffers once for each level of merges
 				// after that we can reuse the same buffers over and over, then redistribute it when we're finished with this level
 				Range buffer1 = Range(0, 0), buffer2 = Range(0, 0);
-				size_t index, last, count, pull_index = 0;
-				struct { size_t from, to, count; Range range; } pull[2];
+				std::size_t index, last, count, pull_index = 0;
+				struct { std::size_t from, to, count; Range range; } pull[2];
 				pull[0].from = pull[0].to = pull[0].count = 0; pull[0].range = Range(0, 0);
 				pull[1].from = pull[1].to = pull[1].count = 0; pull[1].range = Range(0, 0);
 
 				// find two internal buffers of size 'buffer_size' each
 				// let's try finding both buffers at the same time from a single A or B subarray
-				size_t find = buffer_size + buffer_size;
+				std::size_t find = buffer_size + buffer_size;
 				bool find_separately = false;
 
 				if (block_size <= cache_size) {
@@ -736,11 +741,13 @@ namespace Wiki {
 						buffer1 = Range(B.end - count, B.end);
 						PULL(B.end);
 					}
+
+					#undef PULL
 				}
 
 				// pull out the two ranges so we can use them as internal buffers
 				for (pull_index = 0; pull_index < 2; pull_index++) {
-					size_t length = pull[pull_index].count;
+					std::size_t length = pull[pull_index].count;
 
 					if (pull[pull_index].to < pull[pull_index].from) {
 						// we're pulling the values out to the left, which means the start of an A subarray
@@ -778,7 +785,7 @@ namespace Wiki {
 					Range B = iterator.nextRange();
 
 					// remove any parts of A or B that are being used by the internal buffers
-					size_t start = A.start;
+					std::size_t start = A.start;
 					if (start == pull[0].range.start) {
 						if (pull[0].from > pull[0].to) {
 							A.start += pull[0].count;
@@ -813,7 +820,7 @@ namespace Wiki {
 						Range firstA = Range(A.start, A.start + blockA.length() % block_size);
 
 						// swap the first value of each A block with the values in buffer1
-						for (size_t indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size)
+						for (std::size_t indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size)
 							std::iter_swap(array + indexA, array + index);
 
 						// start rolling the A blocks through the B blocks!
@@ -822,7 +829,7 @@ namespace Wiki {
 						Range lastB = Range(0, 0);
 						Range blockB = Range(B.start, B.start + std::min(block_size, B.length()));
 						blockA.start += firstA.length();
-						size_t indexA = buffer1.start;
+						std::size_t indexA = buffer1.start;
 
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
@@ -837,12 +844,12 @@ namespace Wiki {
 								// then drop that minimum A block behind. or if there are no B blocks left then keep dropping the remaining A blocks.
 								if ((lastB.length() > 0 && !compare(array[lastB.end - 1], array[indexA])) || blockB.length() == 0) {
 									// figure out where to split the previous B block, and rotate it at the split
-									size_t B_split = BinaryFirst(array, array[indexA], lastB, compare);
-									size_t B_remaining = lastB.end - B_split;
+									std::size_t B_split = BinaryFirst(array, array[indexA], lastB, compare);
+									std::size_t B_remaining = lastB.end - B_split;
 
 									// swap the minimum A block to the beginning of the rolling A blocks
-									size_t minA = blockA.start;
-									for (size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
+									std::size_t minA = blockA.start;
+									for (std::size_t findA = minA + block_size; findA < blockA.end; findA += block_size)
 										if (compare(array[findA], array[minA]))
 											minA = findA;
 									BlockSwap(array, blockA.start, minA, block_size);
@@ -928,13 +935,13 @@ namespace Wiki {
 				InsertionSort(array, buffer2, compare);
 
 				for (pull_index = 0; pull_index < 2; pull_index++) {
-					size_t unique = pull[pull_index].count * 2;
+					std::size_t unique = pull[pull_index].count * 2;
 					if (pull[pull_index].from > pull[pull_index].to) {
 						// the values were pulled out to the left, so redistribute them back to the right
 						Range buffer = Range(pull[pull_index].range.start, pull[pull_index].range.start + pull[pull_index].count);
 						while (buffer.length() > 0) {
 							index = FindFirstForward(array, array[buffer.start], Range(buffer.end, pull[pull_index].range.end), compare, unique);
-							size_t amount = index - buffer.end;
+							std::size_t amount = index - buffer.end;
 							Rotate(array, buffer.length(), Range(buffer.start, index));
 							buffer.start += (amount + 1);
 							buffer.end += amount;
@@ -945,7 +952,7 @@ namespace Wiki {
 						Range buffer = Range(pull[pull_index].range.end - pull[pull_index].count, pull[pull_index].range.end);
 						while (buffer.length() > 0) {
 							index = FindLastBackward(array, array[buffer.end - 1], Range(pull[pull_index].range.start, buffer.start), compare, unique);
-							size_t amount = buffer.start - index;
+							std::size_t amount = buffer.start - index;
 							Rotate(array, amount, Range(index, buffer.end));
 							buffer.start -= amount;
 							buffer.end -= (amount + 1);
@@ -967,9 +974,9 @@ namespace Wiki {
 // class to test stable sorting (index will contain its original index in the array, to make sure it doesn't switch places with other items)
 class Test {
 public:
-	size_t value;
+	std::size_t value;
 #if VERIFY
-	size_t index;
+	std::size_t index;
 #endif
 
 #if PROFILE
@@ -986,7 +993,7 @@ public:
 
 #if SLOW_COMPARISONS
 	#define NOOP_SIZE 50
-	size_t noop1[NOOP_SIZE], noop2[NOOP_SIZE];
+	std::size_t noop1[NOOP_SIZE], noop2[NOOP_SIZE];
 #endif
 
 bool TestCompare(Test item1, Test item2) {
@@ -997,11 +1004,11 @@ bool TestCompare(Test item1, Test item2) {
 	#if SLOW_COMPARISONS
 		// test slow comparisons by adding some fake overhead
 		// (in real-world use this might be string comparisons, etc.)
-		for (size_t index = 0; index < NOOP_SIZE; index++)
+		for (std::size_t index = 0; index < NOOP_SIZE; index++)
 			noop1[index] = noop2[index];
 	#endif
 
-	return (item1.value < item2.value);
+	return item1.value < item2.value;
 }
 
 
@@ -1011,7 +1018,7 @@ using namespace std;
 // if you want to test the correctness of any changes you make to the main WikiSort function,
 // move this function to the top of the file and call it from within WikiSort after each step
 #if VERIFY
-template <typename Iterator typename Comparison>
+template <typename Iterator, typename Comparison>
 void Verify(Iterator array, const Range range, const Comparison compare, const string msg) {
 	for (size_t index = range.start + 1; index < range.end; index++) {
 		// if it's in ascending order then we're good
