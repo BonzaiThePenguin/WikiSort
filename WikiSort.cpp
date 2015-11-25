@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <cmath>
 #include <cassert>
 #include <cstring>
@@ -71,21 +72,22 @@ size_t FloorPowerOfTwo (const size_t value) {
 }
 
 // find the index of the first value within the range that is equal to array[index]
-template <typename T, typename Comparison>
-size_t BinaryFirst(const T array[], const T & value, const Range & range, const Comparison compare) {
-	return std::lower_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
+template <typename RandomAccessIterator, typename T, typename Comparison>
+size_t BinaryFirst(RandomAccessIterator array, const T & value, const Range & range, const Comparison compare) {
+	return std::lower_bound(array + range.start, array + range.end, value, compare) - array;
 }
 
 // find the index of the last value within the range that is equal to array[index], plus 1
-template <typename T, typename Comparison>
-size_t BinaryLast(const T array[], const T & value, const Range & range, const Comparison compare) {
-	return std::upper_bound(&array[range.start], &array[range.end], value, compare) - &array[0];
+template <typename RandomAccessIterator, typename T, typename Comparison>
+size_t BinaryLast(RandomAccessIterator array, const T & value, const Range & range, const Comparison compare) {
+	return std::upper_bound(array + range.start, array + range.end, value, compare) - array;
 }
 
 // combine a linear search with a binary search to reduce the number of comparisons in situations
 // where have some idea as to how many unique values there are and where the next value might be
-template <typename T, typename Comparison>
-size_t FindFirstForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+template <typename RandomAccessIterator, typename T, typename Comparison>
+size_t FindFirstForward(RandomAccessIterator array, const T & value, const Range & range,
+                        const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
 
@@ -96,8 +98,9 @@ size_t FindFirstForward(const T array[], const T & value, const Range & range, c
 	return BinaryFirst(array, value, Range(index - skip, index), compare);
 }
 
-template <typename T, typename Comparison>
-size_t FindLastForward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+template <typename RandomAccessIterator, typename T, typename Comparison>
+size_t FindLastForward(RandomAccessIterator array, const T & value, const Range & range,
+                       const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
 
@@ -108,8 +111,9 @@ size_t FindLastForward(const T array[], const T & value, const Range & range, co
 	return BinaryLast(array, value, Range(index - skip, index), compare);
 }
 
-template <typename T, typename Comparison>
-size_t FindFirstBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+template <typename RandomAccessIterator, typename T, typename Comparison>
+size_t FindFirstBackward(RandomAccessIterator array, const T & value, const Range & range,
+                         const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
 
@@ -120,8 +124,9 @@ size_t FindFirstBackward(const T array[], const T & value, const Range & range, 
 	return BinaryFirst(array, value, Range(index, index + skip), compare);
 }
 
-template <typename T, typename Comparison>
-size_t FindLastBackward(const T array[], const T & value, const Range & range, const Comparison compare, const size_t unique) {
+template <typename RandomAccessIterator, typename T, typename Comparison>
+size_t FindLastBackward(RandomAccessIterator array, const T & value, const Range & range,
+                        const Comparison compare, const size_t unique) {
 	if (range.length() == 0) return range.start;
 	size_t index, skip = std::max(range.length()/unique, (size_t)1);
 
@@ -133,8 +138,9 @@ size_t FindLastBackward(const T array[], const T & value, const Range & range, c
 }
 
 // n^2 sorting algorithm used to sort tiny chunks of the full array
-template <typename T, typename Comparison>
-void InsertionSort(T array[], const Range & range, const Comparison compare) {
+template <typename RandomAccessIterator, typename Comparison>
+void InsertionSort(RandomAccessIterator array, const Range & range, const Comparison compare) {
+    typedef typename std::iterator_traits<RandomAccessIterator>::value_type T;
 	for (size_t j, i = range.start + 1; i < range.end; i++) {
 		const T temp = array[i];
 		for (j = i; j > range.start && compare(temp, array[j - 1]); j--)
@@ -144,37 +150,40 @@ void InsertionSort(T array[], const Range & range, const Comparison compare) {
 }
 
 // reverse a range of values within the array
-template <typename T>
-void Reverse(T array[], const Range & range) {
-	std::reverse(&array[range.start], &array[range.end]);
+template <typename RandomAccessIterator>
+void Reverse(RandomAccessIterator array, const Range & range) {
+	std::reverse(array + range.start, array + range.end);
 }
 
 // swap a series of values in the array
-template <typename T>
-void BlockSwap(T array[], const size_t start1, const size_t start2, const size_t block_size) {
-	std::swap_ranges(&array[start1], &array[start1 + block_size], &array[start2]);
+template <typename RandomAccessIterator>
+void BlockSwap(RandomAccessIterator array, const size_t start1, const size_t start2, const size_t block_size) {
+	std::swap_ranges(array + start1, array + start1 + block_size, array + start2);
 }
 
 // rotate the values in an array ([0 1 2 3] becomes [1 2 3 0] if we rotate by 1)
 // this assumes that 0 <= amount <= range.length()
-template <typename T>
-void Rotate(T array[], size_t amount, Range range) {
-	std::rotate(&array[range.start], &array[range.start + amount], &array[range.end]);
+template <typename RandomAccessIterator>
+void Rotate(RandomAccessIterator array, size_t amount, Range range) {
+	std::rotate(array + range.start, array + range.start + amount, array + range.end);
 }
 
 namespace Wiki {
 	// merge two ranges from one array and save the results into a different array
-	template <typename T, typename Comparison>
-	void MergeInto(T from[], const Range & A, const Range & B, const Comparison compare, T into[]) {
-		T *A_index = &from[A.start], *B_index = &from[B.start];
-		T *A_last = &from[A.end], *B_last = &from[B.end];
-		T *insert_index = &into[0];
+	template <typename RandomAccessIterator, typename Comparison, typename OutputIterator>
+	void MergeInto(RandomAccessIterator from, const Range & A, const Range & B,
+                const Comparison compare, OutputIterator into) {
+		RandomAccessIterator A_index = from + A.start;
+		RandomAccessIterator B_index = from + B.start;
+		RandomAccessIterator A_last = from + A.end;
+		RandomAccessIterator B_last = from + B.end;
+		OutputIterator insert_index = into;
 
 		while (true) {
 			if (!compare(*B_index, *A_index)) {
 				*insert_index = *A_index;
-				A_index++;
-				insert_index++;
+				++A_index;
+				++insert_index;
 				if (A_index == A_last) {
 					// copy the remainder of B into the final array
 					std::copy(B_index, B_last, insert_index);
@@ -182,8 +191,8 @@ namespace Wiki {
 				}
 			} else {
 				*insert_index = *B_index;
-				B_index++;
-				insert_index++;
+				++B_index;
+				++insert_index;
 				if (B_index == B_last) {
 					// copy the remainder of A into the final array
 					std::copy(A_index, A_last, insert_index);
@@ -194,24 +203,27 @@ namespace Wiki {
 	}
 
 	// merge operation using an external buffer
-	template <typename T, typename Comparison>
-	void MergeExternal(T array[], const Range & A, const Range & B, const Comparison compare, T cache[]) {
+	template <typename RandomAccessIterator1, typename RandomAccessIterator2, typename Comparison>
+	void MergeExternal(RandomAccessIterator1 array, const Range & A, const Range & B,
+                       const Comparison compare, RandomAccessIterator2 cache) {
 		// A fits into the cache, so use that instead of the internal buffer
-		T *A_index = &cache[0], *B_index = &array[B.start];
-		T *A_last = &cache[A.length()], *B_last = &array[B.end];
-		T *insert_index = &array[A.start];
+		RandomAccessIterator2 A_index = cache;
+		RandomAccessIterator2 A_last = cache + A.length();
+		RandomAccessIterator1 B_index = array + B.start;
+		RandomAccessIterator1 B_last = array + B.end;
+		RandomAccessIterator1 insert_index = array + A.start;
 
 		if (B.length() > 0 && A.length() > 0) {
 			while (true) {
 				if (!compare(*B_index, *A_index)) {
 					*insert_index = *A_index;
-					A_index++;
-					insert_index++;
+					++A_index;
+					++insert_index;
 					if (A_index == A_last) break;
 				} else {
 					*insert_index = *B_index;
-					B_index++;
-					insert_index++;
+					++B_index;
+					++insert_index;
 					if (B_index == B_last) break;
 				}
 			}
@@ -222,25 +234,28 @@ namespace Wiki {
 	}
 
 	// merge operation using an internal buffer
-	template <typename T, typename Comparison>
-	void MergeInternal(T array[], const Range & A, const Range & B, const Comparison compare, const Range & buffer) {
+	template <typename RandomAccessIterator, typename Comparison>
+	void MergeInternal(RandomAccessIterator array, const Range & A, const Range & B,
+                       const Comparison compare, const Range & buffer) {
 		// whenever we find a value to add to the final array, swap it with the value that's already in that spot
 		// when this algorithm is finished, 'buffer' will contain its original contents, but in a different order
-		T *A_index = &array[buffer.start], *B_index = &array[B.start];
-		T *A_last = &array[buffer.start + A.length()], *B_last = &array[B.end];
-		T *insert_index = &array[A.start];
+		RandomAccessIterator A_index = array + buffer.start;
+		RandomAccessIterator B_index = array + B.start;
+		RandomAccessIterator A_last = array + buffer.start + A.length();
+		RandomAccessIterator B_last = array + B.end;
+		RandomAccessIterator insert_index = array + A.start;
 
 		if (B.length() > 0 && A.length() > 0) {
 			while (true) {
 				if (!compare(*B_index, *A_index)) {
 					std::swap(*insert_index, *A_index);
-					A_index++;
-					insert_index++;
+					++A_index;
+					++insert_index;
 					if (A_index == A_last) break;
 				} else {
 					std::swap(*insert_index, *B_index);
-					B_index++;
-					insert_index++;
+					++B_index;
+					++insert_index;
 					if (B_index == B_last) break;
 				}
 			}
@@ -251,8 +266,8 @@ namespace Wiki {
 	}
 
 	// merge operation without a buffer
-	template <typename T, typename Comparison>
-	void MergeInPlace(T array[], Range A, Range B, const Comparison compare) {
+	template <typename RandomAccessIterator, typename Comparison>
+	void MergeInPlace(RandomAccessIterator array, Range A, Range B, const Comparison compare) {
 		if (A.length() == 0 || B.length() == 0) return;
 
 		/*
@@ -387,13 +402,13 @@ namespace Wiki {
 #endif
 
 	// bottom-up merge sort combined with an in-place merge algorithm for O(1) memory use
-	template <typename Iterator, typename Comparison>
-	void Sort(Iterator first, Iterator last, const Comparison compare) {
+	template <typename RandomAccessIterator, typename Comparison>
+	void Sort(RandomAccessIterator first, RandomAccessIterator last, const Comparison compare) {
 		// map first and last to a C-style array, so we don't have to change the rest of the code
 		// (bit of a nasty hack, but it's good enough for now...)
-		typedef typename std::iterator_traits<Iterator>::value_type T;
+		typedef typename std::iterator_traits<RandomAccessIterator>::value_type T;
 		const size_t size = last - first;
-		T *array = &first[0];
+		RandomAccessIterator array = first;
 
 		// if the array is of size 0, 1, 2, or 3, just sort them like so:
 		if (size < 4) {
@@ -500,33 +515,33 @@ namespace Wiki {
 
 						if (compare(array[B1.end - 1], array[A1.start])) {
 							// the two ranges are in reverse order, so copy them in reverse order into the cache
-							std::copy(&array[A1.start], &array[A1.end], &cache[B1.length()]);
-							std::copy(&array[B1.start], &array[B1.end], &cache[0]);
+							std::copy(array + A1.start, array + A1.end, cache + B1.length());
+							std::copy(array + B1.start, array + B1.end, cache);
 						} else if (compare(array[B1.start], array[A1.end - 1])) {
 							// these two ranges weren't already in order, so merge them into the cache
-							MergeInto(array, A1, B1, compare, &cache[0]);
+							MergeInto(array, A1, B1, compare, cache);
 						} else {
 							// if A1, B1, A2, and B2 are all in order, skip doing anything else
 							if (!compare(array[B2.start], array[A2.end - 1]) && !compare(array[A2.start], array[B1.end - 1])) continue;
 
 							// copy A1 and B1 into the cache in the same order
-							std::copy(&array[A1.start], &array[A1.end], &cache[0]);
-							std::copy(&array[B1.start], &array[B1.end], &cache[A1.length()]);
+							std::copy(array + A1.start, array + A1.end, cache);
+							std::copy(array + B1.start, array + B1.end, cache + A1.length());
 						}
 						A1 = Range(A1.start, B1.end);
 
 						// merge A2 and B2 into the cache
 						if (compare(array[B2.end - 1], array[A2.start])) {
 							// the two ranges are in reverse order, so copy them in reverse order into the cache
-							std::copy(&array[A2.start], &array[A2.end], &cache[A1.length() + B2.length()]);
-							std::copy(&array[B2.start], &array[B2.end], &cache[A1.length()]);
+							std::copy(array + A2.start, array + A2.end, cache + A1.length() + B2.length());
+							std::copy(array + B2.start, array + B2.end, cache + A1.length());
 						} else if (compare(array[B2.start], array[A2.end - 1])) {
 							// these two ranges weren't already in order, so merge them into the cache
-							MergeInto(array, A2, B2, compare, &cache[A1.length()]);
+							MergeInto(array, A2, B2, compare, cache + A1.length());
 						} else {
 							// copy A2 and B2 into the cache in the same order
-							std::copy(&array[A2.start], &array[A2.end], &cache[A1.length()]);
-							std::copy(&array[B2.start], &array[B2.end], &cache[A1.length() + A2.length()]);
+							std::copy(array + A2.start, array + A2.end, cache + A1.length());
+							std::copy(array + B2.start, array + B2.end, cache + A1.length() + A2.length());
 						}
 						A2 = Range(A2.start, B2.end);
 
@@ -536,15 +551,15 @@ namespace Wiki {
 
 						if (compare(cache[B3.end - 1], cache[A3.start])) {
 							// the two ranges are in reverse order, so copy them in reverse order into the array
-							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start + A2.length()]);
-							std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start]);
+							std::copy(cache + A3.start, cache + A3.end, array + A1.start + A2.length());
+							std::copy(cache + B3.start, cache + B3.end, array + A1.start);
 						} else if (compare(cache[B3.start], cache[A3.end - 1])) {
 							// these two ranges weren't already in order, so merge them back into the array
-							MergeInto(cache, A3, B3, compare, &array[A1.start]);
+							MergeInto(cache, A3, B3, compare, array + A1.start);
 						} else {
 							// copy A3 and B3 into the array in the same order
-							std::copy(&cache[A3.start], &cache[A3.end], &array[A1.start]);
-							std::copy(&cache[B3.start], &cache[B3.end], &array[A1.start + A1.length()]);
+							std::copy(cache + A3.start, cache + A3.end, array + A1.start);
+							std::copy(cache + B3.start, cache + B3.end, array + A1.start + A1.length());
 						}
 					}
 
@@ -563,7 +578,7 @@ namespace Wiki {
 							Rotate(array, A.length(), Range(A.start, B.end));
 						} else if (compare(array[B.start], array[A.end - 1])) {
 							// these two ranges weren't already in order, so we'll need to merge them!
-							std::copy(&array[A.start], &array[A.end], &cache[0]);
+							std::copy(array + A.start, array + A.end, cache);
 							MergeExternal(array, A, B, compare, cache);
 						}
 					}
@@ -808,7 +823,7 @@ namespace Wiki {
 						// if the first unevenly sized A block fits into the cache, copy it there for when we go to Merge it
 						// otherwise, if the second buffer is available, block swap the contents into that
 						if (lastA.length() <= cache_size)
-							std::copy(&array[lastA.start], &array[lastA.end], &cache[0]);
+							std::copy(array + lastA.start, array + lastA.end, cache);
 						else if (buffer2.length() > 0)
 							BlockSwap(array, lastA.start, buffer2.start, lastA.length());
 
@@ -846,7 +861,7 @@ namespace Wiki {
 									if (buffer2.length() > 0 || block_size <= cache_size) {
 										// copy the previous A block into the cache or buffer2, since that's where we need it to be when we go to merge it anyway
 										if (block_size <= cache_size)
-											std::copy(&array[blockA.start], &array[blockA.start + block_size], cache);
+											std::copy(array + blockA.start, array + blockA.start + block_size, cache);
 										else
 											BlockSwap(array, blockA.start, buffer2.start, block_size);
 
@@ -992,8 +1007,8 @@ using namespace std;
 // if you want to test the correctness of any changes you make to the main WikiSort function,
 // move this function to the top of the file and call it from within WikiSort after each step
 #if VERIFY
-template <typename Comparison>
-void Verify(const Test array[], const Range range, const Comparison compare, const string msg) {
+template <typename Iterator typename Comparison>
+void Verify(Iterator array, const Range range, const Comparison compare, const string msg) {
 	for (size_t index = range.start + 1; index < range.end; index++) {
 		// if it's in ascending order then we're good
 		// if both values are equal, we need to make sure the index values are ascending
@@ -1098,7 +1113,7 @@ int main() {
 		Wiki::Sort(array1.begin(), array1.end(), compare);
 		stable_sort(array2.begin(), array2.end(), compare);
 
-		Verify(&array1[0], Range(0, total), compare, "test case failed");
+		Verify(array1, Range(0, total), compare, "test case failed");
 		for (size_t index = 0; index < total; index++)
 			assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 	}
@@ -1177,7 +1192,7 @@ int main() {
 			// make sure the arrays are sorted correctly, and that the results were stable
 			cout << "verifying... " << flush;
 
-			Verify(&array1[0], Range(0, total), compare, "testing the final array");
+			Verify(array1, Range(0, total), compare, "testing the final array");
 			for (size_t index = 0; index < total; index++)
 				assert(!compare(array1[index], array2[index]) && !compare(array2[index], array1[index]));
 
