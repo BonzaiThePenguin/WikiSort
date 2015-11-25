@@ -245,12 +245,12 @@ namespace Wiki {
 		if (B.length() > 0 && A.length() > 0) {
 			while (true) {
 				if (!compare(*B_index, *A_index)) {
-					std::swap(*insert_index, *A_index);
+					std::iter_swap(insert_index, A_index);
 					++A_index;
 					++insert_index;
 					if (A_index == A_last) break;
 				} else {
-					std::swap(*insert_index, *B_index);
+					std::iter_swap(insert_index, B_index);
 					++B_index;
 					++insert_index;
 					if (B_index == B_last) break;
@@ -411,14 +411,20 @@ namespace Wiki {
 		if (size < 4) {
 			if (size == 3) {
 				// hard-coded insertion sort
-				if (compare(array[1], array[0])) std::swap(array[0], array[1]);
+				if (compare(array[1], array[0])) {
+                    std::iter_swap(array + 0, array + 1);
+				}
 				if (compare(array[2], array[1])) {
-					std::swap(array[1], array[2]);
-					if (compare(array[1], array[0])) std::swap(array[0], array[1]);
+					std::iter_swap(array + 1, array + 2);
+					if (compare(array[1], array[0])) {
+                        std::iter_swap(array + 0, array + 1);
+					}
 				}
 			} else if (size == 2) {
 				// swap the items if they're out of order
-				if (compare(array[1], array[0])) std::swap(array[0], array[1]);
+				if (compare(array[1], array[0])) {
+                    std::iter_swap(array + 0, array + 1);
+				}
 			}
 
 			return;
@@ -435,7 +441,8 @@ namespace Wiki {
 			#define SWAP(x, y) \
 				if (compare(array[range.start + y], array[range.start + x]) || \
 					(order[x] > order[y] && !compare(array[range.start + x], array[range.start + y]))) { \
-					std::swap(array[range.start + x], array[range.start + y]); std::swap(order[x], order[y]); }
+					std::iter_swap(array + range.start + x, array + range.start + y); \
+					std::iter_swap(order + x, order + y); }
 
 			if (range.length() == 8) {
 				SWAP(0, 1); SWAP(2, 3); SWAP(4, 5); SWAP(6, 7);
@@ -807,7 +814,7 @@ namespace Wiki {
 
 						// swap the first value of each A block with the values in buffer1
 						for (size_t indexA = buffer1.start, index = firstA.end; index < blockA.end; indexA++, index += block_size)
-							std::swap(array[indexA], array[index]);
+							std::iter_swap(array + indexA, array + index);
 
 						// start rolling the A blocks through the B blocks!
 						// when we leave an A block behind we'll need to merge the previous A block with any B blocks that follow it, so track that information as well
@@ -841,7 +848,7 @@ namespace Wiki {
 									BlockSwap(array, blockA.start, minA, block_size);
 
 									// swap the first item of the previous A block back with its original value, which is stored in buffer1
-									std::swap(array[blockA.start], array[indexA]);
+									std::iter_swap(array + blockA.start, array + indexA);
 									indexA++;
 
 									// locally merge the previous A block with the B values that follow it
