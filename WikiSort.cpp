@@ -504,9 +504,8 @@ namespace Wiki {
                             if (!compare(*B2.start, *(A2.end - 1)) &&
                                 !compare(*A2.start, *(B1.end - 1))) continue;
 
-                            // copy A1 and B1 into the cache in the same order
-                            std::copy(A1.start, A1.end, cache);
-                            std::copy(B1.start, B1.end, cache + A1.length());
+                            // copy A1 and B1 into the cache in the same order at once
+                            std::copy(A1.start, B1.end, cache);
                         }
                         A1 = Range<RandomAccessIterator>(A1.start, B1.end);
 
@@ -519,9 +518,8 @@ namespace Wiki {
                             // these two ranges weren't already in order, so merge them into the cache
                             std::merge(A2.start, A2.end, B2.start, B2.end, cache + A1.length(), compare);
                         } else {
-                            // copy A2 and B2 into the cache in the same order
-                            std::copy(A2.start, A2.end, cache + A1.length());
-                            std::copy(B2.start, B2.end, cache + A1.length() + A2.length());
+                            // copy A2 and B2 into the cache in the same order at once
+                            std::copy(A2.start, B2.end, cache + A1.length());
                         }
                         A2 = Range<RandomAccessIterator>(A2.start, B2.end);
 
@@ -537,9 +535,8 @@ namespace Wiki {
                             // these two ranges weren't already in order, so merge them back into the array
                             std::merge(A3.start, A3.end, B3.start, B3.end, A1.start, compare);
                         } else {
-                            // copy A3 and B3 into the array in the same order
-                            std::copy(A3.start, A3.end, A1.start);
-                            std::copy(B3.start, B3.end, A1.start + A1.length());
+                            // copy A3 and B3 into the array in the same order at once
+                            std::copy(A3.start, B3.end, A1.start);
                         }
                     }
 
