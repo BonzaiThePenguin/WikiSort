@@ -93,8 +93,7 @@ Can we do better? **Of course!**
 
 **Merge sort without recursion**
 
-To remove the recursion, we can use what's called a [bottom-up merge sort]
-(http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort). Here's
+To remove the recursion, we can use what's called a [bottom-up merge sort](http://www.algorithmist.com/index.php/Merge_sort#Bottom-up_merge_sort). Here's
 what it looks like for an array of a size that happens to be a power of two:
 
     MergeSort(array, count)
@@ -246,5 +245,4 @@ So now we can efficiently merge A and B without losing any buffer values, but
 we still need that additional buffer to exist. There isn't much we can do about
 that... but what if this extra buffer *was part of the original array*?
 
-That's the idea behind [in-place merging]
-(https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203.%20In-Place.md)!
+That's the idea behind [in-place merging](https://github.com/BonzaiThePenguin/WikiSort/blob/master/Chapter%203.%20In-Place.md)!
