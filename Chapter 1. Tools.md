@@ -50,7 +50,7 @@ spaces, with items wrapping around to the other side as needed. So, for example,
 Rotations can be implemented as three reverse operations, like so:
 
     Rotate(array, range, amount)
-        Reverse(array, MakeRange(range.start, amount))
+        Reverse(array, MakeRange(range.start, range.start + amount))
         Reverse(array, MakeRange(range.start + amount, range.end))
         Reverse(array, range)
 
